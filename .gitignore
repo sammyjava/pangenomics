@@ -1,14 +1,20 @@
+*~
+CIDR_HD_Modifiers
+NeuropsychiatricNeurodevelopmental_Disorders
+eMERGE_EMRPhenome
+SchizophreniaSwedish_Sklar
+AREDS
+GenomicPsychiatryCohort
+runs
 .gradle
-/build/
-
-# Ignore Gradle GUI config
-gradle-app.setting
-
-# Avoid ignoring Gradle wrapper jar file (.jar files are usually ignored)
-!gradle-wrapper.jar
-
-# Cache of project
-.gradletasknamecache
-
-# # Work around https://youtrack.jetbrains.com/issue/IDEA-116898
-# gradle/wrapper/gradle-wrapper.properties
+build
+buildOutputCleanup
+*.lock
+*.log
+*.bin
+*.png
+*.pdf
+*.txt
+*.fasta
+*.arff
+scan-*
