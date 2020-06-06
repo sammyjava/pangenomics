@@ -73,7 +73,7 @@ class FrequentedRegion implements Comparable {
     double orValue = Double.NEGATIVE_INFINITY;
 
     /**
-     * Construct given a PangenomicGraph, NodeSet and alpha and kappa filter parameters.
+     * Construct given a PangenomicGraph, NodeSet and alpha and kappa parameters.
      */
     FrequentedRegion(PangenomicGraph graph, NodeSet nodes, double alpha, int kappa, int priorityOptionKey, String priorityOptionLabel) {
         this.graph = graph;
@@ -427,7 +427,7 @@ class FrequentedRegion implements Comparable {
     public int countSubpathsOf(Path path) {
         int count = 0;
 	if (subpaths==null || subpaths.size()==0) {
-	    System.err.println("ERROR: countSubpathsOf("+path.name+") called but subpaths is empty.");
+	    System.err.println("ERROR: FR "+nodes.toString()+" subpaths="+subpaths);
 	    System.exit(1);
 	} else {
             for (Path sp : subpaths) {
@@ -678,20 +678,22 @@ class FrequentedRegion implements Comparable {
             Node nr = null;
             int num = 0;
             for (int j=i; j<m.size(); j++) {
-                // kappa test
-                Path subpath = p.subpath(nl, m.get(j));
-                int maxInsertion = 0; // max insertion
-                int insertion = 0; // continguous insertion
-                for (Node n : subpath.getNodes()) {
-                    if (nodes.contains(n)) {
-                        // reset and save previous insertion if large
-                        if (insertion>maxInsertion) maxInsertion = insertion;
-                        insertion = 0;
-                    } else {
-                        insertion += 1;
-                    }
-                }
-                if (maxInsertion>kappa) break;
+		if (kappa<Integer.MAX_VALUE) {
+		    // kappa test
+		    Path subpath = p.subpath(nl, m.get(j));
+		    int maxInsertion = 0; // max insertion
+		    int insertion = 0; // continguous insertion
+		    for (Node n : subpath.getNodes()) {
+			if (nodes.contains(n)) {
+			    // reset and save previous insertion if large
+			    if (insertion>maxInsertion) maxInsertion = insertion;
+			    insertion = 0;
+			} else {
+			    insertion += 1;
+			}
+		    }
+		    if (maxInsertion>kappa) break;
+		}
                 // we're good, set nr from this cycle
                 nr = m.get(j);
                 num = j - i + 1; // number of this path's nodes in nodes collection

@@ -235,6 +235,8 @@ public class Path extends GraphWalk<Node,Edge> implements Comparable {
     }
 
     /**
+     * NOTE: this should be moved to FrequentedRegion.computeSupport(Path p).
+     *
      * Algorithm 1 from Cleary, et al. generates the supporting path segments of this path for the given NodeSet and alpha and kappa parameters.
      *
      * @param nodes the NodeSet, or cluster C as it's called in Algorithm 1
@@ -256,20 +258,22 @@ public class Path extends GraphWalk<Node,Edge> implements Comparable {
             Node nr = null;
             int num = 0;
             for (int j=i; j<m.size(); j++) {
-                // kappa test
-                Path subpath = subpath(nl, m.get(j));
-                int maxInsertion = 0; // max insertion
-                int insertion = 0; // continguous insertion
-                for (Node n : subpath.getNodes()) {
-                    if (nodes.contains(n)) {
-                        // reset and save previous insertion if large
-                        if (insertion>maxInsertion) maxInsertion = insertion;
-                        insertion = 0;
-                    } else {
-                        insertion += 1;
-                    }
-                }
-                if (maxInsertion>kappa) break;
+		if (kappa<Integer.MAX_VALUE) {
+		    // kappa test
+		    Path subpath = subpath(nl, m.get(j));
+		    int maxInsertion = 0; // max insertion
+		    int insertion = 0; // continguous insertion
+		    for (Node n : subpath.getNodes()) {
+			if (nodes.contains(n)) {
+			    // reset and save previous insertion if large
+			    if (insertion>maxInsertion) maxInsertion = insertion;
+			    insertion = 0;
+			} else {
+			    insertion += 1;
+			}
+		    }
+		    if (maxInsertion>kappa) break;
+		}
                 // we're good, set nr from this cycle
                 nr = m.get(j);
                 num = j - i + 1; // number of this path's nodes in nodes collection

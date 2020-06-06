@@ -486,6 +486,7 @@ public class FRUtils {
 		}
 	    }
 	}
+	System.err.println("Loaded "+nCases+" case paths and "+nControls+" control paths.");
 	///////////////////////////////////////////////////////
 	// build the SVM strings in parallel
 	concurrentPaths.parallelStream().forEach(path -> {

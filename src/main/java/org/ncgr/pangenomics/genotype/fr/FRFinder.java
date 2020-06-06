@@ -92,9 +92,11 @@ public class FRFinder {
     int maxRound = 0;
     int minPriority = 0;
     int minSupport = 1;
+    int maxClocktime = 0;
     String graphName = null;
     String requiredNodeString = "[]";
     String excludedNodeString = "[]";
+    String includedNodeString = "[]";
     String excludedPathNodeString = "[]";
     String includedPathNodeString = "[]";
     
@@ -120,9 +122,11 @@ public class FRFinder {
         parameters.setProperty("minSize", String.valueOf(minSize));
         parameters.setProperty("minLength", String.valueOf(minLength));
         parameters.setProperty("maxRound", String.valueOf(maxRound));
+	parameters.setProperty("maxClocktime", String.valueOf(maxClocktime));
         parameters.setProperty("minPriority", String.valueOf(minPriority));
         parameters.setProperty("requiredNodeString", requiredNodeString);
         parameters.setProperty("excludedNodeString", excludedNodeString);
+        parameters.setProperty("includedNodeString", includedNodeString);
 	parameters.setProperty("excludedPathNodeString", excludedPathNodeString);
 	parameters.setProperty("includedPathNodeString", includedPathNodeString);
         parameters.setProperty("priorityOption", priorityOption);
@@ -153,11 +157,13 @@ public class FRFinder {
                    "minLength="+minLength+" " +
                    "minMAF="+minMAF+" " +
                    "maxRound="+maxRound+" " +
+		   "maxClocktime="+maxClocktime+" " +
 		   "keepOption="+keepOption+" " +
 		   "requireGenotypeCall="+requireGenotypeCall+" " +
 		   "requireBestNodeSet="+requireBestNodeSet+" " +
 		   "requireSamePosition="+requireSamePosition+" " +
                    "requiredNodes="+requiredNodeString+" " +
+		   "includedNodes="+includedNodeString+" " +
                    "excludedNodes="+excludedNodeString+" " +
 		   "excludedPathNodes="+excludedPathNodeString+" " +
 		   "includedPathNodes="+includedPathNodeString);
@@ -176,6 +182,7 @@ public class FRFinder {
 
         // optional required and excluded nodes; must be final since used in the parallel stream loop
         NodeSet requiredNodes = graph.getNodeSet(requiredNodeString);
+	NodeSet includedNodes = graph.getNodeSet(includedNodeString);
         NodeSet excludedNodes = graph.getNodeSet(excludedNodeString);
 
 	// validate if requireSamePosition
@@ -230,6 +237,10 @@ public class FRFinder {
 		    if (excludedNodes.contains(node)) {
 			if (debug) {
 			    System.err.println("EXC:"+node.toString());
+			}
+		    } else if (includedNodes.size()>0 && !includedNodes.contains(node)) {
+			if (debug) {
+			    System.err.println("!IN:"+node.toString());
 			}
 		    } else if (requireGenotypeCall && !node.isCalled) {
 			if (debug) {
@@ -289,9 +300,10 @@ public class FRFinder {
 
         // build the FRs round by round
 	long startTime = System.currentTimeMillis();
+	boolean clocktimeExceeded = false;
         boolean added = true;
-        while (added && (round<maxRound || maxRound==0)) {
-            round++;
+        while (added && (maxRound==0 || round<maxRound) && !clocktimeExceeded) {
+	    round++;
             added = false;
 	    long roundStartTime = System.currentTimeMillis();
 	    final NodeSet finalRequiredNodes = requiredNodes;
@@ -312,6 +324,13 @@ public class FRFinder {
 		}
 		if (debug) {
 		    System.err.println("fr1:"+fr1.toString()+"|"+(System.currentTimeMillis()-roundStartTime)/1000);
+		}
+		// abort if max clock time exceeded
+		long clocktime = System.currentTimeMillis() - startTime;
+		if (maxClocktime!=0 && clocktime>maxClocktime*60000) {
+		    clocktimeExceeded = true;
+		    System.err.println("Maximum clock time of "+maxClocktime+" minutes exceeded.");
+		    break;
 		}
 		////////////////////////////////////////////////////////////////////////////////////////////////
 		// start fr2 parallel stream
@@ -337,7 +356,7 @@ public class FRFinder {
 			if (!rejected && finalRequiredNodes.size()>0) {
 			    for (Node n : finalRequiredNodes) {
 				if (!frpair.nodes.contains(n)) {
-				    rejected = true; // lacking a required node
+				    rejected = true; // lacks a required node
 				    break;
 				}
 			    }
@@ -346,11 +365,22 @@ public class FRFinder {
 			if (!rejected && excludedNodes.size()>0) {
 			    for (Node n : excludedNodes) {
 				if (frpair.nodes.contains(n)) {
-				    rejected = true; // containing an excluded node
+				    rejected = true; // contains an excluded node
 				    break;
 				}
 			    }
 			}
+			// reject if not any of the included nodes is present
+			if (!rejected && includedNodes.size()>0) {
+			    rejected = true;
+			    for (Node n : includedNodes) {
+				if (frpair.nodes.contains(n)) {
+				    rejected = false; // contains an included node
+				    break;
+				}
+			    }
+			}
+			// NOW WE MERGE
 			if (rejected) {
 			    // add this rejected NodeSet to the rejected list
 			    rejectedNodeSets.add(nodesKey);
@@ -467,8 +497,14 @@ public class FRFinder {
 	if (frequentedRegions.size()>0) {
             FRUtils.printParameters(parameters, formOutputPrefix(alpha, kappa), alpha, kappa, elapsedTime);
             printFrequentedRegions(formOutputPrefix(alpha, kappa));
-            if (writePathFRs) printPathFRs(formOutputPrefix(alpha, kappa));
-            if (writeFRSubpaths) printFRSubpaths(formOutputPrefix(alpha, kappa));
+            if (writePathFRs) {
+		System.err.println("Writing path FRs file...");
+		printPathFRs(formOutputPrefix(alpha, kappa));
+	    }
+            if (writeFRSubpaths) {
+		System.err.println("Writing FR subpaths file...");
+		printFRSubpaths(formOutputPrefix(alpha, kappa));
+	    }
 	}
     }
 
@@ -503,11 +539,17 @@ public class FRFinder {
     public int getMaxRound() {
         return Integer.parseInt(parameters.getProperty("maxRound"));
     }
+    public int getMaxClocktime() {
+	return Integer.parseInt(parameters.getProperty("maxClocktime"));
+    }
     public int getMinPriority() {
         return Integer.parseInt(parameters.getProperty("minPriority"));
     }
     public String getRequiredNodes() {
         return parameters.getProperty("requiredNodeString");
+    }
+    public String getIncludedNodes() {
+	return parameters.getProperty("includedNodeString");
     }
     public String getExcludedNodes() {
         return parameters.getProperty("excludedNodeString");
@@ -571,6 +613,10 @@ public class FRFinder {
 	this.maxRound = maxRound;
         parameters.setProperty("maxRound", String.valueOf(maxRound));
     }
+    public void setMaxClocktime(int maxClocktime) {
+	this.maxClocktime = maxClocktime;
+	parameters.setProperty("maxClocktime", String.valueOf(maxClocktime));
+    }
     public void setMinPriority(int minPriority) {
 	this.minPriority = minPriority;
         parameters.setProperty("minPriority", String.valueOf(minPriority));
@@ -578,6 +624,10 @@ public class FRFinder {
     public void setRequiredNodes(String requiredNodeString) {
 	this.requiredNodeString = requiredNodeString;
         parameters.setProperty("requiredNodeString", requiredNodeString);
+    }
+    public void setIncludedNodes(String includedNodeString) {
+	this.includedNodeString = includedNodeString;
+	parameters.setProperty("includedNodeString", includedNodeString);
     }
     public void setExcludedNodes(String excludedNodeString) {
 	this.excludedNodeString = excludedNodeString;
@@ -714,6 +764,10 @@ public class FRFinder {
         requiredNodesOption.setRequired(false);
         options.addOption(requiredNodesOption);
         //
+        Option includedNodesOption = new Option("in", "includednodes", true, "require that found FRs contain at least one of the given nodes []");
+        includedNodesOption.setRequired(false);
+        options.addOption(includedNodesOption);
+        //
         Option excludedNodesOption = new Option("en", "excludednodes", true, "require that found FRs NOT contain the given nodes []");
         excludedNodesOption.setRequired(false);
         options.addOption(excludedNodesOption);
@@ -745,7 +799,11 @@ public class FRFinder {
 	Option requireSamePositionOption = new Option("rsp", "requiresameposition", false, "require that FRs consist of nodes at same genomic position [false]");
 	requireSamePositionOption.setRequired(false);
 	options.addOption(requireSamePositionOption);
-
+	//
+	Option maxClocktimeOption = new Option("maxct", "maxclocktime", true, "limit the computation to the given clock time in minutes [0=unlimited]");
+	maxClocktimeOption.setRequired(false);
+	options.addOption(maxClocktimeOption);
+	
         try {
             cmd = parser.parse(options, args);
         } catch (ParseException e) {
@@ -842,8 +900,10 @@ public class FRFinder {
 	if (cmd.hasOption("minsize")) frf.setMinSize(Integer.parseInt(cmd.getOptionValue("minsize")));
 	if (cmd.hasOption("minlen")) frf.setMinLen(Double.parseDouble(cmd.getOptionValue("minlen")));
 	if (cmd.hasOption("maxround")) frf.setMaxRound(Integer.parseInt(cmd.getOptionValue("maxround")));
+	if (cmd.hasOption("maxclocktime")) frf.setMaxClocktime(Integer.parseInt(cmd.getOptionValue("maxclocktime")));
 	if (cmd.hasOption("minpriority")) frf.setMinPriority(Integer.parseInt(cmd.getOptionValue("minpriority")));
 	if (cmd.hasOption("requirednodes")) frf.setRequiredNodes(cmd.getOptionValue("requirednodes"));
+	if (cmd.hasOption("includednodes")) frf.setIncludedNodes(cmd.getOptionValue("includednodes"));
 	if (cmd.hasOption("excludednodes")) frf.setExcludedNodes(cmd.getOptionValue("excludednodes"));
 	if (cmd.hasOption("excludedpathnodes")) frf.setExcludedPathNodes(cmd.getOptionValue("excludedpathnodes"));
 	if (cmd.hasOption("includedpathnodes")) frf.setIncludedPathNodes(cmd.getOptionValue("includedpathnodes"));

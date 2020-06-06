@@ -1,0 +1,14 @@
+#!/bin/sh
+
+## entire HBB gene, reverse strand
+REGION=HBB
+CHR=11
+START=5246696
+END=5248301
+VCFFILE="/erdos/shokin/1kG/ALL.chr11.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz"
+
+OUTFILE=$REGION
+
+vcftools --gzvcf $VCFFILE --recode --recode-INFO-all --chr $CHR --from-bp $START --to-bp $END --out $OUTFILE
+mv $OUTFILE.recode.vcf $OUTFILE.vcf
+vcf2tbi $OUTFILE.vcf
