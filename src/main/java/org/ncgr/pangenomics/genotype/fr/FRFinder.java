@@ -238,10 +238,6 @@ public class FRFinder {
 			if (debug) {
 			    System.err.println("EXC:"+node.toString());
 			}
-		    } else if (includedNodes.size()>0 && !includedNodes.contains(node)) {
-			if (debug) {
-			    System.err.println("!IN:"+node.toString());
-			}
 		    } else if (requireGenotypeCall && !node.isCalled) {
 			if (debug) {
 			    System.err.println("NGC:"+node.toString());
