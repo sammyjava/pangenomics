@@ -76,64 +76,77 @@ public class FRUtils {
         for (Node n : graph.getNodes()) {
             nodeMap.put(n.id, n);
         }
-        // build the FRs, only reading subpaths for those in the FR text file (which may have been trimmed)
+        // read FRs
 	Map<NodeSet,FrequentedRegion> inputFRMap = new HashMap<>();
 	for (FrequentedRegion fr : readFrequentedRegions(inputPrefix)) {
+	    fr.graph = graph;
 	    inputFRMap.put(fr.nodes, fr);
 	}
 	TreeSet<FrequentedRegion> sortedFRs = new TreeSet<>();
         String subpathsFilename = getFRSubpathsFilename(inputPrefix);
-        BufferedReader reader = new BufferedReader(new FileReader(subpathsFilename));
-        String line = null;
-        while ((line=reader.readLine())!=null) {
-            // 0                1       2       3           4           5     6       7
-            // nodes            size    support caseSupport ctrlSupport OR    p       priority
-            // [1341]           1       21      19          2           9.500 9.48E-3 202
-            // 429266.case:1341]
-            // 158005.case:1341]
-            // ...
-            String[] fields = line.split("\t");
-            NodeSet nodes = graph.getNodeSet(fields[0]);
-	    int size = Integer.parseInt(fields[1]);
-	    int support = Integer.parseInt(fields[2]);
-	    int caseSupport = Integer.parseInt(fields[3]);
-	    int ctrlSupport = Integer.parseInt(fields[4]);
-	    double or = Double.POSITIVE_INFINITY;
-	    try {
-		or = Double.parseDouble(fields[5]);
-	    } catch (NumberFormatException e) {
-		// do nothing, it's an infinity symbol
-	    }
-	    double p = Double.parseDouble(fields[6]);
-	    int priority = Integer.parseInt(fields[7]);
-	    List<Path> subpaths = new LinkedList<>();
-	    for (int i=0; i<support; i++) {
-		// have to read lines to run through the file even if skipping this FR
-		line = reader.readLine();
-		if (inputFRMap.containsKey(nodes)) {
-		    String[] parts = line.split(":");
-		    String pathFull = parts[0];
-		    String nodeString = parts[1];
-		    // split out the name, label, nodes
-		    String[] nameParts = pathFull.split("\\.");
-		    String name = nameParts[0];
-		    String label = null;
-		    if (nameParts.length>1) label = nameParts[1];
-		    List<Node> subNodes = new LinkedList<>();
-		    String[] nodesAsStrings = nodeString.replace("[","").replace("]","").split(",");
-		    for (String nodeAsString : nodesAsStrings) {
-			long nodeId = Long.parseLong(nodeAsString);
-			subNodes.add(nodeMap.get(nodeId));
+	File subpathsFile = new File(subpathsFilename);
+	if (subpathsFile.exists()) {
+	    // read the subpaths, only using subpaths matching those in the FR text file (which may have been trimmed)
+	    BufferedReader reader = new BufferedReader(new FileReader(subpathsFilename));
+	    String line = null;
+	    while ((line=reader.readLine())!=null) {
+		// 0                1       2       3           4           5     6       7
+		// nodes            size    support caseSupport ctrlSupport OR    p       priority
+		// [1341]           1       21      19          2           9.500 9.48E-3 202
+		// 429266.case:1341]
+		// 158005.case:1341]
+		// ...
+		String[] fields = line.split("\t");
+		NodeSet nodes = graph.getNodeSet(fields[0]);
+		int size = Integer.parseInt(fields[1]);
+		int support = Integer.parseInt(fields[2]);
+		int caseSupport = Integer.parseInt(fields[3]);
+		int ctrlSupport = Integer.parseInt(fields[4]);
+		double or = Double.POSITIVE_INFINITY;
+		try {
+		    or = Double.parseDouble(fields[5]);
+		} catch (NumberFormatException e) {
+		    // do nothing, it's an infinity symbol
+		}
+		double p = Double.parseDouble(fields[6]);
+		int priority = Integer.parseInt(fields[7]);
+		List<Path> subpaths = new LinkedList<>();
+		for (int i=0; i<support; i++) {
+		    // have to read lines to run through the file even if skipping this FR
+		    line = reader.readLine();
+		    if (inputFRMap.containsKey(nodes)) {
+			String[] parts = line.split(":");
+			String pathFull = parts[0];
+			String nodeString = parts[1];
+			// split out the name, label, nodes
+			String[] nameParts = pathFull.split("\\.");
+			String name = nameParts[0];
+			String label = null;
+			if (nameParts.length>1) label = nameParts[1];
+			List<Node> subNodes = new LinkedList<>();
+			String[] nodesAsStrings = nodeString.replace("[","").replace("]","").split(",");
+			for (String nodeAsString : nodesAsStrings) {
+			    long nodeId = Long.parseLong(nodeAsString);
+			    subNodes.add(nodeMap.get(nodeId));
+			}
+			// add to the subpaths
+			subpaths.add(new Path(graph, subNodes, name, label));
 		    }
-		    // add to the subpaths
-		    subpaths.add(new Path(graph, subNodes, name, label));
+		}
+		if (inputFRMap.containsKey(nodes)) {
+		    FrequentedRegion fr = new FrequentedRegion(graph, nodes, subpaths, alpha, kappa, priorityOptionKey, priorityOptionLabel, support);
+		    sortedFRs.add(fr);
 		}
 	    }
-	    if (inputFRMap.containsKey(nodes)) {
-		FrequentedRegion fr = new FrequentedRegion(graph, nodes, subpaths, alpha, kappa, priorityOptionKey, priorityOptionLabel, support);
+	} else {
+	    // we don't have a subpaths file, so we have to build the subpaths for each FR
+	    System.err.println("Building FR subpaths...");
+	    for (NodeSet nodes : inputFRMap.keySet()) {
+		FrequentedRegion fr = inputFRMap.get(nodes);
+		fr.updateSupport();
 		sortedFRs.add(fr);
 	    }
-        }
+	}
         return sortedFRs;
     }
 
@@ -419,9 +432,9 @@ public class FRUtils {
      * which is similar, but not identical to, the SVMlight format.
      *
      * If numCasePaths>0 or numCtrlPaths>0, randomly select numCasePaths cases and/or numCtrlPaths controls.
-     * This also allows winnowing on support and/or pValue.
+     * This also allows winnowing on size, support, and p-value.
      */
-    public static void printPathFRsSVM(String inputPrefix, int numCasePaths, int numCtrlPaths, int minSupport, double maxPValue) throws IOException {
+    public static void printPathFRsSVM(String inputPrefix, int numCasePaths, int numCtrlPaths, int minSize, int minSupport, double maxPValue) throws IOException {
 	// load the graph
 	PangenomicGraph graph = new PangenomicGraph();
 	graph.nodesFile = new File(getNodesFilename(inputPrefix));
@@ -437,9 +450,16 @@ public class FRUtils {
 	    System.err.println("FRUtils.printPathFRsSVM ERROR: numCtrlPaths > "+graph.labelCounts.get("ctrl")+" controls.");
 	    System.exit(1);
 	}
-	// load the frequented regions with stored support from text file
+	// load the frequented regions from a text file
 	TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(inputPrefix, graph);
-	System.err.println("FRUtils.printPathFRsSVM: "+frequentedRegions.size()+" FRs loaded.");
+	// winnow the FRs on size
+	if (minSize>0) {
+	    List<FrequentedRegion> frsToRemove = new LinkedList<>();
+	    for (FrequentedRegion fr : frequentedRegions) {
+		if (fr.nodes.size()<minSize) frsToRemove.add(fr);
+	    }
+	    frequentedRegions.removeAll(frsToRemove);
+	}
 	// winnow the FRs on support
 	if (minSupport>1) {
 	    List<FrequentedRegion> frsToRemove = new LinkedList<>();
@@ -456,6 +476,7 @@ public class FRUtils {
 	    }
 	    frequentedRegions.removeAll(frsToRemove);
 	}
+	System.err.println("FRUtils.printPathFRsSVM: "+frequentedRegions.size()+" FRs loaded.");
 	// collect the paths, cases and controls
 	ConcurrentHashMap<String,String> pathSVM = new ConcurrentHashMap<>();
 	ConcurrentSkipListSet<Path> concurrentPaths = new ConcurrentSkipListSet<>();
@@ -550,9 +571,9 @@ public class FRUtils {
      * 5.0,3.6,1.4,0.2,Iris-viginica
      *
      *
-     * This also allows winnowing on support and/or pValue.
+     * This also allows winnowing on size, support, and p-value.
      */
-    public static void printPathFRsARFF(String inputPrefix, int numCasePaths, int numCtrlPaths, int minSupport, double maxPValue) throws IOException {
+    public static void printPathFRsARFF(String inputPrefix, int numCasePaths, int numCtrlPaths, int minSize, int minSupport, double maxPValue) throws IOException {
         // load the graph
 	PangenomicGraph graph = new PangenomicGraph();
         graph.nodesFile = new File(getNodesFilename(inputPrefix));
@@ -570,7 +591,14 @@ public class FRUtils {
 	}
 	// load the frequented regions and update support in parallel
 	TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(inputPrefix, graph);
-	System.err.println("FRUtils.printPathFRsARFF: "+frequentedRegions.size()+" FRs loaded.");
+	// winnow the FRs on size
+	if (minSize>0) {
+	    List<FrequentedRegion> frsToRemove = new LinkedList<>();
+	    for (FrequentedRegion fr : frequentedRegions) {
+		if (fr.nodes.size()<minSize) frsToRemove.add(fr);
+	    }
+	    frequentedRegions.removeAll(frsToRemove);
+	}
 	// winnow the FRs on support
 	if (minSupport>1) {
 	    List<FrequentedRegion> frsToRemove = new LinkedList<>();
@@ -587,6 +615,7 @@ public class FRUtils {
 	    }
 	    frequentedRegions.removeAll(frsToRemove);
 	}
+	System.err.println("FRUtils.printPathFRsARFF: "+frequentedRegions.size()+" FRs loaded.");
 	// collect the paths, cases and controls
 	ConcurrentHashMap<String,String> pathARFF = new ConcurrentHashMap<>();
 	ConcurrentSkipListSet<Path> concurrentPaths = new ConcurrentSkipListSet<>();
@@ -745,25 +774,29 @@ public class FRUtils {
 	if (cmd.hasOption("svm")) {
 	    int numCasePaths = 0;
 	    int numCtrlPaths = 0;
+	    int minSize = 0;
 	    int minSupport = 0;
 	    double maxPValue = 1.0;
 	    if (cmd.hasOption("ncase")) numCasePaths = Integer.parseInt(cmd.getOptionValue("ncase"));
 	    if (cmd.hasOption("nctrl")) numCtrlPaths = Integer.parseInt(cmd.getOptionValue("nctrl"));
+	    if (cmd.hasOption("minsize")) minSize = Integer.parseInt(cmd.getOptionValue("minsize"));
 	    if (cmd.hasOption("minsupport")) minSupport = Integer.parseInt(cmd.getOptionValue("minsupport"));
 	    if (cmd.hasOption("maxpvalue")) maxPValue = Double.parseDouble(cmd.getOptionValue("maxpvalue"));
-	    printPathFRsSVM(inputPrefix, numCasePaths, numCtrlPaths, minSupport, maxPValue);
+	    printPathFRsSVM(inputPrefix, numCasePaths, numCtrlPaths, minSize, minSupport, maxPValue);
 	}
 
 	if (cmd.hasOption("arff")) {
 	    int numCasePaths = 0;
 	    int numCtrlPaths = 0;
+	    int minSize = 0;
 	    int minSupport = 0;
 	    double maxPValue = 1.0;
 	    if (cmd.hasOption("ncase")) numCasePaths = Integer.parseInt(cmd.getOptionValue("ncase"));
 	    if (cmd.hasOption("nctrl")) numCtrlPaths = Integer.parseInt(cmd.getOptionValue("nctrl"));
+	    if (cmd.hasOption("minsize")) minSize = Integer.parseInt(cmd.getOptionValue("minsize"));
 	    if (cmd.hasOption("minsupport")) minSupport = Integer.parseInt(cmd.getOptionValue("minsupport"));
 	    if (cmd.hasOption("maxpvalue")) maxPValue = Double.parseDouble(cmd.getOptionValue("maxpvalue"));
-	    printPathFRsARFF(inputPrefix, numCasePaths, numCtrlPaths, minSupport, maxPValue);
+	    printPathFRsARFF(inputPrefix, numCasePaths, numCtrlPaths, minSize, minSupport, maxPValue);
 	}
     }
 

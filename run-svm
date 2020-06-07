@@ -2,15 +2,17 @@
 
 INPUTPREFIX=$1
 
-## svm file HLAA has 4966/6243
-
-
-NUMCASEPATHS=0
-NUMCTRLPATHS=0
 SVMFILE="$INPUTPREFIX.svm.txt"
 RANGE="$INPUTPREFIX.svm.range.txt"
 FULLSCALE="$INPUTPREFIX.svm.scale.txt"
 
+## svm file HLAA has 4966/6243
+NUMCASEPATHS=0
+NUMCTRLPATHS=0
+
+MINSIZE=6
+MINSUPPORT=10
+MAXPVALUE=1.0e-2
 
 ## grid scan
 GRIDOUT="$INPUTPREFIX.svm.grid.txt"
@@ -19,7 +21,7 @@ LOG10C="0,0,1"
 LOG10GAMMA="-3,-1,0.5"
 
 ## pre-clean during testing; forces operation to be run
-# rm -f $SVMFILE
+rm -f $SVMFILE
 rm -f $RANGE
 rm -f $FULLSCALE
 rm -f $GRIDOUT
@@ -47,7 +49,7 @@ rm -f $GRIDOUT
 if [ ! -s $SVMFILE ]
 then
     echo "Writing $SVMFILE with $NUMCASEPATHS cases and $NUMCTRLPATHS controls"
-    java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -svm -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -m 0 -mp 1.0
+    java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -svm -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -s $MINSIZE -m $MINSUPPORT -mp $MAXPVALUE
 fi
 
 # usage: SvmScaler [options]

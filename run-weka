@@ -1,19 +1,23 @@
 #!/bin/bash
 
 INPUTPREFIX=$1
-
-## ARFF file - HLAA has 4966/6243
-NUMCASEPATHS=0
-NUMCTRLPATHS=0
 ARFFFILE=$INPUTPREFIX.arff
 
+## HLAA has 4966/6243
+NUMCASEPATHS=0
+NUMCTRLPATHS=0
+
+MINSIZE=6
+MINSUPPORT=10
+MAXPVALUE=1.0e-2
+
 ## delete former file
-# rm -f $ARFFFILE
+rm -f $ARFFFILE
 
 if [ ! -s $ARFFFILE ]
 then
     echo "Writing $ARFFFILE with $NUMCASEPATHS cases and $NUMCTRLPATHS controls"
-    java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS
+    java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -s $MINSIZE -m $MINSUPPORT -mp $MAXPVALUE
 fi
     
 if [ -s $ARFFFILE ]
