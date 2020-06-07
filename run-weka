@@ -8,7 +8,7 @@ NUMCTRLPATHS=0
 ARFFFILE=$INPUTPREFIX.arff
 
 ## delete former file
-rm -f $ARFFFILE
+# rm -f $ARFFFILE
 
 if [ ! -s $ARFFFILE ]
 then

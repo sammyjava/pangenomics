@@ -229,8 +229,8 @@ public class FRFinder {
         } else {
 	    ////////////////////////////////////////////////////////////////////////////////////////////////
 	    // load the single-node FRs into allFrequentedRegions
-	    // keep those with af>=minMAF, support>=minsupport and genotype call if requireGenotypeCall
-	    // locally parallelized for your expedience
+	    // keep those with af>=minMAF and genotype call if requireGenotypeCall and not in excludedNodes
+	    // locally parallelized for your convenience
 	    ConcurrentSkipListSet<Node> nodes = new ConcurrentSkipListSet<>(graph.getNodes());
 	    nodes.parallelStream().forEach(node -> {
 		    boolean added = false;
@@ -246,14 +246,10 @@ public class FRFinder {
 			NodeSet c = new NodeSet(node);
 			if (node.af>=minMAF) {
 			    FrequentedRegion fr = new FrequentedRegion(graph, c, alpha, kappa, priorityOptionKey, priorityOptionLabel);
-			    if (fr.support>=minSupport) {
-				allFrequentedRegions.put(fr.nodes.toString(), fr);
-				added = true;
-				if (debug) {
-				    System.err.println("ADD:"+fr);
-				}
-			    } else if (debug) {
-				System.err.println("SUP:"+fr);
+			    allFrequentedRegions.put(fr.nodes.toString(), fr);
+			    added = true;
+			    if (debug) {
+				System.err.println("ADD:"+fr);
 			    }
 			} else if (debug) {
 			    System.err.println("MAF:"+c+" "+percf.format(node.af));
@@ -261,8 +257,8 @@ public class FRFinder {
 		    }
 		});
 	    // end nodes parallelStream
-	    ////////////////////////////////////////////////////////////////////////////////////////////////
-            // store qualified interesting single-node FRs in round 0, since we won't hit them in the loop
+	    ////////////////////////////////////////////////////////////////////////////////////
+	    // store interesting single-node FRs in round 0, since we won't hit them in the loop
 	    for (FrequentedRegion fr : allFrequentedRegions.values()) {
 		if (isInteresting(fr)) {
 		    if (requiredNodes.size()==0) {
@@ -287,7 +283,7 @@ public class FRFinder {
 	    }
 	}
 
-        // dump out the pre-search FRs of interest, sorted by priority
+        // dump out the interesting single-node FRs sorted by priority
         TreeSet<FrequentedRegion> sortedFRs = new TreeSet<>(frequentedRegions.values());
         for (FrequentedRegion fr : sortedFRs) {
             printToLog("0:"+fr.toString());

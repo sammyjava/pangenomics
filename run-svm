@@ -19,29 +19,35 @@ LOG10C="0,0,1"
 LOG10GAMMA="-3,-1,0.5"
 
 ## pre-clean during testing; forces operation to be run
-rm -f $SVMFILE
+# rm -f $SVMFILE
 rm -f $RANGE
 rm -f $FULLSCALE
 rm -f $GRIDOUT
 
 # usage: FRUtils
-#  -arff,--arff             print out an ARFF style file from the data given
-#                           by inputprefix
-#  -i,--inputprefix <arg>   prefix of input files (e.g. HLAA-0.1-Inf)
-#  -m,--minsupport <arg>    minimum number of supporting paths for a region
-#                           to be considered interesting
-#  -np,--numpaths <arg>     number of case/control balanced paths to include
-#                           in SVM or ARFF output
-#  -p,--postprocess         postprocess by applying new minsup, minsize to
-#                           an FR set given by inputprefix
-#  -s,--minsize <arg>       minimum number of nodes that a FR must contain
-#                           to be considered interesting
-#  -svm,--svm               print out an SVM style file from the data given
-#                           by inputprefix
+#  -arff,--arff                     print out an ARFF style file from the
+#                                   data given by inputprefix
+#  -i,--inputprefix <arg>           prefix of input files (e.g.
+#                                   HLAA-0.1-Inf)
+#  -m,--minsupport <arg>            minimum number of supporting paths for
+#                                   an FR to be considered interesting
+#  -mp,--maxpvalue <arg>            maximum p-value for an FR to be
+#                                   considered interesting
+#  -ncase,--numcasepaths <arg>      number of case paths to include in SVM
+#                                   or ARFF output
+#  -nctrl,--numcontrolpaths <arg>   number of control paths to include in
+#                                   SVM or ARFF output
+#  -p,--postprocess                 postprocess by applying new minsup,
+#                                   minsize to an FR set given by
+#                                   inputprefix
+#  -s,--minsize <arg>               minimum number of nodes that a FR must
+#                                   contain to be considered interesting
+#  -svm,--svm                       print out an SVM style file from the
+#                                   data given by inputprefix
 if [ ! -s $SVMFILE ]
 then
     echo "Writing $SVMFILE with $NUMCASEPATHS cases and $NUMCTRLPATHS controls"
-    java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -svm -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS
+    java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -svm -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -m 0 -mp 1.0
 fi
 
 # usage: SvmScaler [options]
@@ -63,13 +69,13 @@ fi
 #  -log10C <arg>   set range/step of log10(C) [-5.0,15.0,1.0]
 #  -log10gamma <arg>   set range/step of log10(gamma) [-15.0,0.0,1.0]
 #  -v             toggle verbose output
-# if [ ! -s $GRIDOUT ]
-# then
-#     ## run GridSearcher on the full scaled data to find optimum SVM parameters
-#     ARGS="-log10C $LOG10C -log10gamma $LOG10GAMMA -k $K"
-#     echo "Running GridSearcher on $FULLSCALE with ARGS=$ARGS"
-#     java -server -Xms10g -Xmx600g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.svm.GridSearcher -v $ARGS $FULLSCALE > $GRIDOUT
-# fi
+if [ ! -s $GRIDOUT ]
+then
+    ## run GridSearcher on the full scaled data to find optimum SVM parameters
+    ARGS="-log10C $LOG10C -log10gamma $LOG10GAMMA -k $K"
+    echo "Running GridSearcher on $FULLSCALE with ARGS=$ARGS"
+    java -server -Xms10g -Xmx600g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.svm.GridSearcher -v $ARGS $FULLSCALE > $GRIDOUT
+fi
 
 # usage: SvmCrossValidator [options]
 #  -C,--cost <arg>                       cost parameter C in C-SVC,
@@ -107,21 +113,20 @@ fi
 #  -w,--weight <arg>                     multiply parameter C of class i by
 #                                        weight, for C-SVC [1]
 
-# if [ -s $GRIDOUT ]
-# then
-
-# ## gridsearcher best parameters
-# C=`tail -1 $GRIDOUT | awk '{ print $1; }'`
-# gamma=`tail -1 $GRIDOUT | awk '{ print $2; }'`
-# perc=`tail -1 $GRIDOUT | awk '{ print $3; }'`
-# ARGS="-C $C -gamma $gamma -k $K"
-
 ## use default gamma=1/numFeatures
 ARGS="-h 0 -m 1000 -C 1.0 -k $K"
+
+## gridsearcher best parameters
+if [ -s $GRIDOUT ]
+then
+    C=`tail -1 $GRIDOUT | awk '{ print $1; }'`
+    gamma=`tail -1 $GRIDOUT | awk '{ print $2; }'`
+    perc=`tail -1 $GRIDOUT | awk '{ print $3; }'`
+    ARGS="-C $C -gamma $gamma -k $K"
+fi
+
 echo "Running SvmCrossValidator on $FULLSCALE with $ARGS"
 for i in 1 
 do
     java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmCrossValidator $ARGS -i $FULLSCALE > "$INPUTPREFIX-$i.crossvalidation.txt"
 done
-
-## fi
