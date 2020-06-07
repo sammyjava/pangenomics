@@ -10,6 +10,7 @@ import org.jgrapht.ext.JGraphXAdapter;
 import org.jgrapht.graph.DefaultListenableGraph;
 
 import com.mxgraph.model.mxCell;
+import com.mxgraph.model.mxGeometry;
 import com.mxgraph.util.mxConstants;
 import com.mxgraph.view.mxStylesheet;
 
@@ -47,7 +48,9 @@ class PGraphXAdapter extends JGraphXAdapter<Node,Edge> {
         Map<String,Object> defaultEdgeStyle = defaultStylesheet.getDefaultEdgeStyle();
         defaultEdgeStyle.put("strokeColor", "gray");
         defaultEdgeStyle.put("fontColor", "gray");
+        defaultEdgeStyle.put(mxConstants.STYLE_AUTOSIZE, "1");
         defaultEdgeStyle.put(mxConstants.STYLE_NOLABEL, "1");
+        defaultEdgeStyle.put(mxConstants.STYLE_RESIZABLE, "1");
         defaultStylesheet.setDefaultEdgeStyle(defaultEdgeStyle);
         // set default vertex (Node) style
         Map<String,Object> defaultVertexStyle = defaultStylesheet.getDefaultVertexStyle();
@@ -56,9 +59,9 @@ class PGraphXAdapter extends JGraphXAdapter<Node,Edge> {
         defaultVertexStyle.put("shape", mxConstants.SHAPE_ELLIPSE);
         defaultVertexStyle.put("spacingTop", "2");
         defaultStylesheet.setDefaultVertexStyle(defaultVertexStyle);
+
         // apply the default stylesheet
         setStylesheet(defaultStylesheet);
-        setAutoSizeCells(true);
 
         // logical to do case/control ops
         hasCaseControlLabels = graph.getLabelCounts().containsKey("case") && graph.getLabelCounts().containsKey("ctrl");
@@ -71,14 +74,15 @@ class PGraphXAdapter extends JGraphXAdapter<Node,Edge> {
             mxCell c = (mxCell) o;
             if (c.isVertex()) {
                 Node n = (Node) c.getValue();
+                int pathCount = graph.getPathCount(n);
                 if (hasCaseControlLabels) {
                     if (c.getEdgeCount()>0) {
                         double or = graph.oddsRatio(n);
                         double p = graph.fisherExactP(n);
                         // color based on segregation
-                        if (graph.getPathCount(n)==graph.getPathCount()) {
-                            // all paths go through node
-                            setCellStyles("fillColor", "white", cells);
+                        if (pathCount==graph.getPathCount()) {
+                            // all paths go through node, uninteresting
+                            // setCellStyles("fillColor", "white", cells);
                             setCellStyles("fontColor", "black", cells);
                         } else if (Double.isInfinite(or)) {
                             // case-only node

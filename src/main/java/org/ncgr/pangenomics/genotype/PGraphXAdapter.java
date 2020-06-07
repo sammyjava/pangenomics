@@ -10,6 +10,7 @@ import org.jgrapht.ext.JGraphXAdapter;
 import org.jgrapht.graph.DefaultListenableGraph;
 
 import com.mxgraph.model.mxCell;
+import com.mxgraph.model.mxGeometry;
 import com.mxgraph.util.mxConstants;
 import com.mxgraph.view.mxStylesheet;
 
@@ -57,7 +58,9 @@ class PGraphXAdapter extends JGraphXAdapter<Node,Edge> {
         Map<String,Object> defaultEdgeStyle = defaultStylesheet.getDefaultEdgeStyle();
         defaultEdgeStyle.put("strokeColor", "gray");
         defaultEdgeStyle.put("fontColor", "gray");
+        defaultEdgeStyle.put(mxConstants.STYLE_AUTOSIZE, "1");
         defaultEdgeStyle.put(mxConstants.STYLE_NOLABEL, "1");
+        defaultEdgeStyle.put(mxConstants.STYLE_RESIZABLE, "1");
         defaultStylesheet.setDefaultEdgeStyle(defaultEdgeStyle);
         // set default vertex (Node) style
         Map<String,Object> defaultVertexStyle = defaultStylesheet.getDefaultVertexStyle();
@@ -66,9 +69,9 @@ class PGraphXAdapter extends JGraphXAdapter<Node,Edge> {
         defaultVertexStyle.put("shape", mxConstants.SHAPE_ELLIPSE);
         defaultVertexStyle.put("spacingTop", "2");
         defaultStylesheet.setDefaultVertexStyle(defaultVertexStyle);
+
         // apply the default stylesheet
         setStylesheet(defaultStylesheet);
-        setAutoSizeCells(true);
 
         // style for minor nodes
         String minorStyle = "shape=ellipse;fontColor=#A0A0A0;fillColor=white;strokeColor=gray;strokeWidth=1.0;gradientColor=none;spacingTop=2";
