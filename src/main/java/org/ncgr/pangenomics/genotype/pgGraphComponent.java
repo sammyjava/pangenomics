@@ -7,6 +7,9 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 
+import java.util.Arrays;
+import java.util.TreeSet;
+
 import javax.swing.AbstractAction;
 import javax.swing.JButton;
 import javax.swing.JLabel;
@@ -106,9 +109,15 @@ class pgGraphComponent extends mxGraphComponent implements ActionListener, ListS
         JLabel graphLabel = new JLabel(graph.name);
         graphLabel.setFont(graphLabel.getFont().deriveFont(Font.BOLD));
         topPanel.add(graphLabel);
-        // sample path selector
+        // sample/path selector -- sort samples alphabetically 
         int maxSampleLabelLength = 0;
-        sampleNames = graph.getPathNames();
+        TreeSet<String> orderedSampleNames = new TreeSet<>();
+        orderedSampleNames.addAll(Arrays.asList(graph.getPathNames()));
+        int j = 0;
+        sampleNames = new String[orderedSampleNames.size()];
+        for (String sampleName : orderedSampleNames) {
+            sampleNames[j++] = sampleName;
+        }
         String[] sampleLabels = new String[sampleNames.length];
         for (int i=0; i<sampleNames.length; i++) {
             Path p = graph.getPath(sampleNames[i]);
