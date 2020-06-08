@@ -17,6 +17,7 @@ import java.text.DecimalFormat;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.Properties;
@@ -178,8 +179,14 @@ public class frGraphComponent extends mxGraphComponent implements ActionListener
         topPanel.add(frScrollPane);
         if (DEBUG) System.err.println("FR selector built.");
 
-        // sample/path selector
-        sampleNames = graph.getPathNames();
+        // sample/path selector -- sort samples alphabetically
+        TreeSet<String> orderedSampleNames = new TreeSet<>();
+        orderedSampleNames.addAll(Arrays.asList(graph.getPathNames()));
+        int i = 0;
+        sampleNames = new String[orderedSampleNames.size()];
+        for (String sampleName : orderedSampleNames) {
+            sampleNames[i++] = sampleName;
+        }
         sampleList = new JList<String>();
         sampleList.setLayoutOrientation(JList.VERTICAL);
         sampleList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);

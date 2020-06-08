@@ -104,7 +104,7 @@ class PGraphXAdapter extends JGraphXAdapter<Node,Edge> {
                     } else if (pathCount>0) {
                         double or = graph.oddsRatio(n);
                         double p = graph.fisherExactP(n);
-                        boolean genotypeCalled = !n.genotype.equals("./.");
+                        boolean genotypeCalled = !n.isNoCall();
                         // styling based on segregation and genotype
                         if (graph.getPathCount(n)==graph.getPathCount()) {
                             // all paths go through node, uninteresting

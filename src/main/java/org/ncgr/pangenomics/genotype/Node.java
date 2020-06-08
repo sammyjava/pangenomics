@@ -38,6 +38,13 @@ public class Node implements Comparable, Serializable {
     }
 
     /**
+     * Return true if this Node is a no-call. Several no-call strings can be put here.
+     */
+    public boolean isNoCall() {
+        return genotype.equals("./.");
+    }
+
+    /**
      * Return the id as a string.
      */
     @Override

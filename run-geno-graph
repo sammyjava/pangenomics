@@ -1,16 +1,19 @@
 #!/bin/sh
 # usage: PangenomicGraph
-#  -g,--graph <arg>       name of graph
-#  -l,--labelfile <arg>   tab-delimited file containing one sample<tab>label
-#                         per line
-#  -txt,--txtfile         load graph from <graph>.nodes.txt and
-#                         <graph>.paths.txt
-#  -v,--verbose           verbose output (false)
-#  -vcf,--vcffile         load graph from <graph>.vcf.gz
+#  -dncp,--dropnocallpaths   drop no-call nodes and paths that traverse them
+#                            [false]
+#  -ecc,--equalizecasescontrols   reduce cases or controls to make equal in
+#                                 number [false]
+#  -g,--graph <arg>          name of graph
+#  -l,--labelfile <arg>      tab-delimited file containing one
+#                            sample<tab>label per line
+#  -txt,--txtfile <arg>      mult-sample VCF file from which to load graph
+#                            along with --labelfile
+#  -v,--verbose              verbose output (false)
+#  -vcf,--vcffile <arg>      load graph from <graph>.vcf.gz
 
 GRAPH=$1
 LABELSFILE=$2
-FILECMD=$3
-VCFFILE=$4
+VCFFILE=$3
 
-java -cp "build/install/fr/lib/*" -XX:+UseParallelGC org.ncgr.pangenomics.genotype.PangenomicGraph -v -g $GRAPH -l $LABELSFILE $FILECMD $VCFFILE
+java -cp "build/install/fr/lib/*" -XX:+UseParallelGC org.ncgr.pangenomics.genotype.PangenomicGraph -v -g $GRAPH -l $LABELSFILE -vcf $VCFFILE $4 $5

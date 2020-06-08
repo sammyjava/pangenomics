@@ -9,11 +9,13 @@ import java.io.PrintStream;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.Set;
+import java.util.HashSet;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 
@@ -66,8 +68,11 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
     // computed once to save time
     public FisherExact fisherExact;
 
-    // computed once to save time
-    DijkstraShortestPath<Node,Edge> dsp;
+    // drop no-call nodes and paths traversing them
+    public boolean dropNoCallPaths = false;
+
+    // make balanced graph, equal cases and controls
+    public boolean equalizeCasesControls = false;
 
     /**
      * Basic constructor.
@@ -84,9 +89,84 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 	    System.err.println("ERROR in PangenomicGraph.buildGraph: sampleLabels has not been populated.");
 	    System.exit(1);
 	}
-        paths = new ArrayList<Path>();
+        paths = new LinkedList<Path>();
         pathNameMap = new HashMap<>();
         nodeIdMap = new HashMap<>();
+        // clear sampleLabels entries that aren't in sampleNodesMap
+        Map<String,String> newSampleLabels = new HashMap<>();
+        for (String sampleName : sampleNodesMap.keySet()) {
+            if (sampleLabels.containsKey(sampleName)) newSampleLabels.put(sampleName, sampleLabels.get(sampleName));
+        }
+        sampleLabels = newSampleLabels;
+        // optionally drop no-call nodes and paths that traverse them
+        if (dropNoCallPaths) {
+            List<Node> nodesToDrop = new LinkedList<>();
+            Set<String> samplesToDrop = new HashSet<>();
+            for (Node n : nodes) {
+                if (n.isNoCall()) {
+                    nodesToDrop.add(n);
+                    List<String> sampleNames = nodeSamplesMap.get(n);
+                    samplesToDrop.addAll(sampleNames);
+                }
+            }
+            for (Node n : nodesToDrop) {
+                nodes.remove(n);
+                nodeSamplesMap.remove(n);
+            }
+            for (String sampleName : samplesToDrop) {
+                sampleNodesMap.remove(sampleName);
+                sampleLabels.remove(sampleName);
+            }
+            System.out.println("Removed "+nodesToDrop.size()+" no-call nodes and "+samplesToDrop.size()+" samples containing no-call nodes.");
+        }
+        // optionally enforce cases=controls
+        if (equalizeCasesControls) {
+            int nCases = 0;
+            int nControls = 0;
+            for (String label : sampleLabels.values()) {
+                if (label.equals("case")) {
+                    nCases++;
+                } else if (label.equals("ctrl")) {
+                    nControls++;
+                }
+            }
+            Set<String> samplesToDrop = new HashSet<>();
+            int numberToRemove = Math.abs(nCases - nControls);
+            int count = 0;
+            // randomly select samples to drop
+            while (count<numberToRemove) {
+                Optional<String> optional = sampleLabels.keySet().stream().skip((int)(sampleLabels.size()*Math.random())).findFirst();
+                if (optional.isPresent()) {
+                    String sampleName = optional.get();
+                    if (nCases>nControls && sampleLabels.get(sampleName).equals("case") && !samplesToDrop.contains(sampleName)) {
+                        samplesToDrop.add(sampleName);
+                        count++;
+                    } else if (nControls>nCases && sampleLabels.get(sampleName).equals("ctrl") && !samplesToDrop.contains(sampleName)) {
+                        samplesToDrop.add(sampleName);
+                        count++;
+                    }
+                }
+	    }
+            for (String sampleName : samplesToDrop) {
+                sampleLabels.remove(sampleName);
+                sampleNodesMap.remove(sampleName);
+            }
+            for (Node n : nodeSamplesMap.keySet()) {
+                List<String> sampleNames = nodeSamplesMap.get(n);
+                for (String sampleName : samplesToDrop) sampleNames.remove(sampleName);
+            }
+            // drop nodes that no longer have any samples
+            Set<Node> nodesToDrop = new HashSet<>();
+            for (Node n : nodeSamplesMap.keySet()) {
+                List<String> sampleNames = nodeSamplesMap.get(n);
+                if (sampleNames.size()==0) nodesToDrop.add(n);
+            }
+            for (Node n : nodesToDrop) {
+                nodes.remove(n);
+                nodeSamplesMap.remove(n);
+            }
+            System.out.println("Removed "+samplesToDrop.size()+" samples and "+nodesToDrop.size()+" orphaned nodes to equalize cases and controls.");
+        }
         // add the nodes as graph vertices
         if (verbose) System.out.println("Adding nodes to graph vertices...");
         for (Node n : nodes) {
@@ -211,7 +291,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         nodePaths = new HashMap<>();
         // initialize empty paths for each node
         for (Node n : getNodes()) {
-            nodePaths.put(n, new ArrayList<Path>());
+            nodePaths.put(n, new LinkedList<Path>());
         }
         // now load the paths
 	for (Path path : paths) {
@@ -289,7 +369,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
      * Just a synonym for vertexSet(), but puts the Nodes in a List.
      */
     public List<Node> getNodes() {
-        return new ArrayList<Node>(vertexSet());
+        return new LinkedList<Node>(vertexSet());
     }
 
     /**
@@ -577,7 +657,6 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         buildGraph(txtImporter.nodes, txtImporter.sampleNodesMap, txtImporter.nodeSamplesMap);
     }
 
-
     /**
      * The main event.
      */
@@ -604,6 +683,14 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         Option txtFileOption = new Option("txt", "txtfile", true, "mult-sample VCF file from which to load graph along with --labelfile");
         txtFileOption.setRequired(false);
         options.addOption(txtFileOption);
+        // drop no-call nodes and paths
+        Option dropNoCallPathsOption = new Option("dncp", "dropnocallpaths", false, "drop no-call nodes and paths that traverse them [false]");
+        dropNoCallPathsOption.setRequired(false);
+        options.addOption(dropNoCallPathsOption);
+        // reduce cases or controls so they are equal in number
+        Option equalizeCasesControlsOption = new Option("ecc", "equalizecasescontrols", false, "reduce cases or controls to make equal in number [false]");
+        equalizeCasesControlsOption.setRequired(false);
+        options.addOption(equalizeCasesControlsOption);
         //
         Option verboseOption = new Option("v", "verbose", false, "verbose output (false)");
         verboseOption.setRequired(false);
@@ -634,6 +721,8 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         // our PangenomicGraph
         PangenomicGraph graph = new PangenomicGraph();
         if (cmd.hasOption("verbose")) graph.verbose = true;
+        if (cmd.hasOption("dropnocallpaths")) graph.dropNoCallPaths = true;
+        if (cmd.hasOption("equalizecasescontrols")) graph.equalizeCasesControls = true;
 
         // populate graph instance vars from parameters
         graph.name = cmd.getOptionValue("graph");
@@ -647,7 +736,8 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
             graph.readSampleLabels();
             graph.loadVCF(new File(cmd.getOptionValue("vcffile")));
 	    graph.tallyLabelCounts();
-	    System.out.println("Graph has "+graph.vertexSet().size()+" nodes and "+graph.paths.size()+" paths: "+graph.labelCounts.get("case")+"/"+graph.labelCounts.get("ctrl")+" cases/controls");
+	    System.out.println("Graph has "+graph.vertexSet().size()+" nodes, "+graph.edgeSet().size()+" edges, and "+graph.paths.size()+
+                               " paths: "+graph.labelCounts.get("case")+"/"+graph.labelCounts.get("ctrl")+" cases/controls");
         }
         if (loadTXT) {
             // TXT load pulls sample labels from paths file

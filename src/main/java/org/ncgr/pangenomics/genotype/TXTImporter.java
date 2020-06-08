@@ -27,12 +27,6 @@ public class TXTImporter {
     // verbosity flag
     public boolean verbose = false;
 
-    // skip-edges flag (to speed things up on big graphs)
-    public boolean skipEdges = false;
-
-    // skip-sequences flag (to reduce memory)
-    public boolean skipSequences = false;
-
     // the Nodes we import
     public List<Node> nodes;
 
