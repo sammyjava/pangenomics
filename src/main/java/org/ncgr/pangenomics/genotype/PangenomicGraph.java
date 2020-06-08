@@ -88,15 +88,14 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         pathNameMap = new HashMap<>();
         nodeIdMap = new HashMap<>();
         // add the nodes as graph vertices
-        if (verbose) System.out.print("Adding nodes to graph vertices...");
+        if (verbose) System.out.println("Adding nodes to graph vertices...");
         for (Node n : nodes) {
             addVertex(n);
             nodeIdMap.put(n.id, n);
         }
-        if (verbose) System.out.println("done.");
         // build the paths and path-labeled graph edges from the sampleLabels and sample-nodes map
 	// NOTE: sampleLabels may contain some samples not in sampleNodesMap and vice-versa
-        if (verbose) System.out.print("Creating paths and adding edges to graph...");
+        if (verbose) System.out.println("Creating paths and adding edges to graph...");
         for (String sampleName : sampleLabels.keySet()) {
 	    if (sampleNodesMap.containsKey(sampleName)) {
 		List<Node> sampleNodes = sampleNodesMap.get(sampleName);
@@ -123,7 +122,6 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         }
 	// initialize FisherExact for later use
         fisherExact = new FisherExact(paths.size());
-        if (verbose) System.out.println("done.");
     }
 
     /**
@@ -134,14 +132,13 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         pathNameMap = new HashMap<>();
         nodeIdMap = new HashMap<>();
         // add the nodes as graph vertices
-        if (verbose) System.out.print("Adding nodes to graph vertices...");
+        if (verbose) System.out.println("Adding nodes to graph vertices...");
         for (Node n : nodes) {
             addVertex(n);
             nodeIdMap.put(n.id, n);
         }
-        if (verbose) System.out.println("done.");
         // build the path-labeled graph edges
-        if (verbose) System.out.print("Adding edges to graph from paths...");
+        if (verbose) System.out.println("Adding edges to graph from paths...");
         for (Path path : paths) {
             pathNameMap.put(path.name, path);
             // add edges
@@ -163,7 +160,6 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
             }
         }
         fisherExact = new FisherExact(paths.size());
-        if (verbose) System.out.println("done.");
     }
 
     /**
@@ -211,7 +207,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
      * Build the node paths: the set of paths that run through each node.
      */
     public void buildNodePaths() {
-	if (verbose) System.out.print("Building node paths...");
+	if (verbose) System.out.println("Building node paths...");
         nodePaths = new HashMap<>();
         // initialize empty paths for each node
         for (Node n : getNodes()) {
@@ -224,8 +220,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 		nodePaths.get(n).add(path);
 	    }
 	}
-	if (verbose) System.out.println("done.");
-	// DEBUG
+	// validation
 	for (Node n : nodePaths.keySet()) {
 	    List<Path> pathList = nodePaths.get(n);
 	    for (Path p : pathList) {
@@ -539,25 +534,21 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
             printLabelCounts(labelCountsOut);
         }
 
-        if (verbose) System.out.print("Writing nodes file...");
+        if (verbose) System.out.println("Writing nodes file...");
         PrintStream nodesOut = new PrintStream(name+".nodes.txt");
         printNodes(nodesOut);
-        if (verbose) System.out.println("done.");
 
-        if (verbose) System.out.print("Writing paths file...");
+        if (verbose) System.out.println("Writing paths file...");
         PrintStream pathsOut = new PrintStream(name+".paths.txt");
         printPaths(pathsOut);
-        if (verbose) System.out.println("done.");
 
-	if (verbose) System.out.print("Writing node paths file...");
+	if (verbose) System.out.println("Writing node paths file...");
 	PrintStream nodePathsOut = new PrintStream(name+".nodepaths.txt");
 	printNodePaths(nodePathsOut);
-	if (verbose) System.out.println("done.");
 
-	if (verbose) System.out.print("Writing path PCA file...");
+	if (verbose) System.out.println("Writing path PCA file...");
 	PrintStream pcaDataOut = new PrintStream(name+".pathpca.txt");
 	printPcaData(pcaDataOut);
-	if (verbose) System.out.println("done.");
     }
 
     /**
@@ -565,6 +556,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
      */
     public void loadVCF(File vcfFile) throws IOException {
         VCFImporter vcfImporter = new VCFImporter();
+	vcfImporter.verbose = true;
         vcfImporter.read(vcfFile, true); // ignore phasing
         buildGraph(vcfImporter.nodes, vcfImporter.sampleNodesMap, vcfImporter.nodeSamplesMap);
     }
@@ -579,6 +571,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
             System.exit(1);
         }
         TXTImporter txtImporter = new TXTImporter();
+	txtImporter.verbose = true;
         txtImporter.read(nodesFile, pathsFile);
 	this.sampleLabels = txtImporter.sampleLabels;
         buildGraph(txtImporter.nodes, txtImporter.sampleNodesMap, txtImporter.nodeSamplesMap);
@@ -654,6 +647,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
             graph.readSampleLabels();
             graph.loadVCF(new File(cmd.getOptionValue("vcffile")));
 	    graph.tallyLabelCounts();
+	    System.out.println("Graph has "+graph.vertexSet().size()+" nodes and "+graph.paths.size()+" paths: "+graph.labelCounts.get("case")+"/"+graph.labelCounts.get("ctrl")+" cases/controls");
         }
         if (loadTXT) {
             // TXT load pulls sample labels from paths file
@@ -661,6 +655,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
             graph.pathsFile = new File(graph.name+".paths.txt");
             graph.loadTXT();
             graph.tallyLabelCounts();
+	    System.out.println("Graph has "+graph.vertexSet().size()+" nodes and "+graph.paths.size()+" paths: "+graph.labelCounts.get("case")+"/"+graph.labelCounts.get("ctrl")+" cases/controls");
         }
 
         // build the node-paths map (this can be optional)

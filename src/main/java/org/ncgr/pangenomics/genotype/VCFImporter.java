@@ -51,7 +51,7 @@ public class VCFImporter {
      * NOTE: non-calls (./.) are treated as a true lack of sequence, i.e. no node is created for that sample at that location.
      */
     public void read(File vcfFile, boolean ignorePhase) throws FileNotFoundException, IOException {
-        if (verbose) System.out.print("Reading samples and nodes from VCF...");
+        if (verbose) System.out.println("Reading samples and nodes from VCF...");
         // initiate the class collections
         nodes = new ArrayList<>();
         sampleNodesMap = new HashMap<>();
@@ -108,6 +108,6 @@ public class VCFImporter {
             List<String> nodeSamples = nodeSamplesMap.get(n);
             n.af = (double)nodeSamples.size() / (double)sampleNameList.size();
         }
-        if (verbose) System.out.println("done.");
+	if (verbose) System.out.println("VCFImporter read "+sampleNodesMap.size()+" samples.");
     }
 }

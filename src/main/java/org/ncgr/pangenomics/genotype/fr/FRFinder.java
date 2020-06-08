@@ -171,7 +171,7 @@ public class FRFinder {
         // store the saved FRs in a map
         frequentedRegions = new HashMap<>();
 
-        // store all interesting FRs in a Map
+        // store all scanned FRs in a Map
 	ConcurrentHashMap<String,FrequentedRegion> allFrequentedRegions = new ConcurrentHashMap<>();
 
         // rejected NodeSets (strings), so we don't bother scanning them more than once
@@ -227,37 +227,39 @@ public class FRFinder {
             printToLog("# Loaded "+frequentedRegions.size()+" frequentedRegions.");
             printToLog("# Now continuing with FR finding...");
         } else {
-	    ////////////////////////////////////////////////////////////////////////////////////////////////
+	    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+	    // locally parallelized for your convenience
 	    // load the single-node FRs into allFrequentedRegions
 	    // keep those with af>=minMAF and genotype call if requireGenotypeCall and not in excludedNodes
-	    // locally parallelized for your convenience
+	    // also exclude those with insufficient support if alpha=1.0
+	    ConcurrentSkipListSet<Node> excRejects = new ConcurrentSkipListSet<>();
+	    ConcurrentSkipListSet<Node> ngcRejects = new ConcurrentSkipListSet<>();
+	    ConcurrentSkipListSet<Node> mafRejects = new ConcurrentSkipListSet<>();
+	    ConcurrentSkipListSet<Node> supportRejects = new ConcurrentSkipListSet<>();
 	    ConcurrentSkipListSet<Node> nodes = new ConcurrentSkipListSet<>(graph.getNodes());
 	    nodes.parallelStream().forEach(node -> {
-		    boolean added = false;
 		    if (excludedNodes.contains(node)) {
-			if (debug) {
-			    System.err.println("EXC:"+node.toString());
-			}
+			excRejects.add(node);
 		    } else if (requireGenotypeCall && !node.isCalled) {
-			if (debug) {
-			    System.err.println("NGC:"+node.toString());
-			}
+			ngcRejects.add(node);
+		    } else if (node.af<minMAF) {
+			mafRejects.add(node);
 		    } else {
-			NodeSet c = new NodeSet(node);
-			if (node.af>=minMAF) {
-			    FrequentedRegion fr = new FrequentedRegion(graph, c, alpha, kappa, priorityOptionKey, priorityOptionLabel);
+			FrequentedRegion fr = new FrequentedRegion(graph, new NodeSet(node), alpha, kappa, priorityOptionKey, priorityOptionLabel);
+			if (alpha==1.0 && fr.support<minSupport) {
+			    supportRejects.add(node);
+			} else {
 			    allFrequentedRegions.put(fr.nodes.toString(), fr);
-			    added = true;
-			    if (debug) {
-				System.err.println("ADD:"+fr);
-			    }
-			} else if (debug) {
-			    System.err.println("MAF:"+c+" "+percf.format(node.af));
 			}
 		    }
 		});
 	    // end nodes parallelStream
 	    ////////////////////////////////////////////////////////////////////////////////////
+	    // DX
+	    printToLog("# "+excRejects.size()+" nodes excluded because contained in excludedNodes");
+	    printToLog("# "+ngcRejects.size()+" nodes excluded because not called and requireGenotypeCall==true");
+	    printToLog("# "+mafRejects.size()+" nodes excluded because allele frequency<"+minMAF);
+	    if (alpha==1.0) printToLog("# "+supportRejects.size()+" nodes excluded because FR support<"+minSupport);
 	    // store interesting single-node FRs in round 0, since we won't hit them in the loop
 	    for (FrequentedRegion fr : allFrequentedRegions.values()) {
 		if (isInteresting(fr)) {
@@ -283,12 +285,12 @@ public class FRFinder {
 	    }
 	}
 
-        // dump out the interesting single-node FRs sorted by priority
+        // DX: dump out the interesting single-node FRs sorted by priority
+        printToLog("# "+allFrequentedRegions.size()+" single-node FRs will be used to initiate search.");
         TreeSet<FrequentedRegion> sortedFRs = new TreeSet<>(frequentedRegions.values());
         for (FrequentedRegion fr : sortedFRs) {
             printToLog("0:"+fr.toString());
         }
-        System.out.println("# "+allFrequentedRegions.size()+" single-node FRs will be used to initiate search.");
 
         // build the FRs round by round
 	long startTime = System.currentTimeMillis();
@@ -303,6 +305,8 @@ public class FRFinder {
             ConcurrentSkipListSet<FRPair> frpairSet = new ConcurrentSkipListSet<>();
 	    // NOTE: the fr1 loop need not be parallel since the fr2 loop will consume all the CPUs anyway;
 	    // by running the fr1 loop in series we ensure that the fr2 loop cycles use the same fr1 loop data.
+	    ////////////////////////////////////////////////////////////
+	    // start fr1 serial loop
 	    for (FrequentedRegion fr1 : allFrequentedRegions.values()) {
 		if (finalRequiredNodes.size()>0) {
 		    boolean contains = true;
@@ -416,7 +420,9 @@ public class FRFinder {
 		// end fr2 parallelStream
 		////////////////////////////////////////////////////////////////////////////////////////////////
 	    }
-	    // add our new best merged FR
+	    // end of fr1 loop
+	    ////////////////////////////////////////////////////////////
+	    // add our new best merged FR from this round and store the interesting merged FRs
             if (frpairSet.size()>0) {
                 added = true;
 		// add all of this round's interesting FRs to allFrequentedRegions OUTSIDE of the fr2 loop
@@ -482,8 +488,8 @@ public class FRFinder {
 
         // timing
 	long elapsedTime = System.currentTimeMillis() - startTime;
-        System.out.println("Found "+frequentedRegions.size()+" FRs.");
-	System.out.println("Clock time: "+FRUtils.formatTime(elapsedTime));
+        printToLog("Found "+frequentedRegions.size()+" FRs.");
+	printToLog("Clock time: "+FRUtils.formatTime(elapsedTime));
         
 	// final output
 	if (frequentedRegions.size()>0) {
