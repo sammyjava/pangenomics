@@ -6,24 +6,33 @@ SVMFILE="$INPUTPREFIX.svm.txt"
 RANGE="$INPUTPREFIX.svm.range.txt"
 FULLSCALE="$INPUTPREFIX.svm.scale.txt"
 
-## svm file HLAA has 4966/6243
 NUMCASEPATHS=0
 NUMCTRLPATHS=0
 
-MINSIZE=6
-MINSUPPORT=10
-MAXPVALUE=1.0e-2
+MINSIZE=0
+MINSUPPORT=0
+MAXPVALUE=1.0
+
+## reduce the cases and controls
+NCASES=0
+NCONTROLS=0
 
 ## grid scan
 GRIDOUT="$INPUTPREFIX.svm.grid.txt"
 K=10
-LOG10C="0,0,1"
-LOG10GAMMA="-3,-1,0.5"
+LOG10C="-6,6,1"
+LOG10GAMMA="-8,1,1"
 
-## pre-clean during testing; forces operation to be run
-rm -f $SVMFILE
-rm -f $RANGE
-rm -f $FULLSCALE
+# LOG10C="0,0,1"
+# LOG10GAMMA="-3,-1,0.5"
+
+## SVM
+NRUNS=10
+
+# ## pre-clean during testing; forces operation to be run
+# rm -f $SVMFILE
+# rm -f $RANGE
+# rm -f $FULLSCALE
 rm -f $GRIDOUT
 
 # usage: FRUtils
@@ -71,13 +80,17 @@ fi
 #  -log10C <arg>   set range/step of log10(C) [-5.0,15.0,1.0]
 #  -log10gamma <arg>   set range/step of log10(gamma) [-15.0,0.0,1.0]
 #  -v             toggle verbose output
-if [ ! -s $GRIDOUT ]
-then
-    ## run GridSearcher on the full scaled data to find optimum SVM parameters
-    ARGS="-log10C $LOG10C -log10gamma $LOG10GAMMA -k $K"
-    echo "Running GridSearcher on $FULLSCALE with ARGS=$ARGS"
-    java -server -Xms10g -Xmx600g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.svm.GridSearcher -v $ARGS $FULLSCALE > $GRIDOUT
-fi
+# if [ ! -s $GRIDOUT ]
+# then
+#     starttime=`date`
+#     ## run GridSearcher on the full scaled data to find optimum SVM parameters
+#     ARGS="-log10C $LOG10C -log10gamma $LOG10GAMMA -k $K"
+#     java -server -Xms10g -Xmx600g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.svm.GridSearcher \
+# 	 -datafile $FULLSCALE -ncases $NCASES -ncontrols $NCONTROLS -v $ARGS > $GRIDOUT
+#     endtime=`date`
+#     echo "$starttime - $endtime"
+#     cat $GRIDOUT
+# fi
 
 # usage: SvmCrossValidator [options]
 #  -C,--cost <arg>                       cost parameter C in C-SVC,
@@ -92,11 +105,17 @@ fi
 #                                        epsilon-SVR [0.1]
 #  -gamma,--kernel-gamma <arg>           gamma parameter in kernel function
 #                                        [1/#features]
+#  -h,--shrinking <arg>                  toggle whether to use the shrinking
+#                                        heuristics (0/1) [1]
 #  -i,--inputfile <arg>                  input file containing feature
 #                                        vectors in SVM format
 #  -k,--nrfold <arg>                     k value for k-fold cross-validation
 #                                        [10]
 #  -m,--cachesize <arg>                  set cache memory size in MB [100]
+#  -ncases <arg>                         set number of cases to use in
+#                                        search [0=all]
+#  -ncontrols <arg>                      set number of controls to use in
+#                                        search [0=all]
 #  -nu,--nu <arg>                        nu parameter of nu-SVC, one-class
 #                                        SVM, and nu-SVR [0.5]
 #  -prob,--probability-estimates <arg>   toggle whether to train a SVC or
@@ -105,8 +124,6 @@ fi
 #  -s,--svm-type <arg>                   type of SVM: 0=C-SVC 1=nu-SVC
 #                                        2=one-class SVM 3=epsilon-SVR
 #                                        4=nu-SVR [0]
-#  -sh,--shrinking <arg>                 toggle whether to use the shrinking
-#                                        heuristics (0/1) [1]
 #  -t,--kernel-type <arg>                type of kernel function: 0=linear
 #                                        1=polynomial 2=radial basis
 #                                        function 3=sigmoid 4=precomputed
@@ -115,10 +132,8 @@ fi
 #  -w,--weight <arg>                     multiply parameter C of class i by
 #                                        weight, for C-SVC [1]
 
-## use default gamma=1/numFeatures
-ARGS="-h 0 -m 1000 -C 1.0 -k $K"
-
-## gridsearcher best parameters
+## set SVM parameters, default or from GridSearcher
+ARGS="-h 0 -m 1000 -C 1.0 -k $K -ncases $NCASES -ncontrols $NCONTROLS"
 if [ -s $GRIDOUT ]
 then
     C=`tail -1 $GRIDOUT | awk '{ print $1; }'`
@@ -127,8 +142,5 @@ then
     ARGS="-C $C -gamma $gamma -k $K"
 fi
 
-echo "Running SvmCrossValidator on $FULLSCALE with $ARGS"
-for i in 1 
-do
-    java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmCrossValidator $ARGS -i $FULLSCALE > "$INPUTPREFIX-$i.crossvalidation.txt"
-done
+echo "Running $NRUNS SvmCrossValidator runs on $FULLSCALE with $ARGS"
+java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmCrossValidator $ARGS -nruns $NRUNS -i $FULLSCALE > "$INPUTPREFIX-crossvalidation.txt"

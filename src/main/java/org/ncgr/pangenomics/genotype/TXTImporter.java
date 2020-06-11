@@ -110,6 +110,6 @@ public class TXTImporter {
 		nodeSamplesMap.put(n, nodeSamples);
 	    }
 	}
-	if (verbose) System.out.println("VCFImporter read "+sampleNodesMap.size()+" samples.");
+	if (verbose) System.out.println("TXTImporter read "+sampleNodesMap.size()+" samples.");
     }
 }

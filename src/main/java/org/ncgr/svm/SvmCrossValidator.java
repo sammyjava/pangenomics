@@ -8,6 +8,8 @@ import java.text.DecimalFormat;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Vector;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -45,6 +47,9 @@ public class SvmCrossValidator {
     public int maxIndex = 0;
     public Vector<Integer> errorIndices;
 
+    // the input filename
+    public String inputFilename;
+    
     // the input samples
     public List<Sample> samples;
     // for alignment with libsvm vectors
@@ -53,24 +58,28 @@ public class SvmCrossValidator {
     /**
      * Construct with default svm_parameter object, default-fold cross-validation and the given input file name.
      */
-    public SvmCrossValidator(String inputFilename) throws FileNotFoundException, IOException {
-        this.param = SvmUtil.getDefaultParam();
-        this.samples = SvmUtil.readSamples(inputFilename);
+    public SvmCrossValidator(String inputFilename, int nCases, int nControls) throws FileNotFoundException, IOException {
+	this.inputFilename = inputFilename;
+        param = SvmUtil.getDefaultParam();
+        samples = SvmUtil.readSamples(inputFilename);
+	if (nCases>0 || nControls>0) samples = SvmUtil.reduceSamples(samples, nCases, nControls);
         createProblem();
     }
 
     /**
      * Construct given a populated svm_parameter object, n-fold number and an input file name.
      */
-    public SvmCrossValidator(svm_parameter param, int nrFold, String inputFilename) throws IOException {
+    public SvmCrossValidator(svm_parameter param, int nrFold, String inputFilename, int nCases, int nControls) throws IOException {
         this.param = param;
+        this.nrFold = nrFold;
+	this.inputFilename = inputFilename;
         // validate nrFold
         if (nrFold<2) {
             System.err.println("Error: n-fold cross validation requires n>=2.");
             System.exit(1);
         }
-        this.nrFold = nrFold;
-        this.samples = SvmUtil.readSamples(inputFilename);
+        samples = SvmUtil.readSamples(inputFilename);
+	if (nCases>0 || nControls>0) samples = SvmUtil.reduceSamples(samples, nCases, nControls);
         createProblem();
     }
 
@@ -79,12 +88,12 @@ public class SvmCrossValidator {
      */
     public SvmCrossValidator(svm_parameter param, int nrFold, Vector<Double> vy, Vector<svm_node[]> vx) {
         this.param = param;
+        this.nrFold = nrFold;
         // validate nrFold
         if (nrFold<2) {
             System.err.println("Error: n-fold cross validation requires n>=2.");
             System.exit(1);
         }
-        this.nrFold = nrFold;
         createProblem(vy, vx);
     }
 
@@ -92,14 +101,14 @@ public class SvmCrossValidator {
      * Construct given a populated svm_problem, nr-fold number and populated svm_parameter.
      */
     public SvmCrossValidator(svm_parameter param, int nrFold, svm_problem prob) {
+        this.param = param;
+        this.nrFold = nrFold;
+        this.prob = prob;
         // validate nrFold
         if (nrFold<2) {
             System.err.println("Error: n-fold cross validation requires n>=2.");
             System.exit(1);
         }
-        this.nrFold = nrFold;
-        this.param = param;
-        this.prob = prob;
     }
 
     /**
@@ -142,6 +151,48 @@ public class SvmCrossValidator {
             accuracy = (double)totalCorrect/(double)prob.l;
             totalSamples = prob.l;
         }
+	// output
+	if (param.svm_type==svm_parameter.EPSILON_SVR || param.svm_type== svm_parameter.NU_SVR) {
+	    System.out.println("Cross Validation Mean squared error = "+meanSquaredError);
+	    System.out.println("Cross Validation Squared correlation coefficient = "+squaredCorrCoeff);
+	} else {
+	    // total up fails
+	    int plusFails = 0;
+	    int minusFails = 0;
+	    for (int i : errorIndices) {
+		if (prob.y[i]==+1) {
+		    plusFails++;
+		} else if (prob.y[i]==-1) {
+		    minusFails++;
+		}
+	    }
+	    // CVA, TPR, FPR
+	    int plusTotal = 0;
+	    int minusTotal = 0;
+	    for (double y : prob.y) {
+		if (y==+1) plusTotal++;
+		if (y==-1) minusTotal++;
+	    }
+	    // summary line
+	    System.err.println("Correct, CaseCorrect, ControlCorrect: "+
+			       (plusTotal+minusTotal-plusFails-minusFails)+"/"+(plusTotal+minusTotal)+", "+
+			       (plusTotal-plusFails)+"/"+plusTotal+", "+
+			       (minusTotal-minusFails)+"/"+minusTotal+"   " +
+			       pf.format((double)(plusTotal+minusTotal-plusFails-minusFails)/(double)(plusTotal+minusTotal))+", "+
+			       pf.format((double)(plusTotal-plusFails)/(double)plusTotal)+", "+
+			       pf.format((double)(minusTotal-minusFails)/(double)minusTotal));
+	    System.out.println(inputFilename+"\t"+maxIndex+"\t"+param.C+"\t"+param.gamma+"\t"+nrFold+"\t"+plusTotal+"\t"+minusTotal+"\t"+plusFails+"\t"+minusFails);
+	    // predictions by sample
+	    for (int i=0; i<prob.l; i++) {
+		String label = "";
+		System.out.print(samples.get(i).name+"\t"+samples.get(i).label);
+		if (errorIndices.contains(i)) {
+		    System.out.println("\tfalse");
+		} else {
+		    System.out.println("\ttrue");
+		}
+	    }
+	}
     }
 
     /**
@@ -294,6 +345,18 @@ public class SvmCrossValidator {
         Option verboseOption = new Option("v", "verbose", false, "verbose output");
         verboseOption.setRequired(false);
         options.addOption(verboseOption);
+	//
+	Option nCasesOption = new Option("ncases", true, "set number of cases to use in search [0=all]");
+	nCasesOption.setRequired(false);
+	options.addOption(nCasesOption);
+	//
+	Option nControlsOption = new Option("ncontrols", true, "set number of controls to use in search [0=all]");
+	nControlsOption.setRequired(false);
+	options.addOption(nControlsOption);
+	//
+	Option nRunsOption = new Option("nruns", true, "number of parallel runs [1]");
+	nRunsOption.setRequired(false);
+	options.addOption(nRunsOption);
 
         if (args.length==0) {
             formatter.printHelp("SvmCrossValidator [options]", options);
@@ -350,6 +413,16 @@ public class SvmCrossValidator {
             nrFold = Integer.parseInt(cmd.getOptionValue("nrfold"));
         }
 
+	String inputFilename = cmd.getOptionValue("i");
+
+	int nCases = 0;
+	int nControls = 0;
+	if (cmd.hasOption("ncases")) nCases = Integer.parseInt(cmd.getOptionValue("ncases"));
+	if (cmd.hasOption("ncontrols")) nControls = Integer.parseInt(cmd.getOptionValue("ncontrols"));
+
+	int nRuns = 1;
+	if (cmd.hasOption("nruns")) nRuns = Integer.parseInt(cmd.getOptionValue("nruns"));
+
         // this is weird, setting a static function in svm
         if (cmd.hasOption("v")) {
             SvmUtil.setVerbose();
@@ -357,55 +430,14 @@ public class SvmCrossValidator {
             SvmUtil.setQuiet();
         }
 
-        // instantiate from a samples file
-	String inputFilename = cmd.getOptionValue("i");
-        SvmCrossValidator scv = new SvmCrossValidator(param, nrFold, inputFilename);
-
-        // run
-	scv.run();
-
-        // output
-        if (scv.param.svm_type==svm_parameter.EPSILON_SVR || scv.param.svm_type== svm_parameter.NU_SVR) {
-            System.out.println("Cross Validation Mean squared error = "+scv.meanSquaredError);
-            System.out.println("Cross Validation Squared correlation coefficient = "+scv.squaredCorrCoeff);
-        } else {
-            // total up fails
-            int plusFails = 0;
-            int minusFails = 0;
-	    for (int i : scv.errorIndices) {
-                if (scv.prob.y[i]==+1) {
-                    plusFails++;
-                } else if (scv.prob.y[i]==-1) {
-		    minusFails++;
-                }
-	    }
-            // CVA, TPR, FPR
-            int plusTotal = 0;
-            int minusTotal = 0;
-            for (double y : scv.prob.y) {
-                if (y==+1) plusTotal++;
-                if (y==-1) minusTotal++;
-            }
-            // summary line
-	    System.err.println("Correct, CaseCorrect, ControlCorrect: "+
-			       (plusTotal+minusTotal-plusFails-minusFails)+"/"+(plusTotal+minusTotal)+", "+
-			       (plusTotal-plusFails)+"/"+plusTotal+", "+
-			       (minusTotal-minusFails)+"/"+minusTotal+"   " +
-			       pf.format((double)(plusTotal+minusTotal-plusFails-minusFails)/(double)(plusTotal+minusTotal))+", "+
-			       pf.format((double)(plusTotal-plusFails)/(double)plusTotal)+", "+
-			       pf.format((double)(minusTotal-minusFails)/(double)minusTotal));
-            System.out.println(inputFilename+"\t"+scv.maxIndex+"\t"+param.C+"\t"+param.gamma+"\t"+nrFold+
-                               "\t"+plusTotal+"\t"+minusTotal+"\t"+plusFails+"\t"+minusFails);
-            // predictions by sample
-            for (int i=0; i<scv.prob.l; i++) {
-                String label = "";
-                System.out.print(scv.samples.get(i).name+"\t"+scv.samples.get(i).label);
-                if (scv.errorIndices.contains(i)) {
-                    System.out.println("\tfalse");
-                } else {
-                    System.out.println("\ttrue");
-                }
-            }
-        }
+        // instantiate and run nRuns times
+	ExecutorService threadPool = Executors.newFixedThreadPool(nRuns);
+	for (int i=0; i<nRuns; i++) {
+	    SvmCrossValidator scv = new SvmCrossValidator(param, nrFold, inputFilename, nCases, nControls);
+	    threadPool.submit(new Runnable() {
+		    public void run() { scv.run(); }
+		});
+	}
+	threadPool.shutdown();
     }
 }

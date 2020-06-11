@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 
 import java.util.List;
+import java.util.LinkedList;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ConcurrentSkipListSet;
@@ -67,19 +68,27 @@ public class GridSearcher {
     public Vector<String> sampleNames;
 
     /**
-     * Construct with a data file and default parameters.
+     * Load the samples from a data file and set default parameters.
+     *
+     * @param dataFile the data file in SVM format
+     * @param nCases the number of randomly-chosen cases to use in the search (0=all)
+     * @param nControls the number of randomly-chosen controls to use in the search (0=all)
      */
-    public GridSearcher(String dataFile) throws FileNotFoundException, IOException {
+    public GridSearcher(String dataFile, int nCases, int nControls) throws FileNotFoundException, IOException {
+	// load all the samples
 	this.dataFile = dataFile;
         samples = SvmUtil.readSamples(dataFile);
+	// pull out the desired number of cases and controls if nonzero
+	if (nCases!=0 || nControls!=0) SvmUtil.reduceSamples(samples, nCases, nControls);
+	// build the SVMLIB objects
 	sampleNames = new Vector<>();
         maxIndex = 0;
         for (Sample sample : samples) {
             sampleNames.addElement(sample.name);
             double dlabel = 0;
-            if (sample.label.equals("case") || sample.label.equals("1") || sample.label.equals("+1")) {
+            if (SvmUtil.isCase(sample)) {
                 dlabel = 1.0;
-            } else if (sample.label.equals("ctrl") || sample.label.equals("-1")) {
+            } else if (SvmUtil.isControl(sample)) {
                 dlabel = -1.0;
             }
             vy.addElement(dlabel);
@@ -105,7 +114,7 @@ public class GridSearcher {
     }
 
     /**
-     * Run the search in a parallel stream for each C and gamma value in a parallel stream
+     * Run the search for each C and gamma value
      */
     public void run() {
 	if (verbose) {
@@ -115,10 +124,9 @@ public class GridSearcher {
 	    System.err.println("GridSearcher: log10(C) from "+c_begin+" to "+c_end+" in steps of "+c_step);
 	    System.err.println("GridSearcher: log10(gamma) from "+g_begin+" to "+g_end+" in steps of "+g_step);
 	}
-        // cycle through C and gamma in parallel streams
-	ConcurrentSkipListSet<Double> log10CSet = new ConcurrentSkipListSet<>();
+	List<Double> log10CList = new LinkedList<>();
         for (double c=c_begin; c<=c_end; c+=c_step) {
-	    log10CSet.add(c);
+	    log10CList.add(c);
 	}
 	ConcurrentSkipListSet<Double> log10gammaSet = new ConcurrentSkipListSet<>();
 	for (double g=g_begin; g<=g_end; g+=g_step) {
@@ -128,26 +136,29 @@ public class GridSearcher {
 	ConcurrentSkipListMap<String,svm_parameter> paramMap = new ConcurrentSkipListMap<>();
 	ConcurrentSkipListMap<String,Integer> totalCorrectMap = new ConcurrentSkipListMap<>();
 	ConcurrentSkipListMap<String,Double> accuracyMap = new ConcurrentSkipListMap<>();
-	////////////////////////////////////////////////////////////////////////////////////////////////
-	log10CSet.parallelStream().forEach(log10C -> {
-		log10gammaSet.parallelStream().forEach(log10gamma -> {
-			svm_parameter param = SvmUtil.getDefaultParam();
-			param.C = Math.pow(10.0,log10C);
-			param.gamma = Math.pow(10.0,log10gamma);
-			String key = param.C+":"+param.gamma;
-			svm_problem prob = createProblem(vx, vy, param, maxIndex);
-			SvmCrossValidator svc = new SvmCrossValidator(param, nrFold, prob);
-			svc.run();
-			if (verbose) {
-			    System.err.println("GridSearcher: C="+df.format(param.C)+" gamma="+df.format(param.gamma)+" totalCorrect="+svc.totalCorrect+" accuracy="+pf.format(svc.accuracy));
-			}
-			// store the results
-			paramMap.put(key, param);
-			totalCorrectMap.put(key, svc.totalCorrect);
-			accuracyMap.put(key, svc.accuracy);
-		    });
-	    });
-	////////////////////////////////////////////////////////////////////////////////////////////////
+	// loop through C,gamma
+	for (double log10C : log10CList) {
+	    ////////////////////////////////////////////////////////////////////////////////////////////////
+	    // start gamma scan
+	    log10gammaSet.parallelStream().forEach(log10gamma -> {
+		    svm_parameter param = SvmUtil.getDefaultParam();
+		    param.C = Math.pow(10.0,log10C);
+		    param.gamma = Math.pow(10.0,log10gamma);
+		    String key = param.C+":"+param.gamma;
+		    svm_problem prob = createProblem(vx, vy, param, maxIndex);
+		    SvmCrossValidator svc = new SvmCrossValidator(param, nrFold, prob);
+		    svc.run();
+		    if (verbose) {
+			System.err.println("GridSearcher: C="+df.format(param.C)+" gamma="+df.format(param.gamma)+" totalCorrect="+svc.totalCorrect+" accuracy="+pf.format(svc.accuracy));
+		    }
+		    // store the results
+		    paramMap.put(key, param);
+		    totalCorrectMap.put(key, svc.totalCorrect);
+		    accuracyMap.put(key, svc.accuracy);
+		});
+	    // end gamma scan
+	    ////////////////////////////////////////////////////////////////////////////////////////////////
+	}
 	// scan the results for best results
 	svm_parameter bestParam = null;
 	int bestTotalCorrect = 0;
@@ -165,7 +176,7 @@ public class GridSearcher {
 	// output
         System.out.println("BEST VALUES:");
         System.out.println("correct/samples="+bestTotalCorrect+"/"+samples.size());
-        System.out.println("C\tgamma\t\taccuracy");
+        System.out.println("C\tgamma\taccuracy");
         System.out.println(bestParam.C+"\t"+bestParam.gamma+"\t"+bestAccuracy);
     }
 
@@ -221,21 +232,33 @@ public class GridSearcher {
         HelpFormatter formatter = new HelpFormatter();
         CommandLine cmd = null;
 
+	Option dataFileOption = new Option("datafile", true, "input data file in SVM format [required]");
+	dataFileOption.setRequired(true);
+	options.addOption(dataFileOption);
+	
 	Option log10COption = new Option("log10C", true, "set range/step of log10(C) ["+C_BEGIN+","+C_END+","+C_STEP+"]");
         log10COption.setRequired(false);
         options.addOption(log10COption);
-
+	//
         Option log10gammaOption = new Option("log10gamma", true, "set range/step of log10(gamma) ["+G_BEGIN+","+G_END+","+G_STEP+"]");
         log10gammaOption.setRequired(false);
         options.addOption(log10gammaOption);
-
+	//
         Option nFoldOption = new Option("k", true, "k-fold for cross validation ["+SvmUtil.NRFOLD+"]");
         nFoldOption.setRequired(false);
         options.addOption(nFoldOption);
-
+	//
         Option vOption = new Option("v", false, "toggle verbose output");
         vOption.setRequired(false);
         options.addOption(vOption);
+	//
+	Option nCasesOption = new Option("ncases", true, "set number of cases to use in search [0=all]");
+	nCasesOption.setRequired(false);
+	options.addOption(nCasesOption);
+	//
+	Option nControlsOption = new Option("ncontrols", true, "set number of controls to use in search [0=all]");
+	nControlsOption.setRequired(false);
+	options.addOption(nControlsOption);
 
         if (args.length==0) {
             formatter.printHelp("GridSearcher [options]", options);
@@ -250,15 +273,16 @@ public class GridSearcher {
             System.exit(1);
         }
 
-        // data file is last argument
-        String datafile = args[args.length-1];
+        String datafile = cmd.getOptionValue("datafile");
 
-        // initialize with default parameters
-        GridSearcher gs = new GridSearcher(datafile);
+	int nCases = 0;
+	int nControls = 0;
+	if (cmd.hasOption("ncases")) nCases = Integer.parseInt(cmd.getOptionValue("ncases"));
+	if (cmd.hasOption("ncontrols")) nControls = Integer.parseInt(cmd.getOptionValue("ncontrols"));
 
-        if (cmd.hasOption("v")) {
-            gs.setVerbose();
-        }
+        // initialize
+	GridSearcher gs = new GridSearcher(datafile, nCases, nControls);
+        if (cmd.hasOption("v")) gs.setVerbose();
 
         if (cmd.hasOption("log10C")) {
             String log10CValues = cmd.getOptionValue("log10C");

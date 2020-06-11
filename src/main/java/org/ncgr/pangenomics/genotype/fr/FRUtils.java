@@ -691,7 +691,7 @@ public class FRUtils {
             out.println("@ATTRIBUTE "+frLabel+" NUMERIC");
         }
         // add the class attribute
-        out.println("@ATTRIBUTE class {case,ctrl}");
+        out.println("@ATTRIBUTE class {ctrl,case}");
         out.println("");
         // data
         out.println("@DATA");

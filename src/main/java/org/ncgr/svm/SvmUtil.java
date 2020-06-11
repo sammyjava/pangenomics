@@ -6,7 +6,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import java.util.List;;
-import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.Optional;
 
 import libsvm.svm;
 import libsvm.svm_parameter;
@@ -57,7 +58,7 @@ public class SvmUtil {
      * Load a list of samples from a data file.
      */
     public static List<Sample> readSamples(String dataFilename) throws FileNotFoundException, IOException {
-        List<Sample> samples = new ArrayList<>();
+        List<Sample> samples = new LinkedList<>();
         BufferedReader reader = new BufferedReader(new FileReader(dataFilename));
         String line = null;
         while ((line=reader.readLine())!=null) {
@@ -66,5 +67,54 @@ public class SvmUtil {
         }
         reader.close();
         return samples;
+    }
+
+    /**
+     * Reduce the number of samples to nCases and nControls
+     */
+    public static List<Sample> reduceSamples(List<Sample> samples, int nCases, int nControls) {
+	List<Sample> chosenSamples = new LinkedList<>();
+	// randomly select case and control paths
+	if (nCases>0) {
+	    int n = 0;
+	    while (n<nCases) {
+		Optional<Sample> optional = samples.stream().skip((int)(samples.size()*Math.random())).findFirst();
+		if (optional.isPresent()) {
+		    Sample sample = optional.get();
+		    if (isCase(sample) && !chosenSamples.contains(sample)) {
+			n++;
+			chosenSamples.add(sample);
+		    }
+		}
+	    }
+	}
+	if (nControls>0) {
+	    int n = 0;
+	    while (n<nControls) {
+		Optional<Sample> optional = samples.stream().skip((int)(samples.size()*Math.random())).findFirst();
+		if (optional.isPresent()) {
+		    Sample sample = optional.get();
+		    if (isControl(sample) && !chosenSamples.contains(sample)) {
+			n++;
+			chosenSamples.add(sample);
+		    }
+		}
+	    }
+	}
+	return chosenSamples;
+    }
+    
+    /**
+     * Return true if Sample is labeled a case
+     */
+    public static boolean isCase(Sample sample) {
+	return sample.label.equals("case") || sample.label.equals("1") || sample.label.equals("+1");
+    }
+
+    /**
+     * Return true if Sample is labeled a control
+     */
+    public static boolean isControl(Sample sample) {
+	return sample.label.equals("ctrl") || sample.label.equals("-1");
     }
 }
