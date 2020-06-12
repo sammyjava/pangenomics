@@ -202,7 +202,7 @@ class PGraphXAdapter extends JGraphXAdapter<Node,Edge> {
             tip += nodePathCount+" paths<br/>";
             tip += percf.format(nodeFrac);
             if (hasCaseControlLabels) {
-                double lOR = Math.log10(graph.oddsRatio(n));
+                double or = graph.oddsRatio(n);
                 double p = graph.fisherExactP(n);
                 Map<String,Integer> graphLabelCounts = graph.labelCounts;
                 Map<String,Integer> nodeLabelCounts = graph.getLabelCounts(n);
@@ -215,7 +215,7 @@ class PGraphXAdapter extends JGraphXAdapter<Node,Edge> {
                 tip += "<br/>"+
                     nodeCaseCounts+"/"+nodeCtrlCounts+"<br/>" +
                     percf.format(nodeCaseFrac)+"/"+percf.format(nodeCtrlFrac)+"<br/>" +
-                    "lOR="+orf.format(lOR)+"<br/>" +
+                    "OR="+orf.format(or)+"<br/>" +
                     "p="+pf.format(p);
             }
             tip += "</html>";
