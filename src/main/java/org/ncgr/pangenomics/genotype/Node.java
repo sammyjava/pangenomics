@@ -17,7 +17,7 @@ public class Node implements Comparable, Serializable {
     public boolean isCalled;
 
     /**
-     * Minimal constructor.
+     * Minimal constructor, nothing but an id.
      */
     public Node(long id) {
         this.id = id;
@@ -34,13 +34,17 @@ public class Node implements Comparable, Serializable {
         this.rs = rs;
 	this.genotype = genotype;
         this.af = af;
-	isCalled = !genotype.equals("./.");
+	isCalled = !isNoCall();
     }
 
     /**
      * Return true if this Node is a no-call. Several no-call strings can be put here.
      */
     public boolean isNoCall() {
+	if (genotype==null) {
+	    System.err.println("ERROR: Node.isNoCall() called but genotype="+genotype);
+	    System.exit(1);
+	}
         return genotype.equals("./.");
     }
 

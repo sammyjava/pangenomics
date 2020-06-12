@@ -35,6 +35,8 @@ public class GridSearcher {
     static DecimalFormat df = new DecimalFormat("0.00E0");
     static DecimalFormat pf = new DecimalFormat("00.0%");
 
+    boolean verbose = false;
+
     // grid defaults
     static double C_BEGIN = -2.0;
     static double C_END = 5.0;
@@ -57,32 +59,30 @@ public class GridSearcher {
 
     // cross-validation
     int nrFold = SvmUtil.NRFOLD;
-    
-    boolean verbose = false;
-
-    public int maxIndex = 0;
 
     // input data
-    String dataFile;
+    String inputFilename;
     public List<Sample> samples;
     public Vector<String> sampleNames;
 
     /**
      * Load the samples from a data file and set default parameters.
      *
-     * @param dataFile the data file in SVM format
+     * @param inputFilename the data file in SVM format
      * @param nCases the number of randomly-chosen cases to use in the search (0=all)
      * @param nControls the number of randomly-chosen controls to use in the search (0=all)
      */
-    public GridSearcher(String dataFile, int nCases, int nControls) throws FileNotFoundException, IOException {
+    public GridSearcher(String inputFilename, int nCases, int nControls) throws FileNotFoundException, IOException {
 	// load all the samples
-	this.dataFile = dataFile;
-        samples = SvmUtil.readSamples(dataFile);
-	// pull out the desired number of cases and controls if nonzero
-	if (nCases!=0 || nControls!=0) SvmUtil.reduceSamples(samples, nCases, nControls);
+	this.inputFilename = inputFilename;
+	if (nCases==0 && nControls==0) {
+	    samples = SvmUtil.readSamples(inputFilename);
+	} else {
+	    samples = SvmUtil.reduceSamples(SvmUtil.readSamples(inputFilename), nCases, nControls);
+	}
 	// build the SVMLIB objects
 	sampleNames = new Vector<>();
-        maxIndex = 0;
+        int maxIndex = 0;
         for (Sample sample : samples) {
             sampleNames.addElement(sample.name);
             double dlabel = 0;
@@ -118,7 +118,7 @@ public class GridSearcher {
      */
     public void run() {
 	if (verbose) {
-	    System.err.println("GridSearcher: "+dataFile);
+	    System.err.println("GridSearcher: "+inputFilename);
 	    System.err.println("GridSearcher: "+samples.size()+" samples");
             System.err.println("GridSearcher: "+nrFold+"-fold cross-validation");
 	    System.err.println("GridSearcher: log10(C) from "+c_begin+" to "+c_end+" in steps of "+c_step);
@@ -145,8 +145,10 @@ public class GridSearcher {
 		    param.C = Math.pow(10.0,log10C);
 		    param.gamma = Math.pow(10.0,log10gamma);
 		    String key = param.C+":"+param.gamma;
-		    svm_problem prob = createProblem(vx, vy, param, maxIndex);
-		    SvmCrossValidator svc = new SvmCrossValidator(param, nrFold, prob);
+		    SvmCrossValidator svc = new SvmCrossValidator(param, nrFold, vy, vx);
+		    svc.samples = samples;
+		    svc.inputFilename = inputFilename;
+		    svc.quiet = true;
 		    svc.run();
 		    if (verbose) {
 			System.err.println("GridSearcher: C="+df.format(param.C)+" gamma="+df.format(param.gamma)+" totalCorrect="+svc.totalCorrect+" accuracy="+pf.format(svc.accuracy));
@@ -178,42 +180,6 @@ public class GridSearcher {
         System.out.println("correct/samples="+bestTotalCorrect+"/"+samples.size());
         System.out.println("C\tgamma\taccuracy");
         System.out.println(bestParam.C+"\t"+bestParam.gamma+"\t"+bestAccuracy);
-    }
-
-    /**
-     * Create an svm_problem from samples. Sets instance vars prob and param.
-     */
-    static svm_problem createProblem(Vector<svm_node[]> vx, Vector<Double> vy, svm_parameter param, int maxIndex) {
-        // create and populate the svm_problem
-        svm_problem prob = new svm_problem();
-        prob.l = vy.size();
-        prob.x = new svm_node[prob.l][];
-        for (int i=0;i<prob.l;i++) {
-            prob.x[i] = vx.elementAt(i);
-        }
-        prob.y = new double[prob.l];
-        for (int i=0;i<prob.l;i++) {
-            prob.y[i] = vy.elementAt(i);
-        }
-        // validation
-        if (param.kernel_type == svm_parameter.PRECOMPUTED) {
-            for (int i=0;i<prob.l;i++) {
-                if (prob.x[i][0].index != 0) {
-                    System.err.println("GridSearcher ERROR: Wrong kernel matrix: first column must be 0:sample_serial_number.");
-                    System.exit(1);
-                }
-                if ((int)prob.x[i][0].value <= 0 || (int)prob.x[i][0].value > maxIndex) {
-                    System.err.println("GridSearcher ERROR: Wrong input format: sample_serial_number out of range.");
-                    System.exit(1);
-                }
-            }
-        }
-        // String errorMsg = svm.svm_check_parameter(prob,param);
-        // if (errorMsg!=null) {
-        //     System.err.println("GridSearcher ERROR: "+errorMsg);
-        //     System.exit(1);
-        // }
-	return prob;
     }
 
     /**
@@ -307,24 +273,4 @@ public class GridSearcher {
         // run the search
         gs.run();
     }
-
-    /**
-     * Python-to-Java function.
-     */
-    static double atof(String s) {
-        double d = Double.valueOf(s).doubleValue();
-        if (Double.isNaN(d) || Double.isInfinite(d)) {
-            System.err.println("GridSearcher ERROR: NaN or Infinity in input.");
-            System.exit(1);
-        }
-        return(d);
-    }
-
-    /**
-     * Python-to-Java function.
-     */
-    static int atoi(String s) {
-        return Integer.parseInt(s);
-    }
-    
 }

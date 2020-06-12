@@ -30,6 +30,8 @@ import libsvm.svm_problem;
 public class SvmCrossValidator {
 
     static DecimalFormat pf = new DecimalFormat("0.0%");
+
+    boolean quiet = false; // true stops informative System.err output
     
     svm_parameter param;
     svm_problem prob;
@@ -61,8 +63,11 @@ public class SvmCrossValidator {
     public SvmCrossValidator(String inputFilename, int nCases, int nControls) throws FileNotFoundException, IOException {
 	this.inputFilename = inputFilename;
         param = SvmUtil.getDefaultParam();
-        samples = SvmUtil.readSamples(inputFilename);
-	if (nCases>0 || nControls>0) samples = SvmUtil.reduceSamples(samples, nCases, nControls);
+	if (nCases==0 && nControls==0) {
+	    samples = SvmUtil.readSamples(inputFilename);
+	} else {
+	    samples = SvmUtil.reduceSamples(SvmUtil.readSamples(inputFilename), nCases, nControls);
+	}
         createProblem();
     }
 
@@ -78,8 +83,11 @@ public class SvmCrossValidator {
             System.err.println("Error: n-fold cross validation requires n>=2.");
             System.exit(1);
         }
-        samples = SvmUtil.readSamples(inputFilename);
-	if (nCases>0 || nControls>0) samples = SvmUtil.reduceSamples(samples, nCases, nControls);
+	if (nCases==0 && nControls==0) {
+	    samples = SvmUtil.readSamples(inputFilename);
+	} else {
+	    samples = SvmUtil.reduceSamples(SvmUtil.readSamples(inputFilename), nCases, nControls);
+	}
         createProblem();
     }
 
@@ -174,22 +182,24 @@ public class SvmCrossValidator {
 		if (y==-1) minusTotal++;
 	    }
 	    // summary line
-	    System.err.println("Correct, CaseCorrect, ControlCorrect: "+
-			       (plusTotal+minusTotal-plusFails-minusFails)+"/"+(plusTotal+minusTotal)+", "+
-			       (plusTotal-plusFails)+"/"+plusTotal+", "+
-			       (minusTotal-minusFails)+"/"+minusTotal+"   " +
-			       pf.format((double)(plusTotal+minusTotal-plusFails-minusFails)/(double)(plusTotal+minusTotal))+", "+
-			       pf.format((double)(plusTotal-plusFails)/(double)plusTotal)+", "+
-			       pf.format((double)(minusTotal-minusFails)/(double)minusTotal));
-	    System.out.println(inputFilename+"\t"+maxIndex+"\t"+param.C+"\t"+param.gamma+"\t"+nrFold+"\t"+plusTotal+"\t"+minusTotal+"\t"+plusFails+"\t"+minusFails);
-	    // predictions by sample
-	    for (int i=0; i<prob.l; i++) {
-		String label = "";
-		System.out.print(samples.get(i).name+"\t"+samples.get(i).label);
-		if (errorIndices.contains(i)) {
-		    System.out.println("\tfalse");
-		} else {
-		    System.out.println("\ttrue");
+	    if (!quiet) {
+		System.err.println("Correct, CaseCorrect, ControlCorrect: "+
+				   (plusTotal+minusTotal-plusFails-minusFails)+"/"+(plusTotal+minusTotal)+", "+
+				   (plusTotal-plusFails)+"/"+plusTotal+", "+
+				   (minusTotal-minusFails)+"/"+minusTotal+"   " +
+				   pf.format((double)(plusTotal+minusTotal-plusFails-minusFails)/(double)(plusTotal+minusTotal))+", "+
+				   pf.format((double)(plusTotal-plusFails)/(double)plusTotal)+", "+
+				   pf.format((double)(minusTotal-minusFails)/(double)minusTotal));
+		System.out.println(inputFilename+"\t"+maxIndex+"\t"+param.C+"\t"+param.gamma+"\t"+nrFold+"\t"+plusTotal+"\t"+minusTotal+"\t"+plusFails+"\t"+minusFails);
+		// predictions by sample
+		for (int i=0; i<prob.l; i++) {
+		    String label = "";
+		    System.out.print(samples.get(i).name+"\t"+samples.get(i).label);
+		    if (errorIndices.contains(i)) {
+			System.out.println("\tfalse");
+		    } else {
+			System.out.println("\ttrue");
+		    }
 		}
 	    }
 	}
@@ -207,11 +217,14 @@ public class SvmCrossValidator {
             sampleNames.addElement(sample.name);
 	    // cases are "plus", controls are "minus"
             double dlabel = 0;
-            if (sample.label.equals("case") || sample.label.equals("1") || sample.label.equals("+1")) {
+	    if (SvmUtil.isCase(sample)) {
                 dlabel = 1.0;
-            } else if (sample.label.equals("ctrl") || sample.label.equals("-1")) {
+            } else if (SvmUtil.isControl(sample)) {
                 dlabel = -1.0;
-            }
+            } else {
+		System.err.println("ERROR: sample "+sample+" is neither case nor control. Exiting.");
+		System.exit(1);
+	    }
             vy.addElement(dlabel);
             svm_node[] x = new svm_node[sample.values.size()];
             int j = 0;

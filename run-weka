@@ -12,7 +12,7 @@ MINSUPPORT=0
 MAXPVALUE=1.0
 
 ## delete former file
-# rm -f $ARFFFILE
+rm -f $ARFFFILE
 
 if [ ! -s $ARFFFILE ]
 then
@@ -24,7 +24,3 @@ if [ -s $ARFFFILE ]
 then
     java -server -cp "build/install/fr/lib/*" WekaTest $ARFFFILE
 fi
-
-
-
-

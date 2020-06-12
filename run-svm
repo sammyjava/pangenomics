@@ -13,27 +13,27 @@ MINSIZE=0
 MINSUPPORT=0
 MAXPVALUE=1.0
 
-## reduce the cases and controls
-NCASES=0
-NCONTROLS=0
-
 ## grid scan
 GRIDOUT="$INPUTPREFIX.svm.grid.txt"
 K=10
 LOG10C="-6,6,1"
 LOG10GAMMA="-8,1,1"
+NGRIDCASES=100
+NGRIDCONTROLS=100
 
 # LOG10C="0,0,1"
 # LOG10GAMMA="-3,-1,0.5"
 
 ## SVM
 NRUNS=10
+NSVMCASES=0
+NSVMCONTROLS=0
 
-# ## pre-clean during testing; forces operation to be run
-# rm -f $SVMFILE
-# rm -f $RANGE
-# rm -f $FULLSCALE
-rm -f $GRIDOUT
+## pre-clean during testing; forces operation to be run
+#rm -f $SVMFILE
+#rm -f $RANGE
+#rm -f $FULLSCALE
+#rm -f $GRIDOUT
 
 # usage: FRUtils
 #  -arff,--arff                     print out an ARFF style file from the
@@ -80,17 +80,16 @@ fi
 #  -log10C <arg>   set range/step of log10(C) [-5.0,15.0,1.0]
 #  -log10gamma <arg>   set range/step of log10(gamma) [-15.0,0.0,1.0]
 #  -v             toggle verbose output
-# if [ ! -s $GRIDOUT ]
-# then
-#     starttime=`date`
-#     ## run GridSearcher on the full scaled data to find optimum SVM parameters
-#     ARGS="-log10C $LOG10C -log10gamma $LOG10GAMMA -k $K"
-#     java -server -Xms10g -Xmx600g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.svm.GridSearcher \
-# 	 -datafile $FULLSCALE -ncases $NCASES -ncontrols $NCONTROLS -v $ARGS > $GRIDOUT
-#     endtime=`date`
-#     echo "$starttime - $endtime"
-#     cat $GRIDOUT
-# fi
+if [ ! -s $GRIDOUT ]
+then
+    starttime=`date`
+    ## run GridSearcher on the full scaled data to find optimum SVM parameters
+    ARGS="-datafile $FULLSCALE -log10C $LOG10C -log10gamma $LOG10GAMMA -k $K -ncases $NGRIDCASES -ncontrols $NGRIDCONTROLS"
+    echo "Running GridSearcher with $ARGS"
+    java -server -Xms10g -Xmx600g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.svm.GridSearcher $ARGS > $GRIDOUT
+    endtime=`date`
+    echo "$starttime - $endtime"
+fi
 
 # usage: SvmCrossValidator [options]
 #  -C,--cost <arg>                       cost parameter C in C-SVC,
@@ -133,13 +132,13 @@ fi
 #                                        weight, for C-SVC [1]
 
 ## set SVM parameters, default or from GridSearcher
-ARGS="-h 0 -m 1000 -C 1.0 -k $K -ncases $NCASES -ncontrols $NCONTROLS"
+ARGS="-h 0 -m 1000 -C 1.0 -k $K -ncases $NSVMCASES -ncontrols $NSVMCONTROLS"
 if [ -s $GRIDOUT ]
 then
     C=`tail -1 $GRIDOUT | awk '{ print $1; }'`
     gamma=`tail -1 $GRIDOUT | awk '{ print $2; }'`
     perc=`tail -1 $GRIDOUT | awk '{ print $3; }'`
-    ARGS="-C $C -gamma $gamma -k $K"
+    ARGS="-C $C -gamma $gamma -k $K -ncases $NSVMCASES -ncontrols $NSVMCONTROLS"
 fi
 
 echo "Running $NRUNS SvmCrossValidator runs on $FULLSCALE with $ARGS"

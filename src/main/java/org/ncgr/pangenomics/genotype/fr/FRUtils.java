@@ -591,29 +591,44 @@ public class FRUtils {
 	}
 	// load the frequented regions and update support in parallel
 	TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(inputPrefix, graph);
+	// use a list to winnow FRs
+	List<FrequentedRegion> frsToRemove;
+	// remove FRs containing no-call nodes since they aren't really true FRs
+	frsToRemove = new LinkedList<>();
+	for (FrequentedRegion fr : frequentedRegions) {
+	    fr.updateNodes();
+	    if (fr.containsNoCallNode()) {
+		frsToRemove.add(fr);
+	    }
+	}
+	frequentedRegions.removeAll(frsToRemove);
+	System.err.println("FRUtils.printPathFRsARFF: removed "+frsToRemove.size()+" FRs with no-call nodes.");
 	// winnow the FRs on size
 	if (minSize>0) {
-	    List<FrequentedRegion> frsToRemove = new LinkedList<>();
+	    frsToRemove = new LinkedList<>();
 	    for (FrequentedRegion fr : frequentedRegions) {
 		if (fr.nodes.size()<minSize) frsToRemove.add(fr);
 	    }
 	    frequentedRegions.removeAll(frsToRemove);
+	    System.err.println("FRUtils.printPathFRsARFF: removed "+frsToRemove.size()+" FRs with size<"+minSize);
 	}
 	// winnow the FRs on support
 	if (minSupport>1) {
-	    List<FrequentedRegion> frsToRemove = new LinkedList<>();
+	    frsToRemove = new LinkedList<>();
 	    for (FrequentedRegion fr : frequentedRegions) {
 		if (fr.support<minSupport) frsToRemove.add(fr);
 	    }
 	    frequentedRegions.removeAll(frsToRemove);
+	    System.err.println("FRUtils.printPathFRsARFF: removed "+frsToRemove.size()+" FRs with support<"+minSupport);
 	}
 	// winnow the FRs on pValue
 	if (maxPValue<1.0) {
-	    List<FrequentedRegion> frsToRemove = new LinkedList<>();
+	    frsToRemove = new LinkedList<>();
 	    for (FrequentedRegion fr : frequentedRegions) {
 		if (fr.pValue>maxPValue) frsToRemove.add(fr);
 	    }
 	    frequentedRegions.removeAll(frsToRemove);
+	    System.err.println("FRUtils.printPathFRsARFF: removed "+frsToRemove.size()+"+ FRs with p>"+maxPValue);
 	}
 	System.err.println("FRUtils.printPathFRsARFF: "+frequentedRegions.size()+" FRs loaded.");
 	// collect the paths, cases and controls

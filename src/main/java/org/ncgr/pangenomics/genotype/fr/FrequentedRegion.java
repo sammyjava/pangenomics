@@ -207,6 +207,15 @@ class FrequentedRegion implements Comparable {
     }
 
     /**
+     * Update the nodes in this FR so they contain node attributes from the graph rather than just an id.
+     */
+    public void updateNodes() {
+	for (Node n : nodes) {
+	    n = graph.getNode(n.id);
+	}
+    }
+
+    /**
      * Update the subpaths and support from the graph paths for the current alpha and kappa values.
      */
     void updateSupport() {
@@ -471,6 +480,19 @@ class FrequentedRegion implements Comparable {
      */
     public boolean containsNode(Node n) {
         return nodes.contains(n);
+    }
+
+    /**
+     * Return true if one of the nodes in this FR is a no call.
+     */
+    public boolean containsNoCallNode() {
+	for (Node n : nodes) {
+	    if (n.genotype==null) n = graph.getNode(n.id);
+	    if (n.isNoCall()) {
+		return true;
+	    }
+	}
+	return false;
     }
 
     /**
