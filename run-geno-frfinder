@@ -24,6 +24,8 @@
 #                                  region to be considered interesting [1]
 #  -maxct,--maxclocktime <arg>     limit the computation to the given clock
 #                                  time in minutes [0=unlimited]
+#  -maxp,--maxpval <arg>           maximum p-value for nodes included in
+#                                  search [1.0]
 #  -minmaf,--minmaf <arg>          minimum MAF for nodes included in search
 #                                  [0.01]
 #  -mp,--minpriority <arg>         minimum priority for saving an FR [0]
@@ -76,8 +78,8 @@ echo "# $graph alpha=$alpha kappa=$kappa priorityOption=$priorityoption $5 $6 $7
 
 ## TXT input
 ## DO NOT USE -XX:+UseG1GC!!! Causes hang at certain RAM limit.
-java -server -Xms10g -Xmx600g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRFinder \
-     --verbose --requiregenotypecall \
+java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRFinder \
+     --verbose --requiregenotypecall --keep=subset --minmaf=0.0 \
      --txt --graph=$graph \
      --alphastart=$alpha --alphaend=$alpha --kappastart=$kappa --kappaend=$kappa --priorityoption=$priorityoption \
      $5 $6 $7 $8 $9 ${10} ${11} ${12} ${13} ${14} ${15}

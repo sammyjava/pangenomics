@@ -478,7 +478,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
     }
 
     /**
-     * Return the Fisher's exact test p value for case paths vs control paths that traverse the given node.
+     * Return the Fisher's exact test two-tailed p value for case paths vs control paths that traverse the given node.
      *
      *      | node paths    | other paths    |
      *      |--------------------------------|

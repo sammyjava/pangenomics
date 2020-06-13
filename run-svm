@@ -30,10 +30,10 @@ NSVMCASES=0
 NSVMCONTROLS=0
 
 ## pre-clean during testing; forces operation to be run
-#rm -f $SVMFILE
-#rm -f $RANGE
-#rm -f $FULLSCALE
-#rm -f $GRIDOUT
+rm -f $SVMFILE
+rm -f $RANGE
+rm -f $FULLSCALE
+rm -f $GRIDOUT
 
 # usage: FRUtils
 #  -arff,--arff                     print out an ARFF style file from the
@@ -80,16 +80,16 @@ fi
 #  -log10C <arg>   set range/step of log10(C) [-5.0,15.0,1.0]
 #  -log10gamma <arg>   set range/step of log10(gamma) [-15.0,0.0,1.0]
 #  -v             toggle verbose output
-if [ ! -s $GRIDOUT ]
-then
-    starttime=`date`
-    ## run GridSearcher on the full scaled data to find optimum SVM parameters
-    ARGS="-datafile $FULLSCALE -log10C $LOG10C -log10gamma $LOG10GAMMA -k $K -ncases $NGRIDCASES -ncontrols $NGRIDCONTROLS"
-    echo "Running GridSearcher with $ARGS"
-    java -server -Xms10g -Xmx600g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.svm.GridSearcher $ARGS > $GRIDOUT
-    endtime=`date`
-    echo "$starttime - $endtime"
-fi
+#if [ ! -s $GRIDOUT ]
+#then
+#    starttime=`date`
+#    ## run GridSearcher on the full scaled data to find optimum SVM parameters
+#    ARGS="-datafile $FULLSCALE -log10C $LOG10C -log10gamma $LOG10GAMMA -k $K -ncases $NGRIDCASES -ncontrols $NGRIDCONTROLS"
+#    echo "Running GridSearcher with $ARGS"
+#    java -server -Xms10g -Xmx600g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.svm.GridSearcher $ARGS > $GRIDOUT
+#    endtime=`date`
+#    echo "$starttime - $endtime"
+#fi
 
 # usage: SvmCrossValidator [options]
 #  -C,--cost <arg>                       cost parameter C in C-SVC,

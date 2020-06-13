@@ -1,6 +1,6 @@
-import java.util.List;
-import java.util.LinkedList;
 import java.util.Random;
+import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 import java.text.DecimalFormat;
 
@@ -32,27 +32,44 @@ public class WekaTest {
         // set the class attribute index
         data.setClassIndex(data.numAttributes() - 1);
  
-	// choose our classifiers
-	List<Classifier> models = new LinkedList<>();
+	// load classifiers and their evaluations in a map
+	ConcurrentHashMap<Classifier,Evaluation> modelEvaluations = new ConcurrentHashMap<>();
 	// trees
-	models.add(new DecisionStump()); // one-level decision tree	
-	models.add(new HoeffdingTree()); //
-	models.add(new J48());           // a decision tree
-	models.add(new LMT());           //
-	models.add(new RandomForest());  //
-	models.add(new RandomTree());    // random tree
-	models.add(new REPTree());       //
+	modelEvaluations.put(new DecisionStump(), new Evaluation(data)); // one-level decision tree	
+	modelEvaluations.put(new HoeffdingTree(), new Evaluation(data)); //
+	modelEvaluations.put(new J48(), new Evaluation(data));           // a decision tree
+	modelEvaluations.put(new LMT(), new Evaluation(data));           //
+	modelEvaluations.put(new RandomForest(), new Evaluation(data));  //
+	modelEvaluations.put(new RandomTree(), new Evaluation(data));    // random tree
+	modelEvaluations.put(new REPTree(), new Evaluation(data));       //
 	// rules
-	models.add(new DecisionTable()); // decision table majority classifier
-	models.add(new JRip());          //
-	models.add(new OneR());          //
-	models.add(new PART());          // PART decision list
-	models.add(new ZeroR());         // baseline: everything is the majority class
-		
-	// Run once for each model
-	for (Classifier model :models) {
-	    Evaluation evaluation = new Evaluation(data);
-	    evaluation.crossValidateModel(model, data, KFOLD, new Random(1));
+	modelEvaluations.put(new DecisionTable(), new Evaluation(data)); // decision table majority classifier
+	modelEvaluations.put(new JRip(), new Evaluation(data));          //
+	modelEvaluations.put(new OneR(), new Evaluation(data));          //
+	modelEvaluations.put(new PART(), new Evaluation(data));          // PART decision list
+	modelEvaluations.put(new ZeroR(), new Evaluation(data));         // baseline: everything is the majority class
+
+	// Run through the models in a parallel stream
+	modelEvaluations.entrySet().parallelStream().forEach(entry -> {
+		Classifier model = entry.getKey();
+		Evaluation evaluation = entry.getValue();
+		try {
+		    evaluation.crossValidateModel(model, data, KFOLD, new Random(1));
+		} catch (Exception e) {
+		    System.err.println(e);
+		    System.exit(1);
+		}
+		System.out.println("Finished "+model.getClass().getName());
+	    });
+
+	// spit out the results in order of number correct
+	TreeMap<Double,Classifier> sortedModels = new TreeMap<>();
+	for (Classifier model : modelEvaluations.keySet()) {
+	    Evaluation evaluation = modelEvaluations.get(model);
+	    sortedModels.put(evaluation.correct(), model);
+	}
+	for (Classifier model : sortedModels.values()) {
+	    Evaluation evaluation = modelEvaluations.get(model);
 	    System.out.println("--------------------------------------------------------------------------------------------------------------------");
 	    System.out.println(model.getClass().getName());
 	    System.out.println(evaluation.toSummaryString());

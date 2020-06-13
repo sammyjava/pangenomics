@@ -11,7 +11,7 @@ MINSIZE=0
 MINSUPPORT=0
 MAXPVALUE=1.0
 
-## delete former file
+## delete former ARFF file
 rm -f $ARFFFILE
 
 if [ ! -s $ARFFFILE ]

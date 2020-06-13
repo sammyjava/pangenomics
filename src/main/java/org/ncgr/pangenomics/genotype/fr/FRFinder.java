@@ -88,6 +88,7 @@ public class FRFinder {
     boolean requireSamePosition = false;
     double minLength = 0.0;
     double minMAF = 0.01;
+    double maxPVal = 1.0;
     int minSize = 0;
     int maxRound = 0;
     int minPriority = 0;
@@ -133,6 +134,7 @@ public class FRFinder {
         parameters.setProperty("keepOption", keepOption);
         parameters.setProperty("keepOption", "null");
         parameters.setProperty("minMAF", String.valueOf(minMAF));
+	parameters.setProperty("maxPVal", String.valueOf(maxPVal));
 	parameters.setProperty("requireGenotypeCall", String.valueOf(requireGenotypeCall));
 	parameters.setProperty("requireBestNodeSet", String.valueOf(requireBestNodeSet));
 	parameters.setProperty("requireSamePosition", String.valueOf(requireSamePosition));
@@ -156,6 +158,7 @@ public class FRFinder {
                    "minSize="+minSize+" " +
                    "minLength="+minLength+" " +
                    "minMAF="+minMAF+" " +
+		   "maxPVal="+maxPVal+" " +
                    "maxRound="+maxRound+" " +
 		   "maxClocktime="+maxClocktime+" " +
 		   "keepOption="+keepOption+" " +
@@ -230,11 +233,15 @@ public class FRFinder {
 	    /////////////////////////////////////////////////////////////////////////////////////////////////////////
 	    // locally parallelized for your convenience
 	    // load the single-node FRs into allFrequentedRegions
-	    // keep those with af>=minMAF and genotype call if requireGenotypeCall and not in excludedNodes
-	    // also exclude those with insufficient support if alpha=1.0
+	    // - keep if af>=minMAF
+	    // - keep if p<=maxPVal
+	    // - keep those with genotype call if requireGenotypeCall
+	    // - keep those not in excludedNodes
+	    // - exclude those with insufficient support if alpha=1.0
 	    ConcurrentSkipListSet<Node> excRejects = new ConcurrentSkipListSet<>();
 	    ConcurrentSkipListSet<Node> ngcRejects = new ConcurrentSkipListSet<>();
 	    ConcurrentSkipListSet<Node> mafRejects = new ConcurrentSkipListSet<>();
+	    ConcurrentSkipListSet<Node> pvalRejects = new ConcurrentSkipListSet<>();
 	    ConcurrentSkipListSet<Node> supportRejects = new ConcurrentSkipListSet<>();
 	    ConcurrentSkipListSet<Node> nodes = new ConcurrentSkipListSet<>(graph.getNodes());
 	    nodes.parallelStream().forEach(node -> {
@@ -244,6 +251,8 @@ public class FRFinder {
 			ngcRejects.add(node);
 		    } else if (node.af<minMAF) {
 			mafRejects.add(node);
+		    } else if (maxPVal<1.0 && graph.fisherExactP(node)>maxPVal) {
+			pvalRejects.add(node);
 		    } else {
 			FrequentedRegion fr = new FrequentedRegion(graph, new NodeSet(node), alpha, kappa, priorityOptionKey, priorityOptionLabel);
 			if (alpha==1.0 && fr.support<minSupport) {
@@ -259,6 +268,7 @@ public class FRFinder {
 	    printToLog("# "+excRejects.size()+" nodes excluded because contained in excludedNodes");
 	    printToLog("# "+ngcRejects.size()+" nodes excluded because not called and requireGenotypeCall==true");
 	    printToLog("# "+mafRejects.size()+" nodes excluded because allele frequency<"+minMAF);
+	    printToLog("# "+pvalRejects.size()+" nodes excluded because p>"+maxPVal);
 	    if (alpha==1.0) printToLog("# "+supportRejects.size()+" nodes excluded because FR support<"+minSupport);
 	    // store interesting single-node FRs in round 0, since we won't hit them in the loop
 	    for (FrequentedRegion fr : allFrequentedRegions.values()) {
@@ -302,10 +312,9 @@ public class FRFinder {
 	    long roundStartTime = System.currentTimeMillis();
 	    final NodeSet finalRequiredNodes = requiredNodes;
             // store FRPairs in a map keyed by merged nodes in THIS round for parallel operation and sorting
-            ConcurrentSkipListSet<FRPair> frpairSet = new ConcurrentSkipListSet<>();
+            ConcurrentSkipListSet<FRPair> interestingFRPairs = new ConcurrentSkipListSet<>();
 	    // NOTE: the fr1 loop need not be parallel since the fr2 loop will consume all the CPUs anyway;
 	    // by running the fr1 loop in series we ensure that the fr2 loop cycles use the same fr1 loop data.
-	    ////////////////////////////////////////////////////////////
 	    // start fr1 serial loop
 	    for (FrequentedRegion fr1 : allFrequentedRegions.values()) {
 		if (finalRequiredNodes.size()>0) {
@@ -318,9 +327,7 @@ public class FRFinder {
 		    }
 		    if (!contains) continue;
 		}
-		if (debug) {
-		    System.err.println("fr1:"+fr1.toString()+"|"+(System.currentTimeMillis()-roundStartTime)/1000);
-		}
+		if (debug) System.err.println("fr1:"+fr1.toString()+"|"+(System.currentTimeMillis()-roundStartTime)/1000);
 		// abort if max clock time exceeded
 		long clocktime = System.currentTimeMillis() - startTime;
 		if (maxClocktime!=0 && clocktime>maxClocktime*60000) {
@@ -407,9 +414,9 @@ public class FRFinder {
 			    if (keep) {
 				// add this keeper pair to acceptedFRPairs
 				acceptedFRPairs.put(nodesKey, frpair);
-				// add this pair to the current frpairSet if interesting
+				// add this pair to the current interestingFRPairs if interesting
 				if (isInteresting(frpair.merged)) {
-				    frpairSet.add(frpair);
+				    interestingFRPairs.add(frpair);
 				}
 			    } else {
 				// add this to the rejected list
@@ -421,16 +428,15 @@ public class FRFinder {
 		////////////////////////////////////////////////////////////////////////////////////////////////
 	    }
 	    // end of fr1 loop
-	    ////////////////////////////////////////////////////////////
 	    // add our new best merged FR from this round and store the interesting merged FRs
-            if (frpairSet.size()>0) {
+            if (interestingFRPairs.size()>0) {
                 added = true;
 		// add all of this round's interesting FRs to allFrequentedRegions OUTSIDE of the fr2 loop
-		for (FRPair pair : frpairSet) {
+		for (FRPair pair : interestingFRPairs) {
 		    allFrequentedRegions.put(pair.merged.nodes.toString(), pair.merged);
 		}
 		// add the best FR to the output FRs map
-                FrequentedRegion fr = frpairSet.last().merged;
+                FrequentedRegion fr = interestingFRPairs.last().merged;
                 frequentedRegions.put(fr.nodes.toString(), fr);
                 // toggle priorityOptionLabel for next round if so desired
                 if (priorityOptionParameter!=null && priorityOptionParameter.equals("alt")) togglePriorityOptionLabel();
@@ -564,6 +570,9 @@ public class FRFinder {
     public double getMinMAF() {
         return Double.parseDouble(parameters.getProperty("minMAF"));
     }
+    public double getMaxPVal() {
+	return Double.parseDouble(parameters.getProperty("maxPVal"));
+    }
     public boolean getRequireBestNodeSet() {
 	return Boolean.parseBoolean(parameters.getProperty("requireBestNodeSet"));
     }
@@ -663,6 +672,10 @@ public class FRFinder {
     public void setMinMAF(double minMAF) {
 	this.minMAF = minMAF;
         parameters.setProperty("minMAF", String.valueOf(minMAF));
+    }
+    public void setMaxPVal(double maxPVal) {
+	this.maxPVal = maxPVal;
+	parameters.setProperty("maxPVal", String.valueOf(maxPVal));
     }
     public void setRequireBestNodeSet() {
 	this.requireBestNodeSet = true;
@@ -786,6 +799,10 @@ public class FRFinder {
         minMAFOption.setRequired(false);
         options.addOption(minMAFOption);
 	//
+        Option maxPValOption = new Option("maxp", "maxpval", true, "maximum p-value for nodes included in search [1.0]");
+        maxPValOption.setRequired(false);
+        options.addOption(maxPValOption);
+	//
 	Option requireBestNodeSetOption = new Option("rbns", "requirebestnodeset", false, "require the best NodeSet from the previous round in the next round [false]");
 	requireBestNodeSetOption.setRequired(false);
 	options.addOption(requireBestNodeSetOption);
@@ -886,6 +903,7 @@ public class FRFinder {
 	    System.out.println("# Graph has had "+removedCount+" paths removed which did not contain one of the included nodes.");
 	}
 	// other stuff
+	pg.buildNodePaths();
 	pg.tallyLabelCounts();
 	System.out.println("# Graph has "+pg.vertexSet().size()+" nodes and "+pg.edgeSet().size()+" edges with "+pg.paths.size()+" paths.");
 	System.out.println("# Graph has "+pg.labelCounts.get("case")+" case paths and "+pg.labelCounts.get("ctrl")+" ctrl paths.");
@@ -911,6 +929,7 @@ public class FRFinder {
 	if (cmd.hasOption("writepathfrs")) frf.setWritePathFRs();
 	if (cmd.hasOption("writefrsubpaths")) frf.setWriteFRSubpaths();
 	if (cmd.hasOption("minmaf")) frf.setMinMAF(Double.parseDouble(cmd.getOptionValue("minmaf")));
+	if (cmd.hasOption("maxpval")) frf.setMaxPVal(Double.parseDouble(cmd.getOptionValue("maxpval")));
 	if (cmd.hasOption("requirebestnodeset")) frf.setRequireBestNodeSet();
 	if (cmd.hasOption("requiregenotypecall")) frf.setRequireGenotypeCall();
 	if (cmd.hasOption("requiresameposition")) frf.setRequireSamePosition();
