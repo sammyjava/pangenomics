@@ -2,6 +2,8 @@ This directory contains classes for working with pan-genomic graphs and frequent
 ```
 Cleary, et al., "Exploring Frequented Regions in Pan-Genomic Graphs", IEEE/ACM Trans Comput Biol Bioinform. 2018 Aug 9. PMID:30106690 DOI:10.1109/TCBB.2018.2864564
 ``` 
+This work was funded in part by the National Center for Genome Resources, Santa Fe, NM.
+
 ## Building
 The project is set up with dependencies managed with the [Gradle build tool](https://gradle.org/). To build the distribution, simply run
 ```
