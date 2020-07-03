@@ -434,7 +434,7 @@ public class FRUtils {
      * If numCasePaths>0 or numCtrlPaths>0, randomly select numCasePaths cases and/or numCtrlPaths controls.
      * This also allows winnowing on size, support, and p-value.
      */
-    public static void printPathFRsSVM(String inputPrefix, int numCasePaths, int numCtrlPaths, int minSize, int minSupport, double maxPValue) throws IOException {
+    public static void printPathFRsSVM(String inputPrefix, int numCasePaths, int numCtrlPaths, int minSize, int minSupport, double maxPValue, int minPriority) throws IOException {
 	// load the graph
 	PangenomicGraph graph = new PangenomicGraph();
 	graph.nodesFile = new File(getNodesFilename(inputPrefix));
@@ -452,13 +452,24 @@ public class FRUtils {
 	}
 	// load the frequented regions from a text file
 	TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(inputPrefix, graph);
+	// remove FRs containing no-call nodes since they aren't really true FRs
+	if (true) {
+	    List<FrequentedRegion> frsToRemove = new LinkedList<>();
+	    for (FrequentedRegion fr : frequentedRegions) {
+		fr.updateNodes();
+		if (fr.containsNoCallNode()) frsToRemove.add(fr);
+	    }
+	    frequentedRegions.removeAll(frsToRemove);
+	    System.err.println("FRUtils.printPathFRsSVM: removed "+frsToRemove.size()+" FRs with no-call nodes.");
+	}
 	// winnow the FRs on size
-	if (minSize>0) {
+	if (minSize>1) {
 	    List<FrequentedRegion> frsToRemove = new LinkedList<>();
 	    for (FrequentedRegion fr : frequentedRegions) {
 		if (fr.nodes.size()<minSize) frsToRemove.add(fr);
 	    }
 	    frequentedRegions.removeAll(frsToRemove);
+	    System.err.println("FRUtils.printPathFRsSVM: removed "+frsToRemove.size()+" FRs with size<"+minSize);
 	}
 	// winnow the FRs on support
 	if (minSupport>1) {
@@ -467,6 +478,7 @@ public class FRUtils {
 		if (fr.support<minSupport) frsToRemove.add(fr);
 	    }
 	    frequentedRegions.removeAll(frsToRemove);
+	    System.err.println("FRUtils.printPathFRsSVM: removed "+frsToRemove.size()+" FRs with support<"+minSupport);
 	}
 	// winnow the FRs on pValue
 	if (maxPValue<1.0) {
@@ -475,7 +487,18 @@ public class FRUtils {
 		if (fr.pValue>maxPValue) frsToRemove.add(fr);
 	    }
 	    frequentedRegions.removeAll(frsToRemove);
+	    System.err.println("FRUtils.printPathFRsSVM: removed "+frsToRemove.size()+" FRs with p>"+maxPValue);
 	}
+	// winnow the FRs on priority
+	if (minPriority!=0) {
+	    List<FrequentedRegion> frsToRemove = new LinkedList<>();
+	    for (FrequentedRegion fr : frequentedRegions) {
+		if (fr.priority<minPriority) frsToRemove.add(fr);
+	    }
+	    frequentedRegions.removeAll(frsToRemove);
+	    System.err.println("FRUtils.printPathFRsSVM: removed "+frsToRemove.size()+" FRs with priority<"+minPriority);
+	}
+	// done winnowing
 	System.err.println("FRUtils.printPathFRsSVM: "+frequentedRegions.size()+" FRs loaded.");
 	// collect the paths, cases and controls
 	ConcurrentHashMap<String,String> pathSVM = new ConcurrentHashMap<>();
@@ -573,7 +596,7 @@ public class FRUtils {
      *
      * This also allows winnowing on size, support, and p-value.
      */
-    public static void printPathFRsARFF(String inputPrefix, int numCasePaths, int numCtrlPaths, int minSize, int minSupport, double maxPValue) throws IOException {
+    public static void printPathFRsARFF(String inputPrefix, int numCasePaths, int numCtrlPaths, int minSize, int minSupport, double maxPValue, int minPriority) throws IOException {
         // load the graph
 	PangenomicGraph graph = new PangenomicGraph();
         graph.nodesFile = new File(getNodesFilename(inputPrefix));
@@ -591,21 +614,19 @@ public class FRUtils {
 	}
 	// load the frequented regions and update support in parallel
 	TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(inputPrefix, graph);
-	// use a list to winnow FRs
-	List<FrequentedRegion> frsToRemove;
 	// remove FRs containing no-call nodes since they aren't really true FRs
-	frsToRemove = new LinkedList<>();
-	for (FrequentedRegion fr : frequentedRegions) {
-	    fr.updateNodes();
-	    if (fr.containsNoCallNode()) {
-		frsToRemove.add(fr);
+	if (true) {
+	    List<FrequentedRegion> frsToRemove = new LinkedList<>();
+	    for (FrequentedRegion fr : frequentedRegions) {
+		fr.updateNodes();
+		if (fr.containsNoCallNode()) frsToRemove.add(fr);
 	    }
+	    frequentedRegions.removeAll(frsToRemove);
+	    System.err.println("FRUtils.printPathFRsARFF: removed "+frsToRemove.size()+" FRs with no-call nodes.");
 	}
-	frequentedRegions.removeAll(frsToRemove);
-	System.err.println("FRUtils.printPathFRsARFF: removed "+frsToRemove.size()+" FRs with no-call nodes.");
 	// winnow the FRs on size
-	if (minSize>0) {
-	    frsToRemove = new LinkedList<>();
+	if (minSize>1) {
+	    List<FrequentedRegion> frsToRemove = new LinkedList<>();
 	    for (FrequentedRegion fr : frequentedRegions) {
 		if (fr.nodes.size()<minSize) frsToRemove.add(fr);
 	    }
@@ -614,7 +635,7 @@ public class FRUtils {
 	}
 	// winnow the FRs on support
 	if (minSupport>1) {
-	    frsToRemove = new LinkedList<>();
+	    List<FrequentedRegion> frsToRemove = new LinkedList<>();
 	    for (FrequentedRegion fr : frequentedRegions) {
 		if (fr.support<minSupport) frsToRemove.add(fr);
 	    }
@@ -623,13 +644,23 @@ public class FRUtils {
 	}
 	// winnow the FRs on pValue
 	if (maxPValue<1.0) {
-	    frsToRemove = new LinkedList<>();
+	    List<FrequentedRegion> frsToRemove = new LinkedList<>();
 	    for (FrequentedRegion fr : frequentedRegions) {
 		if (fr.pValue>maxPValue) frsToRemove.add(fr);
 	    }
 	    frequentedRegions.removeAll(frsToRemove);
-	    System.err.println("FRUtils.printPathFRsARFF: removed "+frsToRemove.size()+"+ FRs with p>"+maxPValue);
+	    System.err.println("FRUtils.printPathFRsARFF: removed "+frsToRemove.size()+" FRs with p>"+maxPValue);
 	}
+	// winnow the FRs on priority
+	if (minPriority!=0) {
+	    List<FrequentedRegion> frsToRemove = new LinkedList<>();
+	    for (FrequentedRegion fr : frequentedRegions) {
+		if (fr.priority<minPriority) frsToRemove.add(fr);
+	    }
+	    frequentedRegions.removeAll(frsToRemove);
+	    System.err.println("FRUtils.printPathFRsARFF: removed "+frsToRemove.size()+" FRs with priority<"+minPriority);
+	}
+	// we're done winnowing, show what's left
 	System.err.println("FRUtils.printPathFRsARFF: "+frequentedRegions.size()+" FRs loaded.");
 	// collect the paths, cases and controls
 	ConcurrentHashMap<String,String> pathARFF = new ConcurrentHashMap<>();
@@ -742,7 +773,11 @@ public class FRUtils {
         Option maxPValueOption = new Option("mp", "maxpvalue", true, "maximum p-value for an FR to be considered interesting");
         maxPValueOption.setRequired(false);
         options.addOption(maxPValueOption);
-	//	
+	//
+        Option minPriorityOption = new Option("mpri", "minpriority", true, "minimum priority value for an FR to be considered interesting");
+        minPriorityOption.setRequired(false);
+        options.addOption(minPriorityOption);
+	//
         Option minSizeOption = new Option("s", "minsize", true, "minimum number of nodes that a FR must contain to be considered interesting");
         minSizeOption.setRequired(false);
         options.addOption(minSizeOption);
@@ -791,13 +826,15 @@ public class FRUtils {
 	    int numCtrlPaths = 0;
 	    int minSize = 0;
 	    int minSupport = 0;
+	    int minPriority = 0;
 	    double maxPValue = 1.0;
 	    if (cmd.hasOption("ncase")) numCasePaths = Integer.parseInt(cmd.getOptionValue("ncase"));
 	    if (cmd.hasOption("nctrl")) numCtrlPaths = Integer.parseInt(cmd.getOptionValue("nctrl"));
 	    if (cmd.hasOption("minsize")) minSize = Integer.parseInt(cmd.getOptionValue("minsize"));
 	    if (cmd.hasOption("minsupport")) minSupport = Integer.parseInt(cmd.getOptionValue("minsupport"));
 	    if (cmd.hasOption("maxpvalue")) maxPValue = Double.parseDouble(cmd.getOptionValue("maxpvalue"));
-	    printPathFRsSVM(inputPrefix, numCasePaths, numCtrlPaths, minSize, minSupport, maxPValue);
+	    if (cmd.hasOption("minpriority")) minPriority = Integer.parseInt(cmd.getOptionValue("minpriority"));
+	    printPathFRsSVM(inputPrefix, numCasePaths, numCtrlPaths, minSize, minSupport, maxPValue, minPriority);
 	}
 
 	if (cmd.hasOption("arff")) {
@@ -805,13 +842,15 @@ public class FRUtils {
 	    int numCtrlPaths = 0;
 	    int minSize = 0;
 	    int minSupport = 0;
+	    int minPriority = 0;
 	    double maxPValue = 1.0;
 	    if (cmd.hasOption("ncase")) numCasePaths = Integer.parseInt(cmd.getOptionValue("ncase"));
 	    if (cmd.hasOption("nctrl")) numCtrlPaths = Integer.parseInt(cmd.getOptionValue("nctrl"));
 	    if (cmd.hasOption("minsize")) minSize = Integer.parseInt(cmd.getOptionValue("minsize"));
 	    if (cmd.hasOption("minsupport")) minSupport = Integer.parseInt(cmd.getOptionValue("minsupport"));
 	    if (cmd.hasOption("maxpvalue")) maxPValue = Double.parseDouble(cmd.getOptionValue("maxpvalue"));
-	    printPathFRsARFF(inputPrefix, numCasePaths, numCtrlPaths, minSize, minSupport, maxPValue);
+	    if (cmd.hasOption("minpriority")) minPriority = Integer.parseInt(cmd.getOptionValue("minpriority"));
+	    printPathFRsARFF(inputPrefix, numCasePaths, numCtrlPaths, minSize, minSupport, maxPValue, minPriority);
 	}
     }
 

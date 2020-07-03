@@ -28,8 +28,9 @@
 graph=$1
 alpha=$2
 kappa=$3
-nodes=$4
+priorityoption=$4
+nodes=$5
 
 ## priorityoption doesn't matter, we're just looking at an FR with alpha, kappa
 java -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FrequentedRegion \
-     --txt --graph=$graph --alpha=$alpha --kappa=$kappa --priorityoption=0 --nodes=$nodes $6 $7 $8 $9
+     --txt --graph=$graph --alpha=$alpha --kappa=$kappa --priorityoption=$priorityoption --nodes=$nodes $6 $7 $8 $9

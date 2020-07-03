@@ -84,12 +84,12 @@ public class FRFinder {
     boolean writePathFRs = false;
     boolean writeFRSubpaths = false;
     boolean requireBestNodeSet = false;
-    boolean requireGenotypeCall = false;
+    boolean includeNoCalls = false;
     boolean requireSamePosition = false;
-    double minLength = 0.0;
     double minMAF = 0.01;
     double maxPVal = 1.0;
-    int minSize = 0;
+    int minSize = 1;
+    int maxSize = Integer.MAX_VALUE;
     int maxRound = 0;
     int minPriority = 0;
     int minSupport = 1;
@@ -121,7 +121,7 @@ public class FRFinder {
         parameters.setProperty("writeFRSubpaths", String.valueOf(writeFRSubpaths));
         parameters.setProperty("minSupport", String.valueOf(minSupport));
         parameters.setProperty("minSize", String.valueOf(minSize));
-        parameters.setProperty("minLength", String.valueOf(minLength));
+	parameters.setProperty("maxSize", String.valueOf(maxSize));
         parameters.setProperty("maxRound", String.valueOf(maxRound));
 	parameters.setProperty("maxClocktime", String.valueOf(maxClocktime));
         parameters.setProperty("minPriority", String.valueOf(minPriority));
@@ -135,7 +135,7 @@ public class FRFinder {
         parameters.setProperty("keepOption", "null");
         parameters.setProperty("minMAF", String.valueOf(minMAF));
 	parameters.setProperty("maxPVal", String.valueOf(maxPVal));
-	parameters.setProperty("requireGenotypeCall", String.valueOf(requireGenotypeCall));
+	parameters.setProperty("includeNoCalls", String.valueOf(includeNoCalls));
 	parameters.setProperty("requireBestNodeSet", String.valueOf(requireBestNodeSet));
 	parameters.setProperty("requireSamePosition", String.valueOf(requireSamePosition));
     }
@@ -156,13 +156,13 @@ public class FRFinder {
                    "minPriority="+minPriority+" " +
                    "minSupport="+minSupport+" " +
                    "minSize="+minSize+" " +
-                   "minLength="+minLength+" " +
+		   "maxSize="+maxSize+" " +
                    "minMAF="+minMAF+" " +
 		   "maxPVal="+maxPVal+" " +
                    "maxRound="+maxRound+" " +
 		   "maxClocktime="+maxClocktime+" " +
 		   "keepOption="+keepOption+" " +
-		   "requireGenotypeCall="+requireGenotypeCall+" " +
+		   "includeNoCalls="+includeNoCalls+" " +
 		   "requireBestNodeSet="+requireBestNodeSet+" " +
 		   "requireSamePosition="+requireSamePosition+" " +
                    "requiredNodes="+requiredNodeString+" " +
@@ -235,7 +235,7 @@ public class FRFinder {
 	    // load the single-node FRs into allFrequentedRegions
 	    // - keep if af>=minMAF
 	    // - keep if p<=maxPVal
-	    // - keep those with genotype call if requireGenotypeCall
+	    // - reject those with no genotype call unless includeNoCalls=true
 	    // - keep those not in excludedNodes
 	    // - exclude those with insufficient support if alpha=1.0
 	    ConcurrentSkipListSet<Node> excRejects = new ConcurrentSkipListSet<>();
@@ -247,7 +247,7 @@ public class FRFinder {
 	    nodes.parallelStream().forEach(node -> {
 		    if (excludedNodes.contains(node)) {
 			excRejects.add(node);
-		    } else if (requireGenotypeCall && !node.isCalled) {
+		    } else if (!includeNoCalls && !node.isCalled) {
 			ngcRejects.add(node);
 		    } else if (node.af<minMAF) {
 			mafRejects.add(node);
@@ -266,32 +266,42 @@ public class FRFinder {
 	    ////////////////////////////////////////////////////////////////////////////////////
 	    // DX
 	    printToLog("# "+excRejects.size()+" nodes excluded because contained in excludedNodes");
-	    printToLog("# "+ngcRejects.size()+" nodes excluded because not called and requireGenotypeCall==true");
+	    printToLog("# "+ngcRejects.size()+" nodes excluded because not called and includeNoCalls=false");
 	    printToLog("# "+mafRejects.size()+" nodes excluded because allele frequency<"+minMAF);
 	    printToLog("# "+pvalRejects.size()+" nodes excluded because p>"+maxPVal);
 	    if (alpha==1.0) printToLog("# "+supportRejects.size()+" nodes excluded because FR support<"+minSupport);
 	    // store interesting single-node FRs in round 0, since we won't hit them in the loop
 	    for (FrequentedRegion fr : allFrequentedRegions.values()) {
 		if (isInteresting(fr)) {
-		    if (requiredNodes.size()==0) {
+		    if (requiredNodes.size()==0 && includedNodes.size()==0) {
 			frequentedRegions.put(fr.nodes.toString(), fr);
 		    } else {
 			for (Node n : requiredNodes) {
-			    if (fr.nodes.contains(n)) {
-				frequentedRegions.put(fr.nodes.toString(), fr);
-			    }
+			    if (fr.nodes.contains(n)) frequentedRegions.put(fr.nodes.toString(), fr);
+			}
+			for (Node n : includedNodes) {
+			    if (fr.nodes.contains(n)) frequentedRegions.put(fr.nodes.toString(), fr);
 			}
 		    }
 		}
 	    }
         }
 
-        // add the required nodes to allFrequentedRegions, and frequentedRegions if interesting
+        // add the full required nodes FR to allFrequentedRegions, and frequentedRegions if interesting
 	if (requiredNodes.size()>0) {
 	    FrequentedRegion requiredFR = new FrequentedRegion(graph, requiredNodes, alpha, kappa, priorityOptionKey, priorityOptionLabel);
 	    allFrequentedRegions.put(requiredFR.nodes.toString(), requiredFR);
 	    if (isInteresting(requiredFR)) {
 		frequentedRegions.put(requiredFR.nodes.toString(), requiredFR);
+	    }
+	}
+
+	// add the full included nodes FR to allFrequentedRegions, and frequentedRegions if interesting
+	if (includedNodes.size()>0) {
+	    FrequentedRegion includedFR = new FrequentedRegion(graph, includedNodes, alpha, kappa, priorityOptionKey, priorityOptionLabel);
+	    allFrequentedRegions.put(includedFR.nodes.toString(), includedFR);
+	    if (isInteresting(includedFR)) {
+		frequentedRegions.put(includedFR.nodes.toString(), includedFR);
 	    }
 	}
 
@@ -327,7 +337,6 @@ public class FRFinder {
 		    }
 		    if (!contains) continue;
 		}
-		if (debug) System.err.println("fr1:"+fr1.toString()+"|"+(System.currentTimeMillis()-roundStartTime)/1000);
 		// abort if max clock time exceeded
 		long clocktime = System.currentTimeMillis() - startTime;
 		if (maxClocktime!=0 && clocktime>maxClocktime*60000) {
@@ -417,6 +426,7 @@ public class FRFinder {
 				// add this pair to the current interestingFRPairs if interesting
 				if (isInteresting(frpair.merged)) {
 				    interestingFRPairs.add(frpair);
+				    if (debug) System.err.println("int:"+frpair.merged.toString()+"|"+(System.currentTimeMillis()-roundStartTime)/1000);
 				}
 			    } else {
 				// add this to the rejected list
@@ -531,8 +541,8 @@ public class FRFinder {
     public int getMinSize() {
         return Integer.parseInt(parameters.getProperty("minSize"));
     }
-    public double getMinLen() {
-        return Double.parseDouble(parameters.getProperty("minLength"));
+    public int getMaxSize() {
+	return Integer.parseInt(parameters.getProperty("maxSize"));
     }
     public String getPriorityOption() {
         return parameters.getProperty("priorityOption");
@@ -576,8 +586,8 @@ public class FRFinder {
     public boolean getRequireBestNodeSet() {
 	return Boolean.parseBoolean(parameters.getProperty("requireBestNodeSet"));
     }
-    public boolean getRequireGenotypeCall() {
-	return Boolean.parseBoolean(parameters.getProperty("requireBestNodeSet"));
+    public boolean getIncludeNoCalls() {
+	return Boolean.parseBoolean(parameters.getProperty("includeNoCalls"));
     }
     public boolean getRequireSamePosition() {
 	return Boolean.parseBoolean(parameters.getProperty("requireSamePosition"));
@@ -585,6 +595,7 @@ public class FRFinder {
     
     // parameter setters - set instance vars as well as value in parameters
     public void setPriorityOption(String priorityOption) {
+	this.priorityOption = priorityOption;
         parsePriorityOption(priorityOption);
         parameters.setProperty("priorityOption", priorityOption);
     }
@@ -612,9 +623,9 @@ public class FRFinder {
 	this.minSize = minSize;
         parameters.setProperty("minSize", String.valueOf(minSize));
     }
-    public void setMinLen(double minLength) {
-	this.minLength = minLength;
-        parameters.setProperty("minLength", String.valueOf(minLength));
+    public void setMaxSize(int maxSize) {
+	this.maxSize = maxSize;
+	parameters.setProperty("maxSize", String.valueOf(maxSize));
     }
     public void setMaxRound(int maxRound) {
 	this.maxRound = maxRound;
@@ -681,9 +692,9 @@ public class FRFinder {
 	this.requireBestNodeSet = true;
 	parameters.setProperty("requireBestNodeSet", "true");
     }
-    public void setRequireGenotypeCall() {
-	this.requireGenotypeCall = true;
-	parameters.setProperty("requireGenotypeCall", "true");
+    public void setIncludeNoCalls() {
+	this.includeNoCalls = true;
+	parameters.setProperty("includeNoCalls", "true");
     }
     public void setRequireSamePosition() {
 	this.requireSamePosition = true;
@@ -723,13 +734,17 @@ public class FRFinder {
         txtOption.setRequired(false);
         options.addOption(txtOption);
         //
-        Option minSupportOption = new Option("m", "minsupport", true, "minimum number of supporting paths for a region to be considered interesting [1]");
+        Option minSupportOption = new Option("m", "minsupport", true, "minimum number of supporting paths for an FR to be considered interesting [1]");
         minSupportOption.setRequired(false);
         options.addOption(minSupportOption);
         //
         Option minSizeOption = new Option("s", "minsize", true, "minimum number of nodes that a FR must contain to be considered interesting [1]");
         minSizeOption.setRequired(false);
         options.addOption(minSizeOption);
+	//
+        Option maxSizeOption = new Option("maxs", "maxsize", true, "maximum number of nodes that a FR can contain to be considered interesting [unlimited]");
+        maxSizeOption.setRequired(false);
+        options.addOption(maxSizeOption);
 	//
         Option labelsOption = new Option("p", "pathlabels", true, "tab-delimited file with pathname<tab>label");
         labelsOption.setRequired(false);
@@ -755,7 +770,7 @@ public class FRFinder {
         maxRoundOption.setRequired(false);
         options.addOption(maxRoundOption);
         //
-        Option minPriorityOption = new Option("mp", "minpriority", true, "minimum priority for saving an FR [0]");
+        Option minPriorityOption = new Option("mp", "minpriority", true, "minimum priority for an FR to be considered interesting [0=disabled]");
         minPriorityOption.setRequired(false);
         options.addOption(minPriorityOption);
         //
@@ -771,15 +786,15 @@ public class FRFinder {
         writeFRSubpathsOption.setRequired(false);
         options.addOption(writeFRSubpathsOption);
         //
-        Option requiredNodesOption = new Option("rn", "requirednodes", true, "require that found FRs contain the given nodes []");
+        Option requiredNodesOption = new Option("rn", "requirednodes", true, "require that interesting FRs contain the given nodes []");
         requiredNodesOption.setRequired(false);
         options.addOption(requiredNodesOption);
         //
-        Option includedNodesOption = new Option("in", "includednodes", true, "require that found FRs contain at least one of the given nodes []");
+        Option includedNodesOption = new Option("in", "includednodes", true, "require that interesting FRs contain at least one of the given nodes []");
         includedNodesOption.setRequired(false);
         options.addOption(includedNodesOption);
         //
-        Option excludedNodesOption = new Option("en", "excludednodes", true, "require that found FRs NOT contain the given nodes []");
+        Option excludedNodesOption = new Option("en", "excludednodes", true, "require that interesting FRs NOT contain the given nodes []");
         excludedNodesOption.setRequired(false);
         options.addOption(excludedNodesOption);
         //
@@ -807,11 +822,11 @@ public class FRFinder {
 	requireBestNodeSetOption.setRequired(false);
 	options.addOption(requireBestNodeSetOption);
 	//
-	Option requireGenotypeCallOption = new Option("rgc", "requiregenotypecall", false, "require that FR nodes have genotype calls (not ./.) [false]");
-	requireGenotypeCallOption.setRequired(false);
-	options.addOption(requireGenotypeCallOption);
+	Option includeNoCallsOption = new Option("inc", "includenocalls", false, "include nodes which do not have genotype calls (./.) [false]");
+	includeNoCallsOption.setRequired(false);
+	options.addOption(includeNoCallsOption);
 	//
-	Option requireSamePositionOption = new Option("rsp", "requiresameposition", false, "require that FRs consist of nodes at same genomic position [false]");
+	Option requireSamePositionOption = new Option("rsp", "requiresameposition", false, "require that interesting FRs consist of nodes at same genomic position [false]");
 	requireSamePositionOption.setRequired(false);
 	options.addOption(requireSamePositionOption);
 	//
@@ -914,7 +929,7 @@ public class FRFinder {
 	if (cmd.hasOption("priorityoption")) frf.setPriorityOption(cmd.getOptionValue("priorityoption"));
 	if (cmd.hasOption("minsupport")) frf.setMinSupport(Integer.parseInt(cmd.getOptionValue("minsupport")));
 	if (cmd.hasOption("minsize")) frf.setMinSize(Integer.parseInt(cmd.getOptionValue("minsize")));
-	if (cmd.hasOption("minlen")) frf.setMinLen(Double.parseDouble(cmd.getOptionValue("minlen")));
+	if (cmd.hasOption("maxsize")) frf.setMaxSize(Integer.parseInt(cmd.getOptionValue("maxsize")));
 	if (cmd.hasOption("maxround")) frf.setMaxRound(Integer.parseInt(cmd.getOptionValue("maxround")));
 	if (cmd.hasOption("maxclocktime")) frf.setMaxClocktime(Integer.parseInt(cmd.getOptionValue("maxclocktime")));
 	if (cmd.hasOption("minpriority")) frf.setMinPriority(Integer.parseInt(cmd.getOptionValue("minpriority")));
@@ -931,7 +946,7 @@ public class FRFinder {
 	if (cmd.hasOption("minmaf")) frf.setMinMAF(Double.parseDouble(cmd.getOptionValue("minmaf")));
 	if (cmd.hasOption("maxpval")) frf.setMaxPVal(Double.parseDouble(cmd.getOptionValue("maxpval")));
 	if (cmd.hasOption("requirebestnodeset")) frf.setRequireBestNodeSet();
-	if (cmd.hasOption("requiregenotypecall")) frf.setRequireGenotypeCall();
+	if (cmd.hasOption("includenocalls")) frf.setIncludeNoCalls();
 	if (cmd.hasOption("requiresameposition")) frf.setRequireSamePosition();
 	// these are not stored in parameters
 	if (cmd.hasOption("verbose")) frf.verbose = true;
@@ -1053,9 +1068,7 @@ public class FRFinder {
      */
     public void printFRHistogram() {
         Map<Integer,Integer> countMap = new TreeMap<>();
-        int maxSize = 0;
         for (FrequentedRegion fr : frequentedRegions.values()) {
-            if (fr.nodes.size()>maxSize) maxSize = fr.nodes.size();
             if (countMap.containsKey(fr.nodes.size())) {
                 int count = countMap.get(fr.nodes.size());
                 count++;
@@ -1068,7 +1081,6 @@ public class FRFinder {
             System.out.println("FR node size (#):"+num+" ("+countMap.get(num)+")");
         }
     }
-
 
     /**
      * Form an outputPrefix with given alpha and kappa.
@@ -1087,14 +1099,17 @@ public class FRFinder {
      * This also uses priorityOptionLabel for the O.R- and p-based priorities.
      */
     boolean isInteresting(FrequentedRegion fr) {
-        boolean interesting = fr.support>=minSupport && fr.nodes.size()>=minSize && fr.priority>=minPriority;
-        if (priorityOptionKey==3 || priorityOptionKey==4) {
-            if (priorityOptionLabel!=null && priorityOptionLabel.equals("case")) {
-                interesting = interesting && fr.oddsRatio()>1.0;
-            } else if (priorityOptionLabel!=null && priorityOptionLabel.equals("ctrl")) {
-                interesting = interesting && fr.oddsRatio()<1.0;
-            }
-        }
+        boolean interesting = fr.support>=minSupport;
+	interesting = interesting && fr.nodes.size()>=minSize;
+	interesting = interesting && fr.nodes.size()<=maxSize;
+	if (minPriority!=0) interesting = interesting && fr.priority>=minPriority;
+        // if (priorityOptionKey==3 || priorityOptionKey==4) {
+        //     if (priorityOptionLabel!=null && priorityOptionLabel.equals("case")) {
+        //         interesting = interesting && fr.oddsRatio()>1.0;
+        //     } else if (priorityOptionLabel!=null && priorityOptionLabel.equals("ctrl")) {
+        //         interesting = interesting && fr.oddsRatio()<1.0;
+        //     }
+        // }
         return interesting;   
     }
 
@@ -1128,6 +1143,5 @@ public class FRFinder {
         }
         // impose defaults
         if (priorityOptionKey==1 && priorityOptionLabel==null) priorityOptionLabel = "case";
-        if (priorityOptionKey==3 && priorityOptionLabel==null) priorityOptionLabel = "case";
     }
 }

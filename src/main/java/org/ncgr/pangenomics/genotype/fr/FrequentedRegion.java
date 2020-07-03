@@ -30,11 +30,11 @@ import org.apache.commons.cli.ParseException;
 class FrequentedRegion implements Comparable {
 
     static String PRIORITY_OPTIONS =
-        "0=total support, " +
-        "1:label=label support-other support [case,ctrl,alt], " +
+        "0:label=total support or label support [null,case,ctrl], " +
+        "1:label=(label support-other support) [case,ctrl,alt], " +
         "2=|case support-control support|, " +
-        "3:label=odds ratio in label's favor [case,ctrl,alt], " +
-        "4:label=Fisher's exact test double-sided p value [null,case,ctrl,alt]";
+        "3:label=O.R. in label's favor [null,case,ctrl], " +
+        "4=Fisher's exact test two-tailed p value";
 
     // static utility stuff
     static DecimalFormat df = new DecimalFormat("0.00");
@@ -293,40 +293,59 @@ class FrequentedRegion implements Comparable {
     void updatePriority() {
         priority = 0;
         if (priorityOptionKey==0) {
-            priority = support;
+	    // support
+	    if (priorityOptionLabel==null) {
+		priority = support;
+	    } else if (priorityOptionLabel.equals("case")) {
+		priority = caseSubpathSupport;
+	    } else if (priorityOptionLabel.equals("ctrl")) {
+		priority = ctrlSubpathSupport;
+	    } else {
+		throwPriorityOptionError();
+	    }
         } else if (priorityOptionKey==1) {
+	    // support difference
             if (priorityOptionLabel.equals("case")) {
-                // favor case support
                 priority = caseSubpathSupport - ctrlSubpathSupport;
             } else if (priorityOptionLabel.equals("ctrl")) {
-                // favor control support
                 priority = ctrlSubpathSupport - caseSubpathSupport;
             } else {
-                System.err.println("ERROR: priorityOptionLabel="+priorityOptionLabel+" is not supported by FrequentedRegion.updatePriority() with priorityOptionKey="+priorityOptionKey+".");
-                System.exit(1);
+		throwPriorityOptionError();
             }
         } else if (priorityOptionKey==2) {
-            // case and control are the same
+	    // abs support difference
             priority = Math.abs(caseSubpathSupport - ctrlSubpathSupport);
         } else if (priorityOptionKey==3) {
-            double mlog10OR = 0.0;
-            if (ctrlSubpathSupport==0) {
-                // zero ctrl support, treat like OR=1000
-                mlog10OR = 3.0;
-            } else if (caseSubpathSupport==0) {
-                // zero case support, treat as if OR=1/1000
-                mlog10OR = 3.0;
+	    // odds ratio
+	    int mult = 1000; // multiplier to convert to integer
+            if (caseSubpathSupport>0 && ctrlSubpathSupport==0) {
+		priority = 2*mult;                     // set OR=100
+            } else if (caseSubpathSupport==0 && ctrlSubpathSupport>0) {
+		priority = -2*mult;                    // set OR=1/100
             } else {
-                mlog10OR = Math.log10(oddsRatio());
-            }
-            priority = (int)(support*mlog10OR*10);
-        } else if (priorityOptionKey==4) {
-            priority = -(int)(Math.log10(fisherExactP())*100);
+                double log10OR = Math.log10(oddsRatio());
+		priority = (int)(log10OR*mult);
+	    }
+	    if (priorityOptionLabel==null) {
+		priority = Math.abs(priority);       // positive definite
+	    } else if (priorityOptionLabel.equals("ctrl")) {
+		priority = -priority;                // flip to favor ctrl
+	    }
+	} else if (priorityOptionKey==4) {
+	    // p-value
+	    double mlog10p = -Math.log10(fisherExactP());
+            priority = (int)(mlog10p*100);
         } else {
-            // we've got an unallowed priority key
-            System.err.println("ERROR: priorityOptionKey="+priorityOptionKey+" is not supported by FrequentedRegion.updatePriority().");
-            System.exit(1);
+	    throwPriorityOptionError();
         }
+    }
+
+    /**
+     * Exit with an error message if an inappropriate priority option label has been given.
+     */
+    void throwPriorityOptionError() {
+	System.err.println("ERROR: priority "+priorityOptionKey+":"+priorityOptionLabel+" is not supported by FrequentedRegion.updatePriority().");
+	System.exit(1);
     }
 
     /**
@@ -616,7 +635,6 @@ class FrequentedRegion implements Comparable {
         }
         // impose defaults
         if (priorityOptionKey==1 && priorityOptionLabel==null) priorityOptionLabel = "case";
-        if (priorityOptionKey==3 && priorityOptionLabel==null) priorityOptionLabel = "case";
 
         // import the PangenomicGraph from a pair of TXT files
 	String graphName = cmd.getOptionValue("graph");

@@ -1,15 +1,20 @@
 #!/bin/bash
+# usage: WekaRandomForest
+#  -a,--arfffile <arg>         ARFF input file (required)
+#  -S,--seed <arg>             seed of randomization (1)
 
 INPUTPREFIX=$1
-ARFFFILE=$INPUTPREFIX.arff
 
-## HLAA has 4966/6243
+## ARFF filtering parameters
+ARFFFILE=$INPUTPREFIX.arff
 NUMCASEPATHS=0
 NUMCTRLPATHS=0
-
 MINSIZE=0
 MINSUPPORT=0
 MAXPVALUE=1.0
+
+## RandomForest options - vary S for random variance; set to 0 to use system clock
+S=0
 
 ## delete former ARFF file
 rm -f $ARFFFILE
@@ -20,7 +25,4 @@ then
     java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -s $MINSIZE -m $MINSUPPORT -mp $MAXPVALUE
 fi
     
-if [ -s $ARFFFILE ]
-then
-    java -server -cp "build/install/fr/lib/*" WekaTest $ARFFFILE
-fi
+java -server -cp "build/install/fr/lib/*" org.ncgr.weka.WekaRandomTree -a $ARFFFILE -S $S 

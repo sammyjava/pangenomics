@@ -8,8 +8,7 @@ import java.text.DecimalFormat;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Vector;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -28,10 +27,8 @@ import libsvm.svm_problem;
  * Use svm to run a stratified k-fold cross-validation of data.
  */
 public class SvmCrossValidator {
-
     static DecimalFormat pf = new DecimalFormat("0.0%");
-
-    boolean quiet = false; // true stops informative System.err output
+    static DecimalFormat df = new DecimalFormat("0.000");
     
     svm_parameter param;
     svm_problem prob;
@@ -43,6 +40,13 @@ public class SvmCrossValidator {
     public double squaredCorrCoeff = 0.0;
 
     // classification results
+    public int plusFails = 0;
+    public int minusFails = 0;
+    public int plusTotal = 0;
+    public int minusTotal = 0;
+    public double percentCorrect = 0.0;
+    public double percentPlusCorrect = 0.0;
+    public double percentMinusCorrect = 0.0;
     public int totalSamples = 0;
     public int totalCorrect = 0;
     public double accuracy = 0.0;
@@ -159,48 +163,76 @@ public class SvmCrossValidator {
             accuracy = (double)totalCorrect/(double)prob.l;
             totalSamples = prob.l;
         }
-	// output
+	// calculate summary stats
+	plusFails = 0;
+	minusFails = 0;
+	for (int i : errorIndices) {
+	    if (prob.y[i]==+1) {
+		plusFails++;
+	    } else if (prob.y[i]==-1) {
+		minusFails++;
+	    }
+	}
+	plusTotal = 0;
+	minusTotal = 0;
+	for (double y : prob.y) {
+	    if (y==+1) plusTotal++;
+	    if (y==-1) minusTotal++;
+	}
+	percentCorrect = (double)(plusTotal+minusTotal-plusFails-minusFails)/(double)(plusTotal+minusTotal);
+	percentPlusCorrect = (double)(plusTotal-plusFails)/(double)plusTotal;
+	percentMinusCorrect = (double)(minusTotal-minusFails)/(double)minusTotal;
+    }
+
+    /**
+     * Print out the summary of results to System.err.
+     */
+    public void printSummary() {
 	if (param.svm_type==svm_parameter.EPSILON_SVR || param.svm_type== svm_parameter.NU_SVR) {
-	    System.out.println("Cross Validation Mean squared error = "+meanSquaredError);
-	    System.out.println("Cross Validation Squared correlation coefficient = "+squaredCorrCoeff);
-	} else {
-	    // total up fails
-	    int plusFails = 0;
-	    int minusFails = 0;
-	    for (int i : errorIndices) {
-		if (prob.y[i]==+1) {
-		    plusFails++;
-		} else if (prob.y[i]==-1) {
-		    minusFails++;
-		}
-	    }
-	    // CVA, TPR, FPR
-	    int plusTotal = 0;
-	    int minusTotal = 0;
-	    for (double y : prob.y) {
-		if (y==+1) plusTotal++;
-		if (y==-1) minusTotal++;
-	    }
-	    // summary line
-	    if (!quiet) {
-		System.err.println("Correct, CaseCorrect, ControlCorrect: "+
-				   (plusTotal+minusTotal-plusFails-minusFails)+"/"+(plusTotal+minusTotal)+", "+
-				   (plusTotal-plusFails)+"/"+plusTotal+", "+
-				   (minusTotal-minusFails)+"/"+minusTotal+"   " +
-				   pf.format((double)(plusTotal+minusTotal-plusFails-minusFails)/(double)(plusTotal+minusTotal))+", "+
-				   pf.format((double)(plusTotal-plusFails)/(double)plusTotal)+", "+
-				   pf.format((double)(minusTotal-minusFails)/(double)minusTotal));
-		System.out.println(inputFilename+"\t"+maxIndex+"\t"+param.C+"\t"+param.gamma+"\t"+nrFold+"\t"+plusTotal+"\t"+minusTotal+"\t"+plusFails+"\t"+minusFails);
-		// predictions by sample
-		for (int i=0; i<prob.l; i++) {
-		    String label = "";
-		    System.out.print(samples.get(i).name+"\t"+samples.get(i).label);
-		    if (errorIndices.contains(i)) {
-			System.out.println("\tfalse");
-		    } else {
-			System.out.println("\ttrue");
-		    }
-		}
+	    System.err.println("Cross Validation Mean squared error = "+meanSquaredError);
+	    System.err.println("Cross Validation Squared correlation coefficient = "+squaredCorrCoeff);
+	    return;
+	}
+	// summary line
+	int total = plusTotal + minusTotal;
+	int TP = plusTotal - plusFails;
+	int TN = minusTotal - minusFails;
+	int FP = minusFails;
+	int FN = plusFails;
+	int totCorrect = TP + TN;
+	double fracCorrect = (double)totCorrect / (double)total;
+	double fracPlusCorrect = (double)TP / (double)plusTotal;
+	double fracMinusCorrect = (double)TN / (double)minusTotal;
+	double TPR = (double)TP / (double)plusTotal;
+	double FPR = (double)FP / (double)minusTotal;
+	double MCC = (double)(TP*TN-FP*FN) / Math.sqrt((double)(TP+FP)*(double)(TP+FN)*(double)(TN+FP)*(double)(TN+FN));
+	System.err.println("Total Corr.\tCase Corr.\tControl Corr.\tTotal\tCase\tControl\tTPR\tFPR\tMCC");
+	System.err.println(totCorrect+"/"+total+"\t"+
+			   TP+"/"+plusTotal+"\t"+
+			   TN+"/"+minusTotal+"\t"+
+			   pf.format(fracCorrect)+"\t"+
+			   pf.format(fracPlusCorrect)+"\t"+
+			   pf.format(fracMinusCorrect)+"\t"+
+			   df.format(TPR)+"\t"+
+			   df.format(FPR)+"\t"+
+			   df.format(MCC));
+	return;
+    }
+
+    /**
+     * Print output to System.out for further processing.
+     */
+    public void printOutput() {
+	// output for further processing
+	System.out.println(inputFilename+"\t"+maxIndex+"\t"+param.C+"\t"+param.gamma+"\t"+nrFold+"\t"+plusTotal+"\t"+minusTotal+"\t"+plusFails+"\t"+minusFails);
+	// predictions by sample
+	for (int i=0; i<prob.l; i++) {
+	    String label = "";
+	    System.out.print(samples.get(i).name+"\t"+samples.get(i).label);
+	    if (errorIndices.contains(i)) {
+		System.out.println("\tfalse");
+	    } else {
+		System.out.println("\ttrue");
 	    }
 	}
     }
@@ -355,7 +387,7 @@ public class SvmCrossValidator {
         nrFoldOption.setRequired(false);
         options.addOption(nrFoldOption);
         //
-        Option verboseOption = new Option("v", "verbose", false, "verbose output");
+        Option verboseOption = new Option("v", "verbose", false, "verbose SVMLIB output");
         verboseOption.setRequired(false);
         options.addOption(verboseOption);
 	//
@@ -443,14 +475,25 @@ public class SvmCrossValidator {
             SvmUtil.setQuiet();
         }
 
-        // instantiate and run nRuns times
-	ExecutorService threadPool = Executors.newFixedThreadPool(nRuns);
+        // instantiate and run nRuns times in a parallelStream
+	ConcurrentHashMap<Integer,SvmCrossValidator> scvMap = new ConcurrentHashMap<>();
 	for (int i=0; i<nRuns; i++) {
-	    SvmCrossValidator scv = new SvmCrossValidator(param, nrFold, inputFilename, nCases, nControls);
-	    threadPool.submit(new Runnable() {
-		    public void run() { scv.run(); }
-		});
+	    scvMap.put(i, new SvmCrossValidator(param, nrFold, inputFilename, nCases, nControls));
 	}
-	threadPool.shutdown();
+	////////////////////////////////////////////////////////////////////////////////////////
+	// parallel stream
+	scvMap.entrySet().parallelStream().forEach(entry -> {
+		int i = entry.getKey();
+		SvmCrossValidator svm = entry.getValue();
+		svm.run();
+	    });
+	////////////////////////////////////////////////////////////////////////////////////////
+	// output
+	for (int i : scvMap.keySet()) {
+	    SvmCrossValidator svm = scvMap.get(i);
+	    System.err.println("===== ["+i+"] =====");
+	    svm.printSummary();
+	    svm.printOutput();
+	}
     }
 }

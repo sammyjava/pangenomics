@@ -12,6 +12,8 @@
 #  -graph,--graph <arg>            graph name
 #  -in,--includednodes <arg>       require that found FRs contain at least
 #                                  one of the given nodes []
+#  -inc,--includenocalls           include nodes which do not have genotype
+#                                  calls (./.) [false]
 #  -ip,--includedpathnodes <arg>   include only paths that include at least
 #                                  one of the given nodes []
 #  -ke,--kappaend <arg>            ending value of kappa for a scan (can
@@ -26,6 +28,9 @@
 #                                  time in minutes [0=unlimited]
 #  -maxp,--maxpval <arg>           maximum p-value for nodes included in
 #                                  search [1.0]
+#  -maxs,--maxsize <arg>           maximum number of nodes that a FR can
+#                                  contain to be considered interesting
+#                                  [unlimited]
 #  -minmaf,--minmaf <arg>          minimum MAF for nodes included in search
 #                                  [0.01]
 #  -mp,--minpriority <arg>         minimum priority for saving an FR [0]
@@ -34,18 +39,16 @@
 #  -p,--pathlabels <arg>           tab-delimited file with
 #                                  pathname<tab>label
 #  -pri,--priorityoption <arg>     option for priority weighting of FRs:
-#                                  0=total support, 1:label=label
-#                                  support-other support [case,ctrl,alt],
+#                                  0:label=total support or label support
+#                                  [null,case,ctrl], 1:label=(label
+#                                  support-other support) [case,ctrl,alt],
 #                                  2=|case support-control support|,
-#                                  3:label=odds ratio in label's favor
-#                                  [case,ctrl,alt], 4:label=Fisher's exact
-#                                  test double-sided p value
-#                                  [null,case,ctrl,alt]
+#                                  3:label=O.R. in label's favor
+#                                  [null,case,ctrl], 4=Fisher's exact test
+#                                  two-tailed p value
 #  -r,--resume                     resume from a previous run [false]
 #  -rbns,--requirebestnodeset      require the best NodeSet from the
 #                                  previous round in the next round [false]
-#  -rgc,--requiregenotypecall      require that FR nodes have genotype calls
-#                                  (not ./.) [false]
 #  -rn,--requirednodes <arg>       require that found FRs contain the given
 #                                  nodes []
 #  -rsp,--requiresameposition      require that FRs consist of nodes at same
@@ -79,8 +82,7 @@ echo "# $graph alpha=$alpha kappa=$kappa priorityOption=$priorityoption $5 $6 $7
 ## TXT input
 ## DO NOT USE -XX:+UseG1GC!!! Causes hang at certain RAM limit.
 java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRFinder \
-     --verbose --requiregenotypecall --keep=subset --minmaf=0.0 \
-     --txt --graph=$graph \
+     --verbose --writepathfrs --minmaf=0.0 --txt --graph=$graph \
      --alphastart=$alpha --alphaend=$alpha --kappastart=$kappa --kappaend=$kappa --priorityoption=$priorityoption \
      $5 $6 $7 $8 $9 ${10} ${11} ${12} ${13} ${14} ${15}
 

@@ -1,0 +1,46 @@
+#!/bin/bash
+# usage: WekaSMO
+#  -a,--arfffile <arg>        ARFF input file (required)
+#  -C,--complexity <arg>      complexity constant C (1.0)
+#  -calibrator <arg>          calibration model (Logistic)
+#  -G,--gamma <arg>           gamma option for RBFKernel (0.01)
+#  -k,--kfold <arg>           cross-validation k-fold (10)
+#  -K,--kernel <arg>          the kernel to use (PolyKernel)
+#  -L,--tolerance <arg>       tolerance parameter (0.001)
+#  -N,--normalization <arg>   0=normalize, 1=standardize, 2=neither (0)
+#  -nruns <arg>               number of parallel runs [1]
+
+INPUTPREFIX=$1
+ARFFFILE=$INPUTPREFIX.arff
+
+## ARFF filtering parameters
+NUMCASEPATHS=0
+NUMCTRLPATHS=0
+MINSIZE=1
+MINSUPPORT=1
+MAXPVALUE=1.0
+
+## SVM options
+C=1.0
+calibrator="Logistic"
+K="PolyKernel"
+G=0.01
+N=0
+NRUNS=10
+
+# cross-validation options
+KFOLD=10
+
+## delete former ARFF file
+#rm -f $ARFFFILE
+
+if [ ! -s $ARFFFILE ]
+then
+    echo "Writing $ARFFFILE with $NUMCASEPATHS cases and $NUMCTRLPATHS controls"
+    java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -s $MINSIZE -m $MINSUPPORT -mp $MAXPVALUE
+fi
+    
+if [ -s $ARFFFILE ]
+then
+    java -server -cp "build/install/fr/lib/*" org.ncgr.weka.WekaSMO -a $ARFFFILE -nruns $NRUNS -k $KFOLD -C $C -N $N -K $K -G $G -calibrator $calibrator
+fi

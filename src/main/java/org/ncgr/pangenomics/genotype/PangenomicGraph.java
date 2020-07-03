@@ -555,13 +555,6 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
             StringBuilder builder = new StringBuilder();
             builder.append(node.id);
             for (Path path : pathList) {
-		// DEBUG
-		if (path==null) {
-		    System.err.println("node "+node.toString()+" has a null path.");
-		    System.err.println(builder.toString());
-		    System.exit(1);
-		}
-		//
                 builder.append("\t"+path.name);
             }
             out.println(builder.toString());

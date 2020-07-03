@@ -1,0 +1,24 @@
+#!/bin/bash
+# usage: WekaREPTree
+#  -a,--arfffile <arg>         ARFF input file (required)
+
+INPUTPREFIX=$1
+
+## ARFF filtering parameters
+ARFFFILE=$INPUTPREFIX.arff
+NUMCASEPATHS=0
+NUMCTRLPATHS=0
+MINSIZE=0
+
+## delete former ARFF file
+#rm -f $ARFFFILE
+
+if [ ! -s $ARFFFILE ]
+then
+    echo "Writing $ARFFFILE with $NUMCASEPATHS cases and $NUMCTRLPATHS controls"
+    java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS
+fi
+    
+java -server -cp "build/install/fr/lib/*" org.ncgr.weka.WekaREPTree -a $ARFFFILE -k 9
+
+echo $ARFFFILE

@@ -10,8 +10,9 @@ NUMCASEPATHS=0
 NUMCTRLPATHS=0
 
 MINSIZE=0
-MINSUPPORT=0
+MINSUPPORT=100
 MAXPVALUE=1.0
+MINPRIORITY=100
 
 ## grid scan
 GRIDOUT="$INPUTPREFIX.svm.grid.txt"
@@ -30,10 +31,10 @@ NSVMCASES=0
 NSVMCONTROLS=0
 
 ## pre-clean during testing; forces operation to be run
-rm -f $SVMFILE
-rm -f $RANGE
-rm -f $FULLSCALE
-rm -f $GRIDOUT
+#rm -f $SVMFILE
+#rm -f $RANGE
+#rm -f $FULLSCALE
+#rm -f $GRIDOUT
 
 # usage: FRUtils
 #  -arff,--arff                     print out an ARFF style file from the
@@ -58,7 +59,7 @@ rm -f $GRIDOUT
 if [ ! -s $SVMFILE ]
 then
     echo "Writing $SVMFILE with $NUMCASEPATHS cases and $NUMCTRLPATHS controls"
-    java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -svm -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -s $MINSIZE -m $MINSUPPORT -mp $MAXPVALUE
+    java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -svm -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -s $MINSIZE -m $MINSUPPORT -mp $MAXPVALUE -minp $MINPRIORITY
 fi
 
 # usage: SvmScaler [options]
@@ -132,7 +133,7 @@ fi
 #                                        weight, for C-SVC [1]
 
 ## set SVM parameters, default or from GridSearcher
-ARGS="-h 0 -m 1000 -C 1.0 -k $K -ncases $NSVMCASES -ncontrols $NSVMCONTROLS"
+ARGS="-h 0 -m 10000 -C 1.0 -k $K -ncases $NSVMCASES -ncontrols $NSVMCONTROLS"
 if [ -s $GRIDOUT ]
 then
     C=`tail -1 $GRIDOUT | awk '{ print $1; }'`
@@ -142,4 +143,5 @@ then
 fi
 
 echo "Running $NRUNS SvmCrossValidator runs on $FULLSCALE with $ARGS"
-java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmCrossValidator $ARGS -nruns $NRUNS -i $FULLSCALE > "$INPUTPREFIX-crossvalidation.txt"
+java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.svm.SvmCrossValidator \
+     $ARGS -nruns $NRUNS -i $FULLSCALE > "$INPUTPREFIX-crossvalidation.txt"

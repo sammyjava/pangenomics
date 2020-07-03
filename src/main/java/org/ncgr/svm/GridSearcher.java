@@ -148,7 +148,6 @@ public class GridSearcher {
 		    SvmCrossValidator svc = new SvmCrossValidator(param, nrFold, vy, vx);
 		    svc.samples = samples;
 		    svc.inputFilename = inputFilename;
-		    svc.quiet = true;
 		    svc.run();
 		    if (verbose) {
 			System.err.println("GridSearcher: C="+df.format(param.C)+" gamma="+df.format(param.gamma)+" totalCorrect="+svc.totalCorrect+" accuracy="+pf.format(svc.accuracy));
