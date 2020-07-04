@@ -8,7 +8,7 @@ import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
 import weka.classifiers.Evaluation;
-import weka.classifiers.trees.SMO;
+import weka.classifiers.functions.SMO;
 import weka.core.Instances;
 import weka.core.converters.ConverterUtils.DataSource;
 
