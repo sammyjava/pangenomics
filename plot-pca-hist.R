@@ -18,35 +18,41 @@ require(RColorBrewer)
 ## NOT FANCY
 num = length(colnames(pca$rotation))
 
-## ctrlcol = rgb(173,216,230, max = 255, alpha = 80, names = "lt.blue")
-## casecol = rgb(255,192,203, max = 255, alpha = 80, names = "lt.pink")
-
-## ctrlcol = rgb(173,216,230, max=255)
-## casecol = rgb(255,192,203, max=255)
-
-ctrlcol = "blue"
-casecol = "red"
-
 ## case/control labels and colors
 labels = array(dim=length(rownames(pca$rotation)))
 colors = array(dim=length(rownames(pca$rotation)))
+cases = array(dim=length(rownames(pca$rotation)))
+ctrls = array(dim=length(rownames(pca$rotation)))
 for (i in 1:length(rownames(pca$rotation))) {
     casestart = str_locate_all(pattern='case', rownames(pca$rotation)[i])[[1]][1]
     ctrlstart = str_locate_all(pattern='ctrl', rownames(pca$rotation)[i])[[1]][1]
     if (!is.na(casestart)) {
-        colors[i] = casecol
+        colors[i] = "darkred"
         labels[i] = substring(rownames(pca$rotation)[i], 1, casestart-2)
+        cases[i] = TRUE
+        ctrls[i] = FALSE
     } else if (!is.na(ctrlstart)) {
-        colors[i] = ctrlcol
+        colors[i] = "darkblue"
         labels[i] = substring(rownames(pca$rotation)[i], 1, ctrlstart-2)
+        cases[i] = FALSE
+        ctrls[i] = TRUE
     }
 }
 
-for (i in 1:(num-1)) {
-    xlabel = paste("PC",i,  " ",round(summary(pca)$importance["Proportion of Variance",i]*100,1),"% of variance", sep="")
-    ylabel = paste("PC",i+1," ",round(summary(pca)$importance["Proportion of Variance",i+1]*100,1),"% of variance", sep="")
-    plot(pca$rotation[,i], pca$rotation[,i+1], xlab=xlabel, ylab=ylabel, pch=19, cex=1.0, col=colors, main=prefix)
-    ## colors!
-    ## points(pca$rotation[,i], pca$rotation[,i+1], xlab=xlabel, ylab=ylabel, pch=20)
-    ## text(pca$rotation[,i], pca$rotation[,i+1], labels, pos=1, cex=0.5, col=colors)
+
+
+## these colors add to gray
+ctrlcol = rgb(173,216,230, max = 255, alpha = 80, names = "lt.blue")
+casecol = rgb(255,192,203, max = 255, alpha = 80, names = "lt.pink")
+
+## the histograms
+for (pc in 1:num) {
+    xlabel = paste("PC",pc," ",round(summary(pca)$importance["Proportion of Variance",pc]*100,1),"% of variance", sep="")
+    h.cases = hist(pca$rotation[cases,pc], breaks=33, plot=FALSE)
+    h.ctrls = hist(pca$rotation[ctrls,pc], breaks=33, plot=FALSE)
+    ymax = max(h.cases$density, h.ctrls$density)
+    plot(h.cases, freq=FALSE, col=casecol, xlab=paste("PC",pc), ylim=c(0,ymax), main=prefix)
+    plot(h.ctrls, freq=FALSE, col=ctrlcol, ylim=c(0,ymax), add=TRUE)
+    ## legend(x="topleft", c(paste(nCases,"cases"),paste(nCtrls,"ctrls"),paste(nCases+nCtrls,"both")),
+    ##        fill=c(col.cases,col.ctrls,rgb(.5,0,.5)), bty="n")
 }

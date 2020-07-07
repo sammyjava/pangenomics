@@ -4,29 +4,39 @@
 ##
 
 ## for plotting and analysis
-library(ggfortify)
-library(factoextra)
+library(dplyr)
 
-prefix = readline(prompt="FR file prefix (ex. HTT.400-0.5-1 or HTT.save): ")
-isSaveSet = grepl("save", prefix, fixed=TRUE)
+prefix = readline(prompt="FR file prefix (ex. HTT.400-0.5-1): ")
 frFilename = paste(prefix, ".frs.txt", sep="")
 
-## read the FRs table, either a save file or a proper output file
+## read the FRs table
 ## nodes	size	support	case	ctrl	OR	p	pri
 frs = read.table(frFilename, header=TRUE, stringsAsFactors=FALSE)
-rownames(frs) = frs$nodes
-frs$nodes = NULL
+frs = frs[frs$nodes!="nodes",]
+frs$size = as.numeric(frs$size)
+frs$support = as.numeric(frs$support)
+frs$case = as.numeric(frs$case)
+frs$ctrl = as.numeric(frs$ctrl)
+frs$OR = as.numeric(frs$OR)
+frs$p = as.numeric(frs$p)
+frs$pri = as.numeric(frs$pri)
+frs = distinct(frs)
 
-## divine alpha, kappa from filename like HTT.400-0.8-3
-if (isSaveSet) {
-    prefix.parts = strsplit(prefix, ".save", fixed=TRUE);
-    graphPrefix = prefix.parts[[1]][1]
-} else {
-    prefix.parts = strsplit(prefix, "-", fixed=TRUE)
-    graphPrefix = prefix.parts[[1]][1]
-    alpha = as.numeric(prefix.parts[[1]][2])
-    kappa = as.numeric(prefix.parts[[1]][3])
-}
+## rownames(frs) = frs$nodes
+## frs$nodes = NULL
+
+## frs$size = as.numeric(frs$size)
+## frs$support = as.numeric(frs$support)
+## frs$case = as.numeric(frs$case)
+## frs$ctrl = as.numeric(frs$ctrl)
+## frs$OR = as.numeric(frs$OR)
+## frs$p = as.numeric(frs$p)
+## frs$pri = as.numeric(frs$pri)
+
+prefix.parts = strsplit(prefix, "-", fixed=TRUE)
+graphPrefix = prefix.parts[[1]][1]
+alpha = as.numeric(prefix.parts[[1]][2])
+kappa = as.numeric(prefix.parts[[1]][3])
 
 ## load the parameters from the params.txt file
 source("load-params.R")
@@ -37,13 +47,6 @@ labelsExist = file.exists(labelFile)
 if (labelsExist) {
     labelCounts = read.delim(file=labelFile, header=FALSE, stringsAsFactors=FALSE, row.names=1)
     colnames(labelCounts) = c("count")
-}
-
-## odds ratio (if label counts exist)
-if (labelsExist) {
-    casePaths = labelCounts["case",1]
-    ctrlPaths = labelCounts["ctrl",1]
-    frs$OR = (frs$case/frs$ctrl) / (casePaths/ctrlPaths)
 }
 
 ## nodes

@@ -1,11 +1,13 @@
-## load paths for PCA
-
+library(factoextra)
+##
+## load FR path support for PCA
+##
 prefix = readline(prompt="FR file prefix (ex. HTT.400-0.5-1 or HTT.save): ")
 pathfrs = read.table(file=paste(prefix,".pathfrs.txt",sep=""), stringsAsFactors=FALSE, check.names=FALSE)
 
 ## PCA on path FR vectors
-paths = as.data.frame(t(pathfrs))
-pca = prcomp(paths, center=TRUE)
+FRs = as.data.frame(pathfrs)
+pca = prcomp(FRs, center=FALSE)
 ## get the results for variables (nodes)
 ## res.var$coord          # Coordinates
 ## res.var$contrib        # Contributions to the PCs
@@ -18,13 +20,10 @@ pca.var = get_pca_var(pca)
 pca.ind = get_pca_ind(pca)
 
 ## determine which are cases and which are controls
-cases = endsWith(rownames(paths), "case")
-cases.0 = endsWith(rownames(paths), "0.case")
-cases.1 = endsWith(rownames(paths), "1.case")
-controls = endsWith(rownames(paths), "ctrl")
-controls.0 = endsWith(rownames(paths), "0.ctrl")
-controls.1 = endsWith(rownames(paths), "1.ctrl")
+cases = endsWith(rownames(FRs), "case")
+cases.0 = endsWith(rownames(FRs), "0.case")
+cases.1 = endsWith(rownames(FRs), "1.case")
+controls = endsWith(rownames(FRs), "ctrl")
+controls.0 = endsWith(rownames(FRs), "0.ctrl")
+controls.1 = endsWith(rownames(FRs), "1.ctrl")
 
-## append case/control label to paths
-paths$Label[cases] = "case"
-paths$Label[controls] = "ctrl"
