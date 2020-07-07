@@ -185,6 +185,7 @@ public class FRUtils {
             FrequentedRegion fr = new FrequentedRegion(nodes, alpha, kappa, support, caseSupport, ctrlSupport, orValue, pValue, priority);
             sortedFRs.add(fr);
         }
+	System.err.println("FRUtils: loaded "+sortedFRs.size()+" unique FRs from "+inputPrefix);
         return sortedFRs;
     }
 
@@ -407,7 +408,7 @@ public class FRUtils {
             } else {
                 reason += " SUPPORT";
             }
-            if (fr.nodes.size()<minSize) {
+            if (fr.size<minSize) {
                 passes = false;
                 reason += " size";
             } else {
@@ -466,7 +467,7 @@ public class FRUtils {
 	if (minSize>1) {
 	    List<FrequentedRegion> frsToRemove = new LinkedList<>();
 	    for (FrequentedRegion fr : frequentedRegions) {
-		if (fr.nodes.size()<minSize) frsToRemove.add(fr);
+		if (fr.size<minSize) frsToRemove.add(fr);
 	    }
 	    frequentedRegions.removeAll(frsToRemove);
 	    System.err.println("FRUtils.printPathFRsSVM: removed "+frsToRemove.size()+" FRs with size<"+minSize);
@@ -499,7 +500,7 @@ public class FRUtils {
 	    System.err.println("FRUtils.printPathFRsSVM: removed "+frsToRemove.size()+" FRs with priority<"+minPriority);
 	}
 	// done winnowing
-	System.err.println("FRUtils.printPathFRsSVM: "+frequentedRegions.size()+" FRs loaded.");
+	System.err.println("FRUtils: "+frequentedRegions.size()+" FRs to be printed to SVM file.");
 	// collect the paths, cases and controls
 	ConcurrentHashMap<String,String> pathSVM = new ConcurrentHashMap<>();
 	ConcurrentSkipListSet<Path> concurrentPaths = new ConcurrentSkipListSet<>();
@@ -628,7 +629,7 @@ public class FRUtils {
 	if (minSize>1) {
 	    List<FrequentedRegion> frsToRemove = new LinkedList<>();
 	    for (FrequentedRegion fr : frequentedRegions) {
-		if (fr.nodes.size()<minSize) frsToRemove.add(fr);
+		if (fr.size<minSize) frsToRemove.add(fr);
 	    }
 	    frequentedRegions.removeAll(frsToRemove);
 	    System.err.println("FRUtils.printPathFRsARFF: removed "+frsToRemove.size()+" FRs with size<"+minSize);
@@ -661,7 +662,7 @@ public class FRUtils {
 	    System.err.println("FRUtils.printPathFRsARFF: removed "+frsToRemove.size()+" FRs with priority<"+minPriority);
 	}
 	// we're done winnowing, show what's left
-	System.err.println("FRUtils.printPathFRsARFF: "+frequentedRegions.size()+" FRs loaded.");
+	System.err.println("FRUtils: "+frequentedRegions.size()+" FRs to be printed to ARFF file.");
 	// collect the paths, cases and controls
 	ConcurrentHashMap<String,String> pathARFF = new ConcurrentHashMap<>();
 	ConcurrentSkipListSet<Path> concurrentPaths = new ConcurrentSkipListSet<>();

@@ -342,7 +342,7 @@ public class frGraphComponent extends mxGraphComponent implements ActionListener
         }
         infoLabelString += "<hr/>";
         infoLabelString += "FR "+(currentFRIndex+1)+":";
-        infoLabelString += "<br/>size="+currentFR.nodes.size();
+        infoLabelString += "<br/>size="+currentFR.size;
         infoLabelString += "<br/>support="+currentFR.support+":"+currentFR.caseSubpathSupport+"/"+currentFR.ctrlSubpathSupport;
         infoLabelString += "<br/>support="+percf.format((double)currentFR.support/(double)graph.paths.size())+":"+
             percf.format((double)currentFR.caseSubpathSupport/(double)graph.labelCounts.get("case"))+"/"+

@@ -44,8 +44,9 @@ class FrequentedRegion implements Comparable {
     // the PangenomicGraph that this FrequentedRegion belongs to
     PangenomicGraph graph;
 
-    // the set of Nodes that encompass this FR
+    // the set of Nodes that encompass this FR and the size
     NodeSet nodes;
+    int size;
     
     // the subpaths, identified by their originating path name and label, that start and end on this FR's nodes
     List<Path> subpaths;
@@ -82,6 +83,7 @@ class FrequentedRegion implements Comparable {
         this.kappa = kappa;
         this.priorityOptionKey = priorityOptionKey;
         this.priorityOptionLabel = priorityOptionLabel;
+	size = nodes.size();
         update();
     }
 
@@ -104,6 +106,7 @@ class FrequentedRegion implements Comparable {
         this.kappa = kappa;
         this.priorityOptionKey = priorityOptionKey;
         this.priorityOptionLabel = priorityOptionLabel;
+	size = nodes.size();
         update();
     }
 
@@ -118,6 +121,7 @@ class FrequentedRegion implements Comparable {
         this.kappa = kappa;
         this.priorityOptionKey = priorityOptionKey;
         this.priorityOptionLabel = priorityOptionLabel;
+	size = nodes.size();
         update();
     }
 
@@ -133,6 +137,7 @@ class FrequentedRegion implements Comparable {
         this.support = support;
         this.priorityOptionKey = priorityOptionKey;
         this.priorityOptionLabel = priorityOptionLabel;
+	size = nodes.size();
         update();
     }
 
@@ -147,6 +152,7 @@ class FrequentedRegion implements Comparable {
         this.support = support;
         this.priorityOptionKey = priorityOptionKey;
         this.priorityOptionLabel = priorityOptionLabel;
+	size = nodes.size();
         update();
     }
 
@@ -163,6 +169,7 @@ class FrequentedRegion implements Comparable {
         this.orValue = orValue;
         this.pValue = pValue;
         this.priority = priority;
+	size = nodes.size();
     }
 
     /**
@@ -199,8 +206,8 @@ class FrequentedRegion implements Comparable {
             return this.priority - that.priority;
         } else if (this.support!=that.support) {
             return this.support - that.support;
-        } else if (this.nodes.size()!=that.nodes.size()) {
-            return -(this.nodes.size() - that.nodes.size());
+        } else if (this.size!=that.size) {
+            return -(this.size - that.size);
         } else {
             return this.nodes.compareTo(that.nodes);
         }
@@ -394,7 +401,7 @@ class FrequentedRegion implements Comparable {
      */
     @Override
     public String toString() {
-        String s = nodes.toString()+"\t"+nodes.size()+"\t"+support;
+        String s = nodes.toString()+"\t"+size+"\t"+support;
         if (support>0) {
             // show label support if available
             if (graph!=null && graph.labelCounts.size()>0) {
@@ -753,7 +760,7 @@ class FrequentedRegion implements Comparable {
                 ignore = true;
             }
             // alpha test on maximal subpath; use num>0 to allow alpha=0
-            if (!ignore && num>0 && num>=alpha*nodes.size()) s.add(subpath);
+            if (!ignore && num>0 && num>=alpha*size) s.add(subpath);
         }
         return s;
     }

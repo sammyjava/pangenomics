@@ -38,8 +38,8 @@ public class WekaTest {
 	inputFileOption.setRequired(true);
 	options.addOption(inputFileOption);
 	//
-	Option nRunsOption = new Option("nruns", true, "number of parallel runs [1]");
-	nRunsOption.setRequired(false);
+	Option nRunsOption = new Option("nruns", true, "number of parallel runs (required)");
+	nRunsOption.setRequired(true);
 	options.addOption(nRunsOption);
  
         if (args.length==0) {
@@ -56,8 +56,7 @@ public class WekaTest {
 
         String arffFile = cmd.getOptionValue("inputfile");
 
-	int nRuns = 1;
-	if (cmd.hasOption("nruns")) nRuns = Integer.parseInt(cmd.getOptionValue("nruns"));
+	final int nRuns = Integer.parseInt(cmd.getOptionValue("nruns"));
 
 	// Read all the instances in the file (ARFF, CSV, XRFF, ...)
 	DataSource source = new DataSource(arffFile);
@@ -128,11 +127,13 @@ public class WekaTest {
 		}
 		try {
 		    evaluation.crossValidateModel(model, data, KFOLD, new Random(seed));
+		    System.err.print(key+" ");
 		} catch (Exception e) {
 		    System.err.println(e);
 		    System.exit(1);
 		}
 	    });
+	System.err.println("");
 	////////////////////////////////////////////////////////////////////////////////////////
 	// output
 	for (String key : evaluations.keySet()) {
