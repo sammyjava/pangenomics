@@ -1,13 +1,9 @@
 library(factoextra)
-##
-## load FR path support for PCA
-##
-prefix = readline(prompt="FR file prefix (ex. HTT.400-0.5-1 or HTT.save): ")
-pathfrs = read.table(file=paste(prefix,".pathfrs.txt",sep=""), stringsAsFactors=FALSE, check.names=FALSE)
+
+source("load-pathfrs.R")
 
 ## PCA on path FR vectors
-FRs = as.data.frame(pathfrs)
-pca = prcomp(FRs, center=FALSE)
+pca = prcomp(pathfrs, center=FALSE)
 ## get the results for variables (nodes)
 ## res.var$coord          # Coordinates
 ## res.var$contrib        # Contributions to the PCs
