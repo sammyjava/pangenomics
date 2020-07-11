@@ -54,5 +54,5 @@ for (pc in 1:10) {
     ymax = max(h.cases$density, h.ctrls$density)
     plot(h.cases, freq=FALSE, col=casecol, xlab=paste("PC",pc), ylim=c(0,ymax), main=prefix)
     plot(h.ctrls, freq=FALSE, col=ctrlcol, ylim=c(0,ymax), add=TRUE)
-    legend(x="topleft", c(paste(caseNum,"cases"),paste(ctrlNum,"controls"),paste(caseNum+ctrlNum,"both")), fill=c(casecol,ctrlcol,"lightgray"), bty="n")
+    legend(x="topleft", c("cases","controls","both"), fill=c(casecol,ctrlcol,"lightgray"), bty="n")
 }
