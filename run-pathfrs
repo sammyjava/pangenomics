@@ -11,40 +11,26 @@
 #  -mpri,--minpriority <arg>        minimum priority value for an FR to be
 #                                   considered interesting
 #  -ncase,--numcasepaths <arg>      number of case paths to include in SVM
-#                                   or ARFF output
+#                                   or ARFF or TXT output
 #  -nctrl,--numcontrolpaths <arg>   number of control paths to include in
-#                                   SVM or ARFF output
+#                                   SVM or ARFF or TXT output
 #  -p,--postprocess                 postprocess by applying new minsup,
 #                                   minsize to an FR set given by
 #                                   inputprefix
+#  -pathfrs,--pathfrs               print out a pathfrs.txt style file from
+#                                   the FR data given by inputprefix
 #  -s,--minsize <arg>               minimum number of nodes that a FR must
 #                                   contain to be considered interesting
 #  -svm,--svm                       print out an SVM style file from the
 #                                   data given by inputprefix
-# usage: WekaRandomForest
-#  -a,--arfffile <arg>         ARFF input file (required)
 
 INPUTPREFIX=$1
 
-## ARFF filtering parameters
-ARFFFILE=$INPUTPREFIX.arff
+## PATHFRS options
 NUMCASEPATHS=0
 NUMCTRLPATHS=0
 MINSUPPORT=100
 MINPRIORITY=1
-MINSIZE=1
-MAXPVALUE=1.0
 
-## delete former ARFF file
-#rm -f $ARFFFILE
-
-if [ ! -s $ARFFFILE ]
-then
-    echo "Writing $ARFFFILE with $NUMCASEPATHS cases and $NUMCTRLPATHS controls"
-    java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff \
-	 -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -m $MINSUPPORT  -s $MINSIZE -mpri $MINPRIORITY -mp $MAXPVALUE
-fi
-    
-java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.weka.WekaRandomForest -a $ARFFFILE -k 9
-
-echo $ARFFFILE
+echo "Writing $INPUTPREFIX.pathfrs.txt with $NUMCASEPATHS cases and $NUMCTRLPATHS controls"
+java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -pathfrs -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -m $MINSUPPORT -mpri $MINPRIORITY $2 $3 $4 $5 $6 $7 $8 $9

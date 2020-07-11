@@ -10,7 +10,7 @@ NUMCASEPATHS=0
 NUMCTRLPATHS=0
 
 MINSIZE=0
-MINSUPPORT=1
+MINSUPPORT=100
 MAXPVALUE=1.0
 MINPRIORITY=1
 
@@ -30,11 +30,13 @@ NRUNS=10
 NSVMCASES=0
 NSVMCONTROLS=0
 
-## pre-clean during testing; forces operation to be run
+#####################################
+## delete SVM files to force rebuild
 #rm -f $SVMFILE
 #rm -f $RANGE
 #rm -f $FULLSCALE
 #rm -f $GRIDOUT
+#####################################
 
 # usage: FRUtils
 #  -arff,--arff                     print out an ARFF style file from the
