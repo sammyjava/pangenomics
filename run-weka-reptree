@@ -21,14 +21,13 @@
 #                                   contain to be considered interesting
 #  -svm,--svm                       print out an SVM style file from the
 #                                   data given by inputprefix
-# usage: WekaDecisionStump
+# usage: WekaREPTree
 #  -a,--arfffile <arg>         ARFF input file (required)
-#  -S,--seed <arg>             seed of randomization (1)
 
 INPUTPREFIX=$1
-
-## ARFF filtering parameters
 ARFFFILE=$INPUTPREFIX.arff
+
+## ARFF build/filtering parameters
 NUMCASEPATHS=0
 NUMCTRLPATHS=0
 MINSUPPORT=100
@@ -46,6 +45,6 @@ then
 	 -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -m $MINSUPPORT  -s $MINSIZE -mpri $MINPRIORITY -mp $MAXPVALUE
 fi
     
-java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.weka.WekaDecisionStump -a $ARFFFILE -k 10
+java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.weka.WekaREPTree -a $ARFFFILE -k 9
 
 echo $ARFFFILE

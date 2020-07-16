@@ -18,7 +18,6 @@
 #  -vcf,--vcffile <arg>              load graph from <graph>.vcf.gz
 
 GRAPH=$1
-LABELSFILE=$2
 
 java -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.PangenomicGraph \
-     -ecc -v -g $GRAPH -l $LABELSFILE -vcf $GRAPH.vcf.gz $3 $4 $5
+     -v -g $GRAPH -txt $GRAPH -arff

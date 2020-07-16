@@ -15,6 +15,7 @@ buildOutputCleanup
 *.png
 *.pdf
 *.txt
+*.txt.gz
 *.fasta
 *.arff
 scan-*

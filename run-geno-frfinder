@@ -1,29 +1,23 @@
 #!/bin/sh
 # usage: FRFinder
-#  -ae,--alphaend <arg>            ending value of alpha for a scan (can
-#                                  equal alphastart)
-#  -as,--alphastart <arg>          starting value of alpha for a scan (can
-#                                  equal alphaend)
+#  -a,--alpha <arg>                value of alpha (required)
 #  -do,--debug                     debug output [false]
-#  -en,--excludednodes <arg>       require that found FRs NOT contain the
-#                                  given nodes []
+#  -en,--excludednodes <arg>       require that interesting FRs NOT contain
+#                                  the given nodes []
 #  -ep,--excludedpathnodes <arg>   exclude paths that include any of the
 #                                  given nodes []
 #  -graph,--graph <arg>            graph name
-#  -in,--includednodes <arg>       require that found FRs contain at least
-#                                  one of the given nodes []
+#  -in,--includednodes <arg>       require that interesting FRs contain at
+#                                  least one of the given nodes []
 #  -inc,--includenocalls           include nodes which do not have genotype
 #                                  calls (./.) [false]
 #  -ip,--includedpathnodes <arg>   include only paths that include at least
 #                                  one of the given nodes []
-#  -ke,--kappaend <arg>            ending value of kappa for a scan (can
-#                                  equal kappastart; -1=infinity)
+#  -k,--kappa <arg>                value of kappa; -1=infinity (required)
 #  -keep,--keepoption <arg>        option for keeping FRs in finder loop:
 #                                  subset[:N]|distance[:N] [keep all]
-#  -ks,--kappastart <arg>          starting value of kappa for a scan (can
-#                                  equal kappaend; -1=infinity)
-#  -m,--minsupport <arg>           minimum number of supporting paths for a
-#                                  region to be considered interesting [1]
+#  -m,--minsupport <arg>           minimum number of supporting paths for an
+#                                  FR to be considered interesting [1]
 #  -maxct,--maxclocktime <arg>     limit the computation to the given clock
 #                                  time in minutes [0=unlimited]
 #  -maxp,--maxpval <arg>           maximum p-value for nodes included in
@@ -33,7 +27,8 @@
 #                                  [unlimited]
 #  -minmaf,--minmaf <arg>          minimum MAF for nodes included in search
 #                                  [0.01]
-#  -mp,--minpriority <arg>         minimum priority for saving an FR [0]
+#  -mp,--minpriority <arg>         minimum priority for an FR to be
+#                                  considered interesting [0=disabled]
 #  -mr,--maxround <arg>            maximum FR-finding round to run
 #                                  [0=unlimited]
 #  -p,--pathlabels <arg>           tab-delimited file with
@@ -49,10 +44,12 @@
 #  -r,--resume                     resume from a previous run [false]
 #  -rbns,--requirebestnodeset      require the best NodeSet from the
 #                                  previous round in the next round [false]
-#  -rn,--requirednodes <arg>       require that found FRs contain the given
-#                                  nodes []
-#  -rsp,--requiresameposition      require that FRs consist of nodes at same
-#                                  genomic position [false]
+#  -rn,--requirednodes <arg>       require that interesting FRs contain the
+#                                  given nodes []
+#  -rns,--requirednodescan <arg>   starting and ending node for a single
+#                                  required node scan, e.g. 1-12345
+#  -rsp,--requiresameposition      require that interesting FRs consist of
+#                                  nodes at same genomic position [false]
 #  -s,--minsize <arg>              minimum number of nodes that a FR must
 #                                  contain to be considered interesting [1]
 #  -txt,--txt                      load from [graph].nodes.txt and
@@ -82,9 +79,5 @@ echo "# $graph alpha=$alpha kappa=$kappa priorityOption=$priorityoption $5 $6 $7
 ## TXT input
 ## DO NOT USE -XX:+UseG1GC!!! Causes hang at certain RAM limit.
 java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRFinder \
-     --verbose --writepathfrs --minmaf=0.0 --txt --graph=$graph \
-     --alphastart=$alpha --alphaend=$alpha --kappastart=$kappa --kappaend=$kappa --priorityoption=$priorityoption \
+     --verbose --minmaf=0.0 --txt --graph=$graph --alpha=$alpha --kappa=$kappa --priorityoption=$priorityoption \
      $5 $6 $7 $8 $9 ${10} ${11} ${12} ${13} ${14} ${15}
-
-
-##      --writefrsubpaths --writepathfrs \

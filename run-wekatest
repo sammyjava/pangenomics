@@ -23,9 +23,9 @@
 #                                   data given by inputprefix
 
 INPUTPREFIX=$1
-
-## ARFF options
 ARFFFILE=$INPUTPREFIX.arff
+
+## ARFF file building options
 NUMCASEPATHS=0
 NUMCTRLPATHS=0
 MINSUPPORT=1

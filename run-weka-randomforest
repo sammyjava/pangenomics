@@ -25,9 +25,9 @@
 #  -a,--arfffile <arg>         ARFF input file (required)
 
 INPUTPREFIX=$1
-
-## ARFF filtering parameters
 ARFFFILE=$INPUTPREFIX.arff
+
+## ARFF building/filtering parameters
 NUMCASEPATHS=0
 NUMCTRLPATHS=0
 MINSUPPORT=100

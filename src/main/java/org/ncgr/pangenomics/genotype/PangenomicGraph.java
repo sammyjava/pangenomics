@@ -16,7 +16,6 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.Set;
 import java.util.HashSet;
-import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 
 import org.apache.commons.cli.CommandLine;
@@ -28,7 +27,6 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
 import org.jgrapht.graph.DirectedAcyclicGraph;
-import org.jgrapht.alg.shortestpath.DijkstraShortestPath;
 
 import org.mskcc.cbio.portal.stats.FisherExact;
 
@@ -388,9 +386,9 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
                     nodes.add(allNodeMap.get(id));
                 } else {
                     // bail, we're asked for a node that is not in the graph
-                    System.err.println("ERROR: graph does not contain node "+id);
-                    System.exit(1);
-                }
+		    System.err.println("ERROR: Graph does not contain node "+id);
+		    System.exit(1);
+		}
             }
         }
         return nodes;
@@ -597,31 +595,91 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
     }
 
     /**
-     * Run all the PangenomicGraph printing methods to files.
+     * Print ARFF of node participation by path, for Weka analysis.
+     *
+     * @RELATION iris
+     *
+     * @ATTRIBUTE ID           STRING
+     * @ATTRIBUTE sepallength  NUMERIC
+     * @ATTRIBUTE sepalwidth   NUMERIC
+     * @ATTRIBUTE petallength  NUMERIC
+     * @ATTRIBUTE petalwidth   NUMERIC
+     * @ATTRIBUTE class        {Iris-setosa,Iris-versicolor,Iris-virginica}
+     *
+     * @DATA
+     * 5.1,3.5,1.4,0.2,Iris-setosa
+     * 4.9,3.0,1.4,0.2,Iris-virginica
+     * 4.7,3.2,1.3,0.2,Iris-versicolor
+     * 4.6,3.1,1.5,0.2,Iris-setosa
+     * 5.0,3.6,1.4,0.2,Iris-viginica
      */
-    public void printAll() throws FileNotFoundException, IOException {
-        if (name==null) return;
-
-        if (labelCounts!=null && labelCounts.size()>0) {
-            PrintStream labelCountsOut = new PrintStream(name+".labelcounts.txt");
-            printLabelCounts(labelCountsOut);
+    public void printArffData(PrintStream out) {
+	out.println("@RELATION "+name);      // graph name
+        out.println("");
+	out.println("@ATTRIBUTE ID STRING"); // path ID
+	// attributes: each node is labeled Nn where n is the node ID
+	for (Node node : getNodes()) {
+            out.println("@ATTRIBUTE N"+node.id+" NUMERIC");
         }
+        // add the path label class attribute
+        out.println("@ATTRIBUTE class {ctrl,case}");
+        out.println("");
+        // data
+        out.println("@DATA");
+	/////////////////////////////////////////////////////////////////////////////
+	ConcurrentSkipListSet<Path> concurrentPaths = new ConcurrentSkipListSet<>();
+	ConcurrentSkipListSet<String> arffData = new ConcurrentSkipListSet<>();
+	concurrentPaths.addAll(paths);
+	concurrentPaths.parallelStream().forEach(path -> {
+		String arff = path.name;
+		for (Node node : getNodes()) {
+		    if (path.contains(node)) {
+			arff += ",1";
+		    } else {
+			arff += ",0";
+		    }
+		}
+		arff += ","+path.label;
+		arffData.add(arff);
+	    });
+	/////////////////////////////////////////////////////////////////////////////
+	for (String arff : arffData) {
+	    out.println(arff);
+	}
+        out.close();
+    }
 
-        if (verbose) System.out.println("Writing nodes file...");
-        PrintStream nodesOut = new PrintStream(name+".nodes.txt");
-        printNodes(nodesOut);
-
-        if (verbose) System.out.println("Writing paths file...");
-        PrintStream pathsOut = new PrintStream(name+".paths.txt");
-        printPaths(pathsOut);
-
-	if (verbose) System.out.println("Writing node paths file...");
-	PrintStream nodePathsOut = new PrintStream(name+".nodepaths.txt");
-	printNodePaths(nodePathsOut);
-
-	if (verbose) System.out.println("Writing path PCA file...");
-	PrintStream pcaDataOut = new PrintStream(name+".pathpca.txt");
-	printPcaData(pcaDataOut);
+    /**
+     * Print the labeled path node participation for LIBSVM analysis.
+     *
+     * path1 case 1:1 2:1 3:1 4:0 ... (tab separated, don't skip any indexes)
+     * path2 ctrl 1:0 2:0 3:0 4:1 ...
+     *
+     * This is similar, but not identical to, the SVMlight format.
+     */
+    public void printSvmData(PrintStream out) {
+	/////////////////////////////////////////////////////////////////////////////
+	ConcurrentSkipListSet<Path> concurrentPaths = new ConcurrentSkipListSet<>();
+	ConcurrentSkipListSet<String> svmData = new ConcurrentSkipListSet<>();
+	concurrentPaths.addAll(paths);
+	concurrentPaths.parallelStream().forEach(path -> {
+		String svm = path.name+"\t"+path.label;
+		int n = 0;
+		for (Node node : getNodes()) {
+		    n++;
+		    if (path.contains(node)) {
+			svm += "\t"+n+":+1";
+		    } else {
+			svm += "\t"+n+":-1";
+		    }
+		}
+		svmData.add(svm);
+	    });
+	/////////////////////////////////////////////////////////////////////////////
+	for (String svm : svmData) {
+	    out.println(svm);
+	}
+        out.close();
     }
 
     /**
@@ -670,10 +728,10 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         options.addOption(vcfFileOption);
         // 
         Option labelsOption = new Option("l", "labelfile", true, "tab-delimited file containing one sample<tab>label per line");
-        labelsOption.setRequired(true);
+        labelsOption.setRequired(false);
         options.addOption(labelsOption);
         // txt does not require labelfile
-        Option txtFileOption = new Option("txt", "txtfile", true, "mult-sample VCF file from which to load graph along with --labelfile");
+        Option txtFileOption = new Option("txt", "txtfile", true, "root name of a pair of TXT files containing nodes and paths (e.g. FOO means FOO.nodes.txt and FOO.paths.txt)");
         txtFileOption.setRequired(false);
         options.addOption(txtFileOption);
         // drop no-call nodes and paths
@@ -684,6 +742,22 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         Option equalizeCasesControlsOption = new Option("ecc", "equalizecasescontrols", false, "reduce cases or controls to make equal in number [false]");
         equalizeCasesControlsOption.setRequired(false);
         options.addOption(equalizeCasesControlsOption);
+	// optional output
+	Option printPcaFileOption = new Option("pca", "printpcafile", false, "print out path pca file [false]");
+	printPcaFileOption.setRequired(false);
+	options.addOption(printPcaFileOption);
+	//
+	Option printArffFileOption = new Option("arff", "printarfffile", false, "print out an ARFF file of path node participation [false]");
+	printArffFileOption.setRequired(false);
+	options.addOption(printArffFileOption);
+	//
+	Option printSvmFileOption = new Option("svm", "printsvmfile", false, "print out a LIBSVM-compatible file of path node participation [false]");
+	printSvmFileOption.setRequired(false);
+	options.addOption(printSvmFileOption);
+	//
+	Option printNodePathsFileOption = new Option("nodepaths", "printnodepathsfile", false, "print out node paths file [false]");
+	printNodePathsFileOption.setRequired(false);
+	options.addOption(printNodePathsFileOption);
         //
         Option verboseOption = new Option("v", "verbose", false, "verbose output (false)");
         verboseOption.setRequired(false);
@@ -710,6 +784,10 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
             System.err.println("ERROR: You must specify loading from either a VCF with --vcffile [filename] or a pair of TXT files with --txtfile.");
             System.exit(1);
         }
+	if (loadVCF && !cmd.hasOption("labelfile")) {
+	    System.err.println("ERROR: You must specify a label file with --labelfile if you are loading a graph from a VCF.");
+	    System.exit(1);
+	}
 
         // our PangenomicGraph
         PangenomicGraph graph = new PangenomicGraph();
@@ -745,6 +823,41 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         graph.buildNodePaths();
 
         // output
-        graph.printAll();
+        if (graph.labelCounts!=null && graph.labelCounts.size()>0) {
+            PrintStream labelCountsOut = new PrintStream(graph.name+".labelcounts.txt");
+            graph.printLabelCounts(labelCountsOut);
+        }
+
+        if (graph.verbose) System.out.println("Writing nodes file...");
+        PrintStream nodesOut = new PrintStream(graph.name+".nodes.txt");
+        graph.printNodes(nodesOut);
+
+        if (graph.verbose) System.out.println("Writing paths file...");
+        PrintStream pathsOut = new PrintStream(graph.name+".paths.txt");
+        graph.printPaths(pathsOut);
+
+	if (cmd.hasOption("printnodepathsfile")) {
+	    if (graph.verbose) System.out.println("Writing node paths file...");
+	    PrintStream out = new PrintStream(graph.name+".nodepaths.txt");
+	    graph.printNodePaths(out);
+	}
+
+	if (cmd.hasOption("printpcafile")) {
+	    if (graph.verbose) System.out.println("Writing path PCA file...");
+	    PrintStream out = new PrintStream(graph.name+".pathpca.txt");
+	    graph.printPcaData(out);
+	}
+
+	if (cmd.hasOption("printarfffile")) {
+	    if (graph.verbose) System.out.println("Writing path ARFF file...");
+	    PrintStream out = new PrintStream(graph.name+".arff");
+	    graph.printArffData(out);
+	}
+	
+	if (cmd.hasOption("printsvmfile")) {
+	    if (graph.verbose) System.out.println("Writing path SVM file...");
+	    PrintStream out = new PrintStream(graph.name+".svm.txt");
+	    graph.printSvmData(out);
+	}
     }
 }

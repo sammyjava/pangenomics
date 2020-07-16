@@ -1,17 +1,16 @@
 #!/bin/bash
 
 INPUTPREFIX=$1
-
 SVMFILE="$INPUTPREFIX.svm.txt"
 RANGE="$INPUTPREFIX.svm.range.txt"
 FULLSCALE="$INPUTPREFIX.svm.scale.txt"
 
+## SVM file building parameters
 NUMCASEPATHS=0
 NUMCTRLPATHS=0
-
 MINSIZE=0
-MINSUPPORT=100
 MAXPVALUE=1.0
+MINSUPPORT=100
 MINPRIORITY=1
 
 ## grid scan
@@ -146,4 +145,4 @@ fi
 
 echo "Running $NRUNS SvmCrossValidator runs on $FULLSCALE with $ARGS"
 java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.svm.SvmCrossValidator \
-     $ARGS -nruns $NRUNS -i $FULLSCALE > "$INPUTPREFIX-crossvalidation.txt"
+     $ARGS -nruns $NRUNS -i $FULLSCALE > "$INPUTPREFIX.crossvalidation.txt"

@@ -147,8 +147,26 @@ public class FRFinder {
      * int kappa = maximum insertion: the maximum number of inserted nodes that a supporting path may have.
       */
     public void findFRs(double alpha, int kappa) throws FileNotFoundException, IOException {
+        // store the saved FRs in a map
+        frequentedRegions = new HashMap<>();
+
+        // optional required and excluded nodes
+	NodeSet requiredNodes = graph.getNodeSet(requiredNodeString);
+	NodeSet includedNodes = graph.getNodeSet(includedNodeString);
+	NodeSet excludedNodes = graph.getNodeSet(excludedNodeString);
+	NodeSet initialRequiredNodes = graph.getNodeSet(requiredNodeString); // this one is static for outputPrefix
+
+        // store all scanned FRs in a Map
+	ConcurrentHashMap<String,FrequentedRegion> allFrequentedRegions = new ConcurrentHashMap<>();
+
+        // rejected NodeSets (strings), so we don't bother scanning them more than once
+        ConcurrentSkipListSet<String> rejectedNodeSets = new ConcurrentSkipListSet<>();
+
+        // accepted FRPairs so we don't merge them more than once
+        ConcurrentHashMap<String,FRPair> acceptedFRPairs = new ConcurrentHashMap<>();
+
         // initialize log file
-        logOut = new PrintStream(formOutputPrefix(alpha, kappa)+".log");
+        logOut = new PrintStream(formOutputPrefix(alpha, kappa, initialRequiredNodes)+".log");
 	printToLog("# Starting findFRs: " +
                    "alpha="+alpha+" " +
                    "kappa="+kappa+" " +
@@ -171,22 +189,6 @@ public class FRFinder {
 		   "excludedPathNodes="+excludedPathNodeString+" " +
 		   "includedPathNodes="+includedPathNodeString);
 	
-        // store the saved FRs in a map
-        frequentedRegions = new HashMap<>();
-
-        // store all scanned FRs in a Map
-	ConcurrentHashMap<String,FrequentedRegion> allFrequentedRegions = new ConcurrentHashMap<>();
-
-        // rejected NodeSets (strings), so we don't bother scanning them more than once
-        ConcurrentSkipListSet<String> rejectedNodeSets = new ConcurrentSkipListSet<>();
-
-        // accepted FRPairs so we don't merge them more than once
-        ConcurrentHashMap<String,FRPair> acceptedFRPairs = new ConcurrentHashMap<>();
-
-        // optional required and excluded nodes; must be final since used in the parallel stream loop
-        NodeSet requiredNodes = graph.getNodeSet(requiredNodeString);
-	NodeSet includedNodes = graph.getNodeSet(includedNodeString);
-        NodeSet excludedNodes = graph.getNodeSet(excludedNodeString);
 
 	// validate if requireSamePosition
 	if (requireSamePosition && requiredNodes.size()>0 && !requiredNodes.haveSamePosition()) {
@@ -519,15 +521,15 @@ public class FRFinder {
         
 	// final output
 	if (frequentedRegions.size()>0) {
-            FRUtils.printParameters(parameters, formOutputPrefix(alpha, kappa), alpha, kappa, elapsedTime);
-            printFrequentedRegions(formOutputPrefix(alpha, kappa));
+            FRUtils.printParameters(parameters, formOutputPrefix(alpha, kappa, initialRequiredNodes), alpha, kappa, elapsedTime);
+            printFrequentedRegions(formOutputPrefix(alpha, kappa, initialRequiredNodes));
             if (writePathFRs) {
 		System.err.println("Writing path FRs file...");
-		printPathFRs(formOutputPrefix(alpha, kappa));
+		printPathFRs(formOutputPrefix(alpha, kappa, initialRequiredNodes));
 	    }
             if (writeFRSubpaths) {
 		System.err.println("Writing FR subpaths file...");
-		printFRSubpaths(formOutputPrefix(alpha, kappa));
+		printFRSubpaths(formOutputPrefix(alpha, kappa, initialRequiredNodes));
 	    }
 	}
     }
@@ -720,21 +722,13 @@ public class FRFinder {
         HelpFormatter formatter = new HelpFormatter();
         CommandLine cmd;
 
-        Option alphaStartOption = new Option("as", "alphastart", true, "starting value of alpha for a scan (can equal alphaend)");
-        alphaStartOption.setRequired(false);
-        options.addOption(alphaStartOption);
+        Option alphaOption = new Option("a", "alpha", true, "value of alpha (required)");
+        alphaOption.setRequired(true);
+        options.addOption(alphaOption);
         //
-        Option alphaEndOption = new Option("ae", "alphaend", true, "ending value of alpha for a scan (can equal alphastart)");
-        alphaEndOption.setRequired(false);
-        options.addOption(alphaEndOption);
-        //
-        Option kappaStartOption = new Option("ks", "kappastart", true, "starting value of kappa for a scan (can equal kappaend; -1=infinity)");
-        kappaStartOption.setRequired(false);
-        options.addOption(kappaStartOption);
-        //
-        Option kappaEndOption = new Option("ke", "kappaend", true, "ending value of kappa for a scan (can equal kappastart; -1=infinity)");
-        kappaEndOption.setRequired(false);
-        options.addOption(kappaEndOption);
+        Option kappaOption = new Option("k", "kappa", true, "value of kappa; -1=infinity (required)");
+        kappaOption.setRequired(true);
+        options.addOption(kappaOption);
         //
         Option graphOption = new Option("graph", "graph", true, "graph name");
         graphOption.setRequired(true);
@@ -800,6 +794,10 @@ public class FRFinder {
         requiredNodesOption.setRequired(false);
         options.addOption(requiredNodesOption);
         //
+	Option requiredNodeScanOption = new Option("rns", "requirednodescan", true, "starting and ending node for a single required node scan, e.g. 1-12345");
+	requiredNodeScanOption.setRequired(false);
+	options.addOption(requiredNodeScanOption);
+	//
         Option includedNodesOption = new Option("in", "includednodes", true, "require that interesting FRs contain at least one of the given nodes []");
         includedNodesOption.setRequired(false);
         options.addOption(includedNodesOption);
@@ -864,21 +862,23 @@ public class FRFinder {
         if (cmd.hasOption("pathlabels")) labelsFile = new File(cmd.getOptionValue("pathlabels"));
 
         // required run parameters
-        double alphaStart = 0.0;
-        double alphaEnd = 0.0;
-        int kappaStart = 0;
-        int kappaEnd = 0;
-	if (!cmd.hasOption("requiresameposition")) {
-	    if (cmd.hasOption("alphastart")) alphaStart = Double.parseDouble(cmd.getOptionValue("alphastart"));
-	    if (cmd.hasOption("alphaend")) alphaEnd = Double.parseDouble(cmd.getOptionValue("alphaend"));
-	    if (cmd.hasOption("kappastart")) kappaStart = Integer.parseInt(cmd.getOptionValue("kappastart"));
-	    if (cmd.hasOption("kappaend")) kappaEnd = Integer.parseInt(cmd.getOptionValue("kappaend"));
-	    if (kappaStart==-1 || kappaEnd==-1) {
-		kappaStart = Integer.MAX_VALUE; // effectively infinity
-		kappaEnd = Integer.MAX_VALUE;
-	    }
-	}
+        double alpha = Double.parseDouble(cmd.getOptionValue("alpha"));
+        int kappa = Integer.parseInt(cmd.getOptionValue("kappa"));
+	if (kappa==-1) kappa = Integer.MAX_VALUE; // effectively infinity
 
+	// check syntax of requirednodescan if present
+	int requiredNodeStart = 0;
+	int requiredNodeEnd = 0;
+	if (cmd.hasOption("requirednodescan")) {
+	    if (cmd.getOptionValue("requirednodescan").contains("-")) {
+		String[] parts = cmd.getOptionValue("requirednodescan").split("-");
+		requiredNodeStart = Integer.parseInt(parts[0]);
+		requiredNodeEnd = Integer.parseInt(parts[1]);
+	    }
+	} else {
+	    System.err.println("ERROR: --requirednodescan requireds two numbers separated by dash, like 23-45.");
+	    System.exit(1);
+	}
 	// load graph from a pair of TXT files
 	String graphName = cmd.getOptionValue("graph");
 	PangenomicGraph pg = new PangenomicGraph();
@@ -961,31 +961,16 @@ public class FRFinder {
 	// these are not stored in parameters
 	if (cmd.hasOption("verbose")) frf.verbose = true;
 	if (cmd.hasOption("debug")) frf.debug = true;
-	// run the requested job
-	if (alphaStart==alphaEnd && kappaStart==kappaEnd) {
-	    // single run
-	    double alpha = alphaStart;
-	    int kappa = kappaStart;
-	    frf.findFRs(alpha, kappa);
-	} else if (alphaStart!=alphaEnd && kappaStart==kappaEnd) {
-	    // scan alpha at fixed kappa
-	    int kappa = kappaStart;
-	    for (double a=alphaStart; a<=alphaEnd; a+=0.1000) {
-		frf.findFRs(a, kappa);
-	    }
-	} else if (alphaStart==alphaEnd && kappaStart!=kappaEnd) {
-	    // scan kappa at fixed alpha
-	    double alpha = alphaStart;
-	    for (int k=kappaStart; k<=kappaEnd; k+=1) {
-		frf.findFRs(alpha, k);
-	    }
-	} else {
-	    // scan both alpha and kappa
-	    for (double a=alphaStart; a<=alphaEnd; a+=0.1) {
-		for (int k=kappaStart; k<=kappaEnd; k+=1) {
-		    frf.findFRs(a, k);
+	// run the requested job(s)
+	if (requiredNodeStart>0 && requiredNodeEnd>0) {
+	    for (long id=requiredNodeStart; id<=requiredNodeEnd; id++) {
+		if (pg.nodeIdMap.containsKey(id)) {
+		    frf.setRequiredNodes("["+id+"]");
+		    frf.findFRs(alpha, kappa);
 		}
 	    }
+	} else {
+	    frf.findFRs(alpha, kappa);
 	}
     }
 
@@ -1093,15 +1078,20 @@ public class FRFinder {
     }
 
     /**
-     * Form an outputPrefix with given alpha and kappa.
+     * Form an outputPrefix with given alpha and kappa and single required node, if required.
      */
-    String formOutputPrefix(double alpha, int kappa) {
+    String formOutputPrefix(double alpha, int kappa, NodeSet requiredNodes) {
         DecimalFormat af = new DecimalFormat("0.0");
+	String prefix = "";
         if (kappa==Integer.MAX_VALUE) {
-            return getGraphName()+"-"+af.format(alpha)+"-Inf";
+            prefix = getGraphName()+"-"+af.format(alpha)+"-Inf";
         } else {
-            return getGraphName()+"-"+af.format(alpha)+"-"+kappa;
+            prefix = getGraphName()+"-"+af.format(alpha)+"-"+kappa;
         }
+	if (requiredNodes.size()==1) {
+	    prefix += "-"+requiredNodes.first();
+	}
+	return prefix;
     }
 
     /**

@@ -1,6 +1,6 @@
 #!/bin/sh
 # usage: PangenomicGraph
-#  -arff,--printarfffile             print out an ARFF file for path node
+#  -arff,--printarfffile             print out an ARFF file of path node
 #                                    participation [false]
 #  -dncp,--dropnocallpaths           drop no-call nodes and paths that
 #                                    traverse them [false]
@@ -11,14 +11,16 @@
 #                                    sample<tab>label per line
 #  -nodepaths,--printnodepathsfile   print out node paths file [false]
 #  -pca,--printpcafile               print out path pca file [false]
+#  -svm,--printsvmfile               print out a LIBSVM-compatible file of
+#                                    path node participation [false]
 #  -txt,--txtfile <arg>              root name of a pair of TXT files
 #                                    containing nodes and paths (e.g. FOO
 #                                    means FOO.nodes.txt and FOO.paths.txt)
 #  -v,--verbose                      verbose output (false)
 #  -vcf,--vcffile <arg>              load graph from <graph>.vcf.gz
 
+
 GRAPH=$1
-LABELSFILE=$2
 
 java -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.PangenomicGraph \
-     -ecc -v -g $GRAPH -l $LABELSFILE -vcf $GRAPH.vcf.gz $3 $4 $5
+     -v -g $GRAPH -txt $GRAPH -svm
