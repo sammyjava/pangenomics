@@ -185,41 +185,6 @@ public class SvmCrossValidator {
     }
 
     /**
-     * Print out the summary of results to System.err.
-     */
-    public void printSummary() {
-	if (param.svm_type==svm_parameter.EPSILON_SVR || param.svm_type== svm_parameter.NU_SVR) {
-	    System.err.println("Cross Validation Mean squared error = "+meanSquaredError);
-	    System.err.println("Cross Validation Squared correlation coefficient = "+squaredCorrCoeff);
-	    return;
-	}
-	// summary line
-	int total = plusTotal + minusTotal;
-	int TP = plusTotal - plusFails;
-	int TN = minusTotal - minusFails;
-	int FP = minusFails;
-	int FN = plusFails;
-	int totCorrect = TP + TN;
-	double fracCorrect = (double)totCorrect / (double)total;
-	double fracPlusCorrect = (double)TP / (double)plusTotal;
-	double fracMinusCorrect = (double)TN / (double)minusTotal;
-	double TPR = (double)TP / (double)plusTotal;
-	double FPR = (double)FP / (double)minusTotal;
-	double MCC = (double)(TP*TN-FP*FN) / Math.sqrt((double)(TP+FP)*(double)(TP+FN)*(double)(TN+FP)*(double)(TN+FN));
-	System.err.println("Total Corr.\tCase Corr.\tControl Corr.\tTotal\tCase\tControl\tTPR\tFPR\tMCC");
-	System.err.println(totCorrect+"/"+total+"\t"+
-			   TP+"/"+plusTotal+"\t"+
-			   TN+"/"+minusTotal+"\t"+
-			   pf.format(fracCorrect)+"\t"+
-			   pf.format(fracPlusCorrect)+"\t"+
-			   pf.format(fracMinusCorrect)+"\t"+
-			   df.format(TPR)+"\t"+
-			   df.format(FPR)+"\t"+
-			   df.format(MCC));
-	return;
-    }
-
-    /**
      * Print output to System.out for further processing.
      */
     public void printOutput() {
@@ -489,11 +454,67 @@ public class SvmCrossValidator {
 	    });
 	////////////////////////////////////////////////////////////////////////////////////////
 	// output
+	int total = 0;
+	int plusTotal = 0;
+	int minusTotal = 0;
+	int totCorrectSum = 0;
+	int TPSum = 0;
+	int TNSum = 0;
+	double fracCorrectSum = 0.0;
+	double fracPlusCorrectSum = 0.0;
+	double fracMinusCorrectSum = 0.0;
+	double TPRSum = 0.0;
+	double FPRSum = 0.0;
+	double MCCSum = 0.0;
 	for (int i : scvMap.keySet()) {
 	    SvmCrossValidator svm = scvMap.get(i);
-	    System.err.println("===== ["+i+"] =====");
-	    svm.printSummary();
 	    svm.printOutput();
+	    // summary line
+	    plusTotal = svm.plusTotal;
+	    minusTotal = svm.minusTotal;
+	    total = plusTotal + minusTotal;
+	    int TP = svm.plusTotal - svm.plusFails;
+	    int TN = svm.minusTotal - svm.minusFails;
+	    int FP = svm.minusFails;
+	    int FN = svm.plusFails;
+	    int totCorrect = TP + TN;
+	    double fracCorrect = (double)totCorrect / (double)total;
+	    double fracPlusCorrect = (double)TP / (double)svm.plusTotal;
+	    double fracMinusCorrect = (double)TN / (double)svm.minusTotal;
+	    double TPR = (double)TP / (double)svm.plusTotal;
+	    double FPR = (double)FP / (double)svm.minusTotal;
+	    double MCC = (double)(TP*TN-FP*FN) / Math.sqrt((double)(TP+FP)*(double)(TP+FN)*(double)(TN+FP)*(double)(TN+FN));
+	    System.err.println("===== ["+i+"] =====");
+	    System.err.println("Total Corr.\tCase Corr.\tControl Corr.\tTotal\tCase\tControl\tTPR\tFPR\tMCC");
+	    System.err.println(totCorrect+"/"+total+"\t"+
+			       TP+"/"+plusTotal+"\t"+
+			       TN+"/"+minusTotal+"\t"+
+			       pf.format(fracCorrect)+"\t"+
+			       pf.format(fracPlusCorrect)+"\t"+
+			       pf.format(fracMinusCorrect)+"\t"+
+			       df.format(TPR)+"\t"+
+			       df.format(FPR)+"\t"+
+			       df.format(MCC));
+	    // add to running totals
+	    totCorrectSum += totCorrect;
+	    TPSum += TP;
+	    TNSum += TN;
+	    fracCorrectSum += fracCorrect;
+	    fracPlusCorrectSum += fracPlusCorrect;
+	    fracMinusCorrectSum += fracMinusCorrect;
+	    TPRSum += TPR;
+	    FPRSum += FPR;
+	    MCCSum += MCC;
 	}
+	System.err.println("--------------------------------------------------------------------------------------------------");
+	System.err.println((double)totCorrectSum/nRuns+"/"+total+"\t"+
+			   (double)TPSum/nRuns+"/"+plusTotal+"\t"+
+			   (double)TNSum/nRuns+"/"+minusTotal+"\t"+
+			   pf.format(fracCorrectSum/nRuns)+"\t"+
+			   pf.format(fracPlusCorrectSum/nRuns)+"\t"+
+			   pf.format(fracMinusCorrectSum/nRuns)+"\t"+
+			   df.format(TPRSum/nRuns)+"\t"+
+			   df.format(FPRSum/nRuns)+"\t"+
+			   df.format(MCCSum/nRuns));
     }
 }

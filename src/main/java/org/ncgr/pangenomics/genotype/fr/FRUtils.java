@@ -554,8 +554,37 @@ public class FRUtils {
     }
 
     /**
-     * Main class with methods for post-processing.
+     * Print out the best (last per run) FRs from a combined run file.
+     *
+     * nodes	size	support	case	ctrl	OR	p	pri
+     * [891]	1	4712	2549	2163	1.178	1.01E-14	71
+     * [786,891]	2	113	10	103	0.097	8.54E-21	1012
+     * [711,786,891]	3	104	2	102	0.020	3.25E-28	1707 <== print this one
+     * nodes	size	support	case	ctrl	OR	p	pri
+     * [892]	1	5149	2377	2772	0.858	2.50E-15	66
+     * [259,892]	2	204	66	138	0.478	3.92E-7	320
+     * [259,411,892]	3	101	24	77	0.312	1.02E-7	506
+     * [259,411,873,892]	4	100	23	77	0.299	4.76E-8	524 <== print this one
      */
+    public static void printBestFRs(String inputPrefix) throws IOException {
+        String frFilename = getFRsFilename(inputPrefix);
+        BufferedReader reader = new BufferedReader(new FileReader(frFilename));
+	String lastLine = null;
+        String thisLine = null;
+        while ((thisLine=reader.readLine())!=null) {
+	    if (thisLine.startsWith("nodes")) {
+		if (lastLine!=null) System.out.println(lastLine);
+		lastLine = null;
+	    } else {
+		lastLine = thisLine;
+	    }
+	}
+	System.out.println(lastLine);
+    }
+
+     /**
+      * Main class with methods for post-processing.
+      */
     public static void main(String[] args) throws FileNotFoundException, IOException {
         Options options = new Options();
         CommandLineParser parser = new DefaultParser();
@@ -605,6 +634,10 @@ public class FRUtils {
 	Option numCtrlPathsOption = new Option("nctrl", "numcontrolpaths", true, "number of control paths to include in SVM or ARFF or TXT output");
 	numCtrlPathsOption.setRequired(false);
 	options.addOption(numCtrlPathsOption);
+	//
+	Option extractBestFRsOption = new Option("extractbest", "extractbestfrs", false, "extract the best (last) FRs from a file containing many runs, each starting with the heading line");
+	extractBestFRsOption.setRequired(false);
+	options.addOption(extractBestFRsOption);
 
         try {
             cmd = parser.parse(options, args);
@@ -675,6 +708,10 @@ public class FRUtils {
 	    if (cmd.hasOption("maxpvalue")) maxPValue = Double.parseDouble(cmd.getOptionValue("maxpvalue"));
 	    if (cmd.hasOption("minpriority")) minPriority = Integer.parseInt(cmd.getOptionValue("minpriority"));
 	    printPathFRs(inputPrefix, numCasePaths, numCtrlPaths, minSize, minSupport, maxPValue, minPriority);
+	}
+
+	if (cmd.hasOption("extractbestfrs")) {
+	    printBestFRs(inputPrefix);
 	}
     }
 

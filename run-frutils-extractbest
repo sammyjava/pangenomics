@@ -1,0 +1,3 @@
+#!/bin/sh
+java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils --extractbestfrs -i $1 > $1-best.frs.txt
+cp $1.params.txt $1-best.params.txt

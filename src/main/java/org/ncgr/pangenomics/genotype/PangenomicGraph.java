@@ -576,21 +576,29 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
             if (path.label!=null) builder.append("."+path.label);
         }
         out.println(builder.toString());
+	/////////////////////////////////////////////////////////////////////////////
         // rows are nodes and counts of path support of each node
-        for (Node node : vertexSet()) {
-            builder = new StringBuilder();
-            builder.append("N"+node.id);
-            List<Path> nPaths = nodePaths.get(node.id);
-            for (Path path : paths) {
-		// spin through the path, counting occurrences of this node
-		List<Node> nodeList = path.getNodes();
-		int count = 0;
-		for (Node n : nodeList) {
-		    if (n.equals(node)) count++;
+	ConcurrentSkipListSet<Node> concurrentNodes = new ConcurrentSkipListSet<>();
+	concurrentNodes.addAll(getNodes());
+	ConcurrentSkipListSet<String> lines = new ConcurrentSkipListSet<>();
+	concurrentNodes.parallelStream().forEach(node -> {
+		StringBuilder lineBuilder = new StringBuilder();
+		lineBuilder.append("N"+node.id);
+		List<Path> nPaths = nodePaths.get(node.id);
+		for (Path path : paths) {
+		    // spin through the path, counting occurrences of this node
+		    List<Node> nodeList = path.getNodes();
+		    if (nodeList.contains(node)) {
+			builder.append("\t1");
+		    } else {
+			builder.append("\t0");
+		    }		    
 		}
-		builder.append("\t"+count);
-            }
-            out.println(builder.toString());
+		lines.add(builder.toString());
+	    });
+	/////////////////////////////////////////////////////////////////////////////
+	for (String line : lines) {
+	    out.println(line);
         }
     }
 
