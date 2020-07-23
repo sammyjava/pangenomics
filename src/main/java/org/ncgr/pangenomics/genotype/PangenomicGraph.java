@@ -563,38 +563,37 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
      * Print node participation by path, appropriate for PCA analysis.
      */
     public void printPcaData(PrintStream out) throws FileNotFoundException, IOException {
-        StringBuilder builder = new StringBuilder();
+        StringBuilder headerBuilder = new StringBuilder();
         // header is paths
         boolean first = true;
         for (Path path : paths) {
             if (first) {
-                builder.append(path.name);
+                headerBuilder.append(path.name);
                 first = false;
             } else {
-                builder.append("\t"+path.name);
+                headerBuilder.append("\t"+path.name);
             }
-            if (path.label!=null) builder.append("."+path.label);
+            if (path.label!=null) headerBuilder.append("."+path.label);
         }
-        out.println(builder.toString());
+        out.println(headerBuilder.toString());
 	/////////////////////////////////////////////////////////////////////////////
         // rows are nodes and counts of path support of each node
-	ConcurrentSkipListSet<Node> concurrentNodes = new ConcurrentSkipListSet<>();
-	concurrentNodes.addAll(getNodes());
+	ConcurrentSkipListSet<Node> concurrentNodes = new ConcurrentSkipListSet<>(getNodes());
 	ConcurrentSkipListSet<String> lines = new ConcurrentSkipListSet<>();
 	concurrentNodes.parallelStream().forEach(node -> {
 		StringBuilder lineBuilder = new StringBuilder();
 		lineBuilder.append("N"+node.id);
 		List<Path> nPaths = nodePaths.get(node.id);
+		// spin through every path, printing 0/1 if path doesn't/does traverse this node
 		for (Path path : paths) {
-		    // spin through the path, counting occurrences of this node
 		    List<Node> nodeList = path.getNodes();
 		    if (nodeList.contains(node)) {
-			builder.append("\t1");
+			lineBuilder.append("\t1");
 		    } else {
-			builder.append("\t0");
+			lineBuilder.append("\t0");
 		    }		    
 		}
-		lines.add(builder.toString());
+		lines.add(lineBuilder.toString());
 	    });
 	/////////////////////////////////////////////////////////////////////////////
 	for (String line : lines) {
