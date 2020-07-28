@@ -74,9 +74,9 @@ class PGraphXAdapter extends JGraphXAdapter<Node,Edge> {
         setStylesheet(defaultStylesheet);
 
         // style for minor nodes
-        String minorStyle = "shape=ellipse;fontColor=#A0A0A0;fillColor=white;strokeColor=gray;strokeWidth=1.0;gradientColor=none;spacingTop=2";
+        String minorStyle = "shape=ellipse;fontColor=A0A0A0;fillColor=white;strokeColor=gray;strokeWidth=1.0;gradientColor=none;spacingTop=2";
         // style for no-call nodes
-        String noCallStyle = "shape=hexagon;fontColor=#A0A0A0;fillColor=white;strokeColor=gray;strokeWidth=1.0;gradientColor=none;spacingTop=2";
+        String noCallStyle = "shape=hexagon;fontColor=A0A0A0;fillColor=white;strokeColor=gray;strokeWidth=1.0;gradientColor=none;spacingTop=2";
 
         // logical to do case/control ops
         hasCaseControlLabels = graph.labelCounts.containsKey("case") && graph.labelCounts.containsKey("ctrl");
@@ -116,25 +116,25 @@ class PGraphXAdapter extends JGraphXAdapter<Node,Edge> {
                             setCellStyles("fontColor", "black", cells);
                         } else if (Double.isInfinite(or)) {
                             // case-only node
-                            String fillColor = "#FF8080";
+                            String fillColor = "FF8080";
                             setCellStyles("fillColor", fillColor, cells);
                         } else if (or>1.0) {
                             // case-heavy node
                             double mlog10p = -Math.log10(p);
                             int rInt = Math.min((int)(COLOR_FACTOR*mlog10p), 127) + 128; // full color at COLOR_FACTOR*mlog10p=127
                             String rHex = Integer.toHexString(rInt);
-                            String fillColor = "#"+rHex+"8080";
+                            String fillColor = rHex+"8080";
                             setCellStyles("fillColor", fillColor, cells);
                         } else if (or==0.00) {
                             // control-only node
-                            String fillColor = "#8080FF";
+                            String fillColor = "8080FF";
                             setCellStyles("fillColor", fillColor, cells);
                         } else if (or<1.0) {
                             // control-heavy node
                             double mlog10p = -Math.log10(p);
                             int bInt = Math.min((int)(COLOR_FACTOR*mlog10p), 127) + 128; // full color at COLOR_FACTOR*mlog10p=127
                             String bHex = Integer.toHexString(bInt);
-                            String fillColor = "#8080"+bHex;
+                            String fillColor = "8080"+bHex;
                             setCellStyles("fillColor", fillColor, cells);
                         }
                         // bold white letters if significant
@@ -163,8 +163,17 @@ class PGraphXAdapter extends JGraphXAdapter<Node,Edge> {
                 Edge e = (Edge) c.getValue();
                 // this takes a long time
                 if (decorateEdges) {
-                    double strokeWidth = Math.max(1.0, 5.0*(double)graph.getPathCount(e)/(double)graph.getPathCount());
-                    setCellStyles("strokeWidth", String.valueOf(strokeWidth), cells);
+                    int caseCount = graph.getPathCount(e, "case");
+                    int ctrlCount = graph.getPathCount(e, "ctrl");
+                    double totalCount = (double) graph.getPathCount();
+                    int rInt = (int) (caseCount/totalCount*255);
+                    int bInt = (int) (ctrlCount/totalCount*255);
+                    String rHex = Integer.toHexString(rInt);
+                    String bHex = Integer.toHexString(bInt);
+                    if (rInt<16) rHex = "0"+rHex;
+                    if (bInt<16) bHex = "0"+bHex;
+                    String edgeColor = rHex+"00"+bHex;
+                    setCellStyles("strokeColor", edgeColor, cells);
                 }
                 // highlighted path
                 if (highlightedPath!=null) {
