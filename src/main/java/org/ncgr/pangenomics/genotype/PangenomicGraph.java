@@ -357,6 +357,36 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
     }
 
     /**
+     * Get the total count of paths that follow the given Edge.
+     */
+    public int getPathCount(Edge e) {
+        int count = 0;
+        for (Path p : paths) {
+            List<Edge> edges = p.getEdges();
+            if (edges.contains(e)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * Get the count of paths with the given label that follow the given Edge.
+     */
+    public int getPathCount(Edge e, String label) {
+        int count = 0;
+        for (Path p : paths) {
+            if (p.label.equals(label)) {
+                List<Edge> edges = p.getEdges();
+                if (edges.contains(e)) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    /**
      * Return the paths that traverse the given node.
      */
     public List<Path> getPaths(Node n) {
@@ -432,20 +462,6 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
             }
         }
         return map;
-    }
-
-    /**
-     * Get the total count of paths that follow the given Edge.
-     */
-    public int getPathCount(Edge e) {
-        int count = 0;
-        for (Path p : paths) {
-            List<Edge> edges = p.getEdges();
-            if (edges.contains(e)) {
-                count++;
-            }
-        }
-        return count;
     }
 
     /**
