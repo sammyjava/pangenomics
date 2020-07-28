@@ -603,6 +603,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 
     /**
      * Print ARFF of node participation by path, for Weka analysis.
+     * NOTE: no-call nodes are dropped.
      *
      * @RELATION iris
      *
@@ -626,7 +627,9 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 	out.println("@ATTRIBUTE ID STRING"); // path ID
 	// attributes: each node is labeled Nn where n is the node ID
 	for (Node node : getNodes()) {
-            out.println("@ATTRIBUTE N"+node.id+" NUMERIC");
+	    if (!node.isNoCall()) {
+		out.println("@ATTRIBUTE N"+node.id+" NUMERIC");
+	    }
         }
         // add the path label class attribute
         out.println("@ATTRIBUTE class {ctrl,case}");
@@ -640,10 +643,12 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 	concurrentPaths.parallelStream().forEach(path -> {
 		String arff = path.name;
 		for (Node node : getNodes()) {
-		    if (path.contains(node)) {
-			arff += ",1";
-		    } else {
-			arff += ",0";
+		    if (!node.isNoCall()) {
+			if (path.contains(node)) {
+			    arff += ",1";
+			} else {
+			    arff += ",0";
+			}
 		    }
 		}
 		arff += ","+path.label;
@@ -658,6 +663,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 
     /**
      * Print the labeled path node participation for LIBSVM analysis.
+     * NOTE: no-call nodes are dropped.
      *
      * path1 case 1:1 2:1 3:1 4:0 ... (tab separated, don't skip any indexes)
      * path2 ctrl 1:0 2:0 3:0 4:1 ...
@@ -665,6 +671,12 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
      * This is similar, but not identical to, the SVMlight format.
      */
     public void printSvmData(PrintStream out) {
+	// DX
+	int noCallCount = 0;
+	for (Node node : getNodes()) {
+	    if (node.isNoCall()) noCallCount++;
+	}
+	System.err.println(noCallCount+" no-call nodes will be dropped.");
 	/////////////////////////////////////////////////////////////////////////////
 	ConcurrentSkipListSet<Path> concurrentPaths = new ConcurrentSkipListSet<>();
 	ConcurrentSkipListSet<String> svmData = new ConcurrentSkipListSet<>();
@@ -673,11 +685,13 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 		String svm = path.name+"\t"+path.label;
 		int n = 0;
 		for (Node node : getNodes()) {
-		    n++;
-		    if (path.contains(node)) {
-			svm += "\t"+n+":+1";
-		    } else {
-			svm += "\t"+n+":-1";
+		    if (!node.isNoCall()) {
+			n++;
+			if (path.contains(node)) {
+			    svm += "\t"+n+":+1";
+			} else {
+			    svm += "\t"+n+":-1";
+			}
 		    }
 		}
 		svmData.add(svm);
@@ -830,18 +844,18 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         graph.buildNodePaths();
 
         // output
-        if (graph.labelCounts!=null && graph.labelCounts.size()>0) {
-            PrintStream labelCountsOut = new PrintStream(graph.name+".labelcounts.txt");
-            graph.printLabelCounts(labelCountsOut);
-        }
-
-        if (graph.verbose) System.out.println("Writing nodes file...");
-        PrintStream nodesOut = new PrintStream(graph.name+".nodes.txt");
-        graph.printNodes(nodesOut);
-
-        if (graph.verbose) System.out.println("Writing paths file...");
-        PrintStream pathsOut = new PrintStream(graph.name+".paths.txt");
-        graph.printPaths(pathsOut);
+	if (!cmd.hasOption("txtfile")) {
+	    if (graph.labelCounts!=null && graph.labelCounts.size()>0) {
+		PrintStream labelCountsOut = new PrintStream(graph.name+".labelcounts.txt");
+		graph.printLabelCounts(labelCountsOut);
+	    }
+	    if (graph.verbose) System.out.println("Writing nodes file...");
+	    PrintStream nodesOut = new PrintStream(graph.name+".nodes.txt");
+	    graph.printNodes(nodesOut);
+	    if (graph.verbose) System.out.println("Writing paths file...");
+	    PrintStream pathsOut = new PrintStream(graph.name+".paths.txt");
+	    graph.printPaths(pathsOut);
+	}
 
 	if (cmd.hasOption("printnodepathsfile")) {
 	    if (graph.verbose) System.out.println("Writing node paths file...");
