@@ -11,3 +11,11 @@ ctrls = endsWith(rownames(pathfrs), "ctrl")
 
 caseNum = nrow(pathfrs[cases,])
 ctrlNum = nrow(pathfrs[ctrls,])
+
+labels = array(length(rownames(pathfrs)))
+pathnames = array(length(labels))
+parts = strsplit(rownames(pathfrs), ".", fixed=T)
+for (i in 1:length(rownames(pathfrs))) {
+    pathnames[i] = parts[[i]][1]
+    labels[i] = parts[[i]][2]
+}
