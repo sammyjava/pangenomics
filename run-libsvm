@@ -9,12 +9,8 @@ FULLSCALE="$INPUTPREFIX.svm.scale.txt"
 NUMCASEPATHS=0
 NUMCTRLPATHS=0
 MINSIZE=0
-MAXPVALUE=1.0
 MINSUPPORT=100
 MINPRIORITY=1
-
-MINSUPPORT=300
-MINPRIORITY=600
 
 ## grid scan
 GRIDOUT="$INPUTPREFIX.svm.grid.txt"
@@ -34,7 +30,7 @@ NSVMCONTROLS=0
 
 #####################################
 ## delete SVM files to force rebuild
-rm -f $SVMFILE
+#rm -f $SVMFILE
 rm -f $RANGE
 rm -f $FULLSCALE
 rm -f $GRIDOUT
@@ -43,15 +39,16 @@ rm -f $GRIDOUT
 ## write the SVM file
 if [ ! -s $SVMFILE ]
 then
-    echo "Writing $SVMFILE with -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -s $MINSIZE -m $MINSUPPORT -mp $MAXPVALUE -minp $MINPRIORITY"
-    java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -svm -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -s $MINSIZE -m $MINSUPPORT -mp $MAXPVALUE -minp $MINPRIORITY
+    echo "Writing $SVMFILE with -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -s $MINSIZE -m $MINSUPPORT -minp $MINPRIORITY"
+    java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils \
+	 -svm -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -s $MINSIZE -m $MINSUPPORT -minp $MINPRIORITY
 fi
 
 ## scale the SVM data
 if [ ! -s $FULLSCALE ]
 then
     echo "Scaling $SVMFILE"
-    java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmScaler -s $RANGE -d $SVMFILE > $FULLSCALE
+    java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.svm.SvmScaler -s $RANGE -d $SVMFILE > $FULLSCALE
 fi
 
 ## run GridSearcher on the full scaled data to find optimum SVM parameters

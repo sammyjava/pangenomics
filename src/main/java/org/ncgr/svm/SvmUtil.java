@@ -7,7 +7,16 @@ import java.io.IOException;
 
 import java.util.List;;
 import java.util.LinkedList;
+import java.util.LinkedHashMap;
 import java.util.Optional;
+
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 
 import libsvm.svm;
 import libsvm.svm_parameter;
@@ -117,4 +126,88 @@ public class SvmUtil {
     public static boolean isControl(Sample sample) {
 	return sample.label.equals("ctrl") || sample.label.equals("-1");
     }
+
+    /**
+     * Transpose a feature matrix into SVM format
+     */
+    public static void transposeFeatures(String filename) throws IOException {
+        BufferedReader reader = new BufferedReader(new FileReader(filename));
+	// paths on first line
+        String line = reader.readLine();
+	String[] fields = line.split("\t");
+	LinkedHashMap<String,String> pathLabels = new LinkedHashMap<>();
+	for (String field : fields) {
+	    String[] parts = field.split("\\.");
+	    pathLabels.put(parts[0], parts[1]);
+	}
+	// load support vectors
+	LinkedHashMap<String,LinkedList<Integer>> vectorMap = new LinkedHashMap<>();
+	for (String name : pathLabels.keySet()) {
+	    vectorMap.put(name, new LinkedList<Integer>());
+	}
+        while ((line=reader.readLine())!=null) {
+	    fields = line.split("\t");
+	    if (fields.length!=(pathLabels.size()+1)) {
+		System.err.println("ERROR: "+filename+" has line with "+fields.length+" fields while heading has "+pathLabels.size()+" paths:");
+		System.err.println(line);
+		System.exit(1);
+	    }
+	    int i = 0; // first column is FR/Node label which we skip
+	    for (String name : pathLabels.keySet()) {
+		i++;
+		LinkedList<Integer> vector = vectorMap.get(name);
+		vector.add(Integer.parseInt(fields[i]));
+	    }
+	}		
+	reader.close();
+	// now spit name, label, vector out in SVM format
+	for (String name : pathLabels.keySet()) {
+	    System.out.print(name);
+	    System.out.print("\t"+pathLabels.get(name));
+	    LinkedList<Integer> vector = vectorMap.get(name);
+	    int i = 0;
+	    for (int value : vector) {
+		i++;
+		System.out.print("\t"+i+":"+value);
+	    }
+	    System.out.println("");
+	}
+    }
+
+    /**
+     * Main method for some utilities
+     */
+    public static void main(String[] args) throws IOException {
+        Options options = new Options();
+        CommandLineParser parser = new DefaultParser();
+        HelpFormatter formatter = new HelpFormatter();
+        CommandLine cmd = null;
+	//
+	Option inputFileOption = new Option("i", "inputfile", true, "input file");
+	inputFileOption.setRequired(true);
+	options.addOption(inputFileOption);
+	//
+	Option transposeOption = new Option("t", "transpose", false, "transpose input file into SVM format");
+	transposeOption.setRequired(true);
+	options.addOption(transposeOption);
+
+        if (args.length==0) {
+            formatter.printHelp("SvmUtil [options]", options);
+            System.exit(1);
+        }
+        try {
+            cmd = parser.parse(options, args);
+        } catch (ParseException e) {
+            System.err.println(e.getMessage());
+            formatter.printHelp("SvmUtil [options]", options);
+            System.exit(1);
+        }
+	
+	String filename = cmd.getOptionValue("inputfile");
+
+	if (cmd.hasOption("transpose")) {
+	    transposeFeatures(filename);
+	}
+    }
+    
 }

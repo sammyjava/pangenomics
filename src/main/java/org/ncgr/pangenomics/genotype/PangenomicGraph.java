@@ -16,6 +16,7 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentSkipListSet;
 
 import org.apache.commons.cli.CommandLine;
@@ -577,12 +578,14 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 
     /**
      * Print node participation by path, appropriate for PCA analysis.
+     * NOTE: no-call nodes are dropped.
      */
     public void printPcaData(PrintStream out) throws FileNotFoundException, IOException {
         StringBuilder headerBuilder = new StringBuilder();
-        // header is paths
+        // header is paths, which are alpha sorted for mergability
+	TreeSet<Path> sortedPaths = new TreeSet<>(paths);
         boolean first = true;
-        for (Path path : paths) {
+        for (Path path : sortedPaths) {
             if (first) {
                 headerBuilder.append(path.name);
                 first = false;
@@ -597,19 +600,21 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 	ConcurrentSkipListSet<Node> concurrentNodes = new ConcurrentSkipListSet<>(getNodes());
 	ConcurrentSkipListSet<String> lines = new ConcurrentSkipListSet<>();
 	concurrentNodes.parallelStream().forEach(node -> {
-		StringBuilder lineBuilder = new StringBuilder();
-		lineBuilder.append("N"+node.id);
-		List<Path> nPaths = nodePaths.get(node.id);
-		// spin through every path, printing 0/1 if path doesn't/does traverse this node
-		for (Path path : paths) {
-		    List<Node> nodeList = path.getNodes();
-		    if (nodeList.contains(node)) {
-			lineBuilder.append("\t1");
-		    } else {
-			lineBuilder.append("\t0");
-		    }		    
+		if (!node.isNoCall()) {
+		    StringBuilder lineBuilder = new StringBuilder();
+		    lineBuilder.append("N"+node.id);
+		    List<Path> nPaths = nodePaths.get(node.id);
+		    // spin through every path, printing 0/1 if path doesn't/does traverse this node
+		    for (Path path : sortedPaths) {
+			List<Node> nodeList = path.getNodes();
+			if (nodeList.contains(node)) {
+			    lineBuilder.append("\t1");
+			} else {
+			    lineBuilder.append("\t0");
+			}		    
+		    }
+		    lines.add(lineBuilder.toString());
 		}
-		lines.add(lineBuilder.toString());
 	    });
 	/////////////////////////////////////////////////////////////////////////////
 	for (String line : lines) {
@@ -687,12 +692,6 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
      * This is similar, but not identical to, the SVMlight format.
      */
     public void printSvmData(PrintStream out) {
-	// DX
-	int noCallCount = 0;
-	for (Node node : getNodes()) {
-	    if (node.isNoCall()) noCallCount++;
-	}
-	System.err.println(noCallCount+" no-call nodes will be dropped.");
 	/////////////////////////////////////////////////////////////////////////////
 	ConcurrentSkipListSet<Path> concurrentPaths = new ConcurrentSkipListSet<>();
 	ConcurrentSkipListSet<String> svmData = new ConcurrentSkipListSet<>();

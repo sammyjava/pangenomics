@@ -1,0 +1,16 @@
+#!/bin/bash
+
+INPUTPREFIX=$1
+SVMFILE="$INPUTPREFIX.svm.txt"
+
+## SVM file building parameters
+NUMCASEPATHS=0
+NUMCTRLPATHS=0
+MINSIZE=0
+MINSUPPORT=100
+MINPRIORITY=1
+
+## write the SVM file
+echo "Writing $SVMFILE with -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -s $MINSIZE -m $MINSUPPORT -minp $MINPRIORITY"
+java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils \
+     -svm -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -s $MINSIZE -m $MINSUPPORT -minp $MINPRIORITY

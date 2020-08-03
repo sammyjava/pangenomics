@@ -714,6 +714,177 @@ public class FRFinder {
     }
     
     /**
+     * Print to both the console and the log file
+     */
+    void printToLog(String text) {
+        System.out.println(text);
+        logOut.println(text);
+    }
+
+    /**
+     * Print a delineating heading, for general use.
+     */
+    static void printHeading(String heading) {
+        for (int i=0; i<heading.length(); i++) System.out.print("="); System.out.println("");
+        System.out.println(heading);
+        for (int i=0; i<heading.length(); i++) System.out.print("="); System.out.println("");
+    }
+
+    /**
+     * Print the path names and the count of subpaths for each FR.
+     * This can be used as input to a classification routine.
+     */
+    void printPathFRs(String outputPrefix) throws IOException {
+        PrintStream out = new PrintStream(FRUtils.getPathFRsFilename(outputPrefix));
+        // columns are paths
+        boolean first = true;
+        for (Path path : paths) {
+            if (first) {
+                first = false;
+            } else {
+                out.print("\t");
+            }
+            out.print(path.name+"."+path.label);
+        }
+        out.println("");
+        // rows are FRs
+        int c = 1;
+        for (FrequentedRegion fr : frequentedRegions.values()) {
+            out.print("FR"+(c++));
+            for (Path path : paths) {
+                out.print("\t"+fr.countSubpathsOf(path));
+            }
+            out.println("");
+        }
+        out.close();
+    }
+
+    /**
+     * Print out the FRs, in order of priority.
+     */
+    void printFrequentedRegions(String outputPrefix) throws IOException {
+        if (frequentedRegions.size()==0) {
+            System.err.println("NO FREQUENTED REGIONS!");
+            return;
+        }
+        PrintStream out = new PrintStream(FRUtils.getFRsFilename(outputPrefix));
+        boolean first = true;
+        TreeSet<FrequentedRegion> sortedFRs = new TreeSet<>(frequentedRegions.values());
+        for (FrequentedRegion fr : sortedFRs) {
+            if (first) {
+                out.println(fr.columnHeading());
+                first = false;
+            }
+            out.println(fr.toString());
+        }
+        out.close();
+    }
+    
+    /**
+     * Print out the FRs along with their subpaths, strictly to an output file.
+     */
+    void printFRSubpaths(String outputPrefix) throws IOException {
+        if (frequentedRegions.size()==0) {
+            System.err.println("NO FREQUENTED REGIONS!");
+            return;
+        }
+        PrintStream out = new PrintStream(FRUtils.getFRSubpathsFilename(outputPrefix));
+        TreeSet<FrequentedRegion> sortedFRs = new TreeSet<>(frequentedRegions.values());
+        for (FrequentedRegion fr : sortedFRs) {
+            out.println(fr.toString());
+            out.print(fr.subpathsString()); // contains \n at end of every line
+        }
+        out.close();
+    }
+
+    /**
+     * Print a crude histogram of FR node sizes.
+     */
+    public void printFRHistogram() {
+        Map<Integer,Integer> countMap = new TreeMap<>();
+        for (FrequentedRegion fr : frequentedRegions.values()) {
+            if (countMap.containsKey(fr.size)) {
+                int count = countMap.get(fr.size);
+                count++;
+                countMap.put(fr.size, count);
+            } else {
+                countMap.put(fr.size, 1);
+            }
+        }
+        for (int num : countMap.keySet()) {
+            System.out.println("FR node size (#):"+num+" ("+countMap.get(num)+")");
+        }
+    }
+
+    /**
+     * Form an outputPrefix with given alpha and kappa and single required node, if required.
+     */
+    String formOutputPrefix(double alpha, int kappa, NodeSet requiredNodes) {
+        DecimalFormat af = new DecimalFormat("0.0");
+	String prefix = "";
+        if (kappa==Integer.MAX_VALUE) {
+            prefix = getGraphName()+"-"+af.format(alpha)+"-Inf";
+        } else {
+            prefix = getGraphName()+"-"+af.format(alpha)+"-"+kappa;
+        }
+	if (requiredNodes.size()==1) {
+	    prefix += "-"+requiredNodes.first();
+	}
+	return prefix;
+    }
+
+    /**
+     * Return true if the given FR is "interesting". (Note that the alpha, kappa requirements are enforced by fr.support>=minSupport.)
+     * This also uses priorityOptionLabel for the O.R- and p-based priorities.
+     */
+    boolean isInteresting(FrequentedRegion fr) {
+        boolean interesting = fr.support>=minSupport;
+	interesting = interesting && fr.size>=minSize;
+	interesting = interesting && fr.size<=maxSize;
+	if (minPriority!=0) interesting = interesting && fr.priority>=minPriority;
+        // if (priorityOptionKey==3 || priorityOptionKey==4) {
+        //     if (priorityOptionLabel!=null && priorityOptionLabel.equals("case")) {
+        //         interesting = interesting && fr.oddsRatio()>1.0;
+        //     } else if (priorityOptionLabel!=null && priorityOptionLabel.equals("ctrl")) {
+        //         interesting = interesting && fr.oddsRatio()<1.0;
+        //     }
+        // }
+        return interesting;   
+    }
+
+    /**
+     * Toggle the current priority option label between "case" and "ctrl". (Used with "alt" priority option parameter.)
+     */
+    void togglePriorityOptionLabel() {
+        if (priorityOptionLabel==null) {
+            priorityOptionLabel = "case";
+        } else if (priorityOptionLabel.equals("ctrl")) {
+            priorityOptionLabel = "case";
+        } else {
+            priorityOptionLabel = "ctrl";
+        }
+    }
+
+    /**
+     * Parse out the priority option key and parameter like "case", "ctrl", "alt", plus set the label if needed.
+     */
+    void parsePriorityOption(String priorityOption) {
+        String[] parts = priorityOption.split(":");
+        priorityOptionKey = Integer.parseInt(parts[0]);
+        if (parts.length>1) {
+            priorityOptionParameter = parts[1];
+            if (priorityOptionParameter.equals("case") || priorityOptionParameter.equals("ctrl")) {
+                priorityOptionLabel = priorityOptionParameter;
+            }
+        } else {
+            priorityOptionParameter = null;
+            priorityOptionLabel = null;
+        }
+        // impose defaults
+        if (priorityOptionKey==1 && priorityOptionLabel==null) priorityOptionLabel = "case";
+    }
+
+    /**
      * Command-line utility
      */
     public static void main(String[] args) throws FileNotFoundException, IOException {
@@ -965,183 +1136,15 @@ public class FRFinder {
 	if (requiredNodeStart>0 && requiredNodeEnd>0) {
 	    for (long id=requiredNodeStart; id<=requiredNodeEnd; id++) {
 		if (pg.nodeIdMap.containsKey(id)) {
-		    frf.setRequiredNodes("["+id+"]");
-		    frf.findFRs(alpha, kappa);
+		    Node n = pg.getNode(id);
+		    if (!n.isNoCall()) {
+			frf.setRequiredNodes("["+id+"]");
+			frf.findFRs(alpha, kappa);
+		    }
 		}
 	    }
 	} else {
 	    frf.findFRs(alpha, kappa);
 	}
-    }
-
-    /**
-     * Print to both the console and the log file
-     */
-    void printToLog(String text) {
-        System.out.println(text);
-        logOut.println(text);
-    }
-
-    /**
-     * Print a delineating heading, for general use.
-     */
-    static void printHeading(String heading) {
-        for (int i=0; i<heading.length(); i++) System.out.print("="); System.out.println("");
-        System.out.println(heading);
-        for (int i=0; i<heading.length(); i++) System.out.print("="); System.out.println("");
-    }
-
-    /**
-     * Print the path names and the count of subpaths for each FR.
-     * This can be used as input to a classification routine.
-     */
-    void printPathFRs(String outputPrefix) throws IOException {
-        PrintStream out = new PrintStream(FRUtils.getPathFRsFilename(outputPrefix));
-        // columns are paths
-        boolean first = true;
-        for (Path path : paths) {
-            if (first) {
-                first = false;
-            } else {
-                out.print("\t");
-            }
-            out.print(path.name+"."+path.label);
-        }
-        out.println("");
-        // rows are FRs
-        int c = 1;
-        for (FrequentedRegion fr : frequentedRegions.values()) {
-            out.print("FR"+(c++));
-            for (Path path : paths) {
-                out.print("\t"+fr.countSubpathsOf(path));
-            }
-            out.println("");
-        }
-        out.close();
-    }
-
-    /**
-     * Print out the FRs, in order of priority.
-     */
-    void printFrequentedRegions(String outputPrefix) throws IOException {
-        if (frequentedRegions.size()==0) {
-            System.err.println("NO FREQUENTED REGIONS!");
-            return;
-        }
-        PrintStream out = new PrintStream(FRUtils.getFRsFilename(outputPrefix));
-        boolean first = true;
-        TreeSet<FrequentedRegion> sortedFRs = new TreeSet<>(frequentedRegions.values());
-        for (FrequentedRegion fr : sortedFRs) {
-            if (first) {
-                out.println(fr.columnHeading());
-                first = false;
-            }
-            out.println(fr.toString());
-        }
-        out.close();
-    }
-    
-    /**
-     * Print out the FRs along with their subpaths, strictly to an output file.
-     */
-    void printFRSubpaths(String outputPrefix) throws IOException {
-        if (frequentedRegions.size()==0) {
-            System.err.println("NO FREQUENTED REGIONS!");
-            return;
-        }
-        PrintStream out = new PrintStream(FRUtils.getFRSubpathsFilename(outputPrefix));
-        TreeSet<FrequentedRegion> sortedFRs = new TreeSet<>(frequentedRegions.values());
-        for (FrequentedRegion fr : sortedFRs) {
-            out.println(fr.toString());
-            out.print(fr.subpathsString()); // contains \n at end of every line
-        }
-        out.close();
-    }
-
-    /**
-     * Print a crude histogram of FR node sizes.
-     */
-    public void printFRHistogram() {
-        Map<Integer,Integer> countMap = new TreeMap<>();
-        for (FrequentedRegion fr : frequentedRegions.values()) {
-            if (countMap.containsKey(fr.size)) {
-                int count = countMap.get(fr.size);
-                count++;
-                countMap.put(fr.size, count);
-            } else {
-                countMap.put(fr.size, 1);
-            }
-        }
-        for (int num : countMap.keySet()) {
-            System.out.println("FR node size (#):"+num+" ("+countMap.get(num)+")");
-        }
-    }
-
-    /**
-     * Form an outputPrefix with given alpha and kappa and single required node, if required.
-     */
-    String formOutputPrefix(double alpha, int kappa, NodeSet requiredNodes) {
-        DecimalFormat af = new DecimalFormat("0.0");
-	String prefix = "";
-        if (kappa==Integer.MAX_VALUE) {
-            prefix = getGraphName()+"-"+af.format(alpha)+"-Inf";
-        } else {
-            prefix = getGraphName()+"-"+af.format(alpha)+"-"+kappa;
-        }
-	if (requiredNodes.size()==1) {
-	    prefix += "-"+requiredNodes.first();
-	}
-	return prefix;
-    }
-
-    /**
-     * Return true if the given FR is "interesting". (Note that the alpha, kappa requirements are enforced by fr.support>=minSupport.)
-     * This also uses priorityOptionLabel for the O.R- and p-based priorities.
-     */
-    boolean isInteresting(FrequentedRegion fr) {
-        boolean interesting = fr.support>=minSupport;
-	interesting = interesting && fr.size>=minSize;
-	interesting = interesting && fr.size<=maxSize;
-	if (minPriority!=0) interesting = interesting && fr.priority>=minPriority;
-        // if (priorityOptionKey==3 || priorityOptionKey==4) {
-        //     if (priorityOptionLabel!=null && priorityOptionLabel.equals("case")) {
-        //         interesting = interesting && fr.oddsRatio()>1.0;
-        //     } else if (priorityOptionLabel!=null && priorityOptionLabel.equals("ctrl")) {
-        //         interesting = interesting && fr.oddsRatio()<1.0;
-        //     }
-        // }
-        return interesting;   
-    }
-
-    /**
-     * Toggle the current priority option label between "case" and "ctrl". (Used with "alt" priority option parameter.)
-     */
-    void togglePriorityOptionLabel() {
-        if (priorityOptionLabel==null) {
-            priorityOptionLabel = "case";
-        } else if (priorityOptionLabel.equals("ctrl")) {
-            priorityOptionLabel = "case";
-        } else {
-            priorityOptionLabel = "ctrl";
-        }
-    }
-
-    /**
-     * Parse out the priority option key and parameter like "case", "ctrl", "alt", plus set the label if needed.
-     */
-    void parsePriorityOption(String priorityOption) {
-        String[] parts = priorityOption.split(":");
-        priorityOptionKey = Integer.parseInt(parts[0]);
-        if (parts.length>1) {
-            priorityOptionParameter = parts[1];
-            if (priorityOptionParameter.equals("case") || priorityOptionParameter.equals("ctrl")) {
-                priorityOptionLabel = priorityOptionParameter;
-            }
-        } else {
-            priorityOptionParameter = null;
-            priorityOptionLabel = null;
-        }
-        // impose defaults
-        if (priorityOptionKey==1 && priorityOptionLabel==null) priorityOptionLabel = "case";
     }
 }
