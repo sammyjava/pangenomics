@@ -6,15 +6,6 @@ require(stringr)
 require(tsne)
 
 colors = c("red","blue")
-names(colors) = c("case", "ctrl")
-
-labels = array(length(rownames(pathfrs)))
-pathnames = array(length(labels))
-parts = strsplit(rownames(pathfrs), ".", fixed=T)
-for (i in 1:length(rownames(pathfrs))) {
-    pathnames[i] = parts[[i]][1]
-    labels[i] = parts[[i]][2]
-}
 
 ecb = function(x,y){ plot(x, col=colors[labels], pch=19, cex=0.5 ) } # text(x, labels=pathnames, col=colors[labels], cex=0.75)
 

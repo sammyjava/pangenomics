@@ -1,4 +1,5 @@
-## Rapid t-SNE on pathfrs data
+require(Rtsne)
+## Rapid t-SNE on paths data
 ##
 ##                   X: matrix; Data matrix (each row is an observation, each column is a variable)
 ##                dims: integer; Output dimensionality (default: 2)
@@ -25,34 +26,33 @@
 ##         num_threads: integer; Number of threads to use using OpenMP, default 1. 0 corresponds to using all available cores
 ##               index: integer matrix; Each row contains the identity of the nearest neighbors for each observation
 ##            distance: numeric matrix; Each row contains the distance to the nearest neighbors in ‘index’ for each observation
-
-require(Rtsne)
-
-X = as.matrix(pathfrs)
-
-## initial values
-Y_init = NULL
-pca = TRUE
-partial_pca = TRUE
-theta = 0.5
-if (exists("rtsne.pathfrs")) {
-    ## refinement values
-    Y_init = rtsne.pathfrs$Y
-    pca = FALSE
-    partial_pca = FALSE
-    theta = rtsne.pathfrs$theta*0.9
+calc.rtsne = function(paths, prevResult=NULL) {
+    X = as.matrix(unique(paths))
+    ## initial values
+    Y_init = NULL
+    pca = TRUE
+    partial_pca = TRUE
+    theta = 0.5
+    if (!is.null(prevResult)) {
+        ## refinement values
+        Y_init = prevResult$Y
+        pca = FALSE
+        partial_pca = FALSE
+        theta = prevResult$theta/2
+    }
+    ## run it
+    return(Rtsne(X, Y_init=Y_init,
+                 num_threads=0,
+                 verbose=TRUE,
+                 partial_pca=partial_pca,
+                 pca=pca,
+                 theta=theta,
+                 pca_scale=TRUE, 
+                 normalize=TRUE,
+                 perplexity=30,
+                 momentum=0.5,
+                 final_momentum=0.8,
+                 eta=200.0,
+                 exaggeration_factor=12.0,
+                 max_iter=1000))
 }
-
-rtsne.pathfrs = Rtsne(unique(pathfrs), Y_init=Y_init,
-                      verbose=TRUE, num_threads=0,
-                      partial_pca=partial_pca,
-                      pca=pca,
-                      pca_scale=TRUE, 
-                      normalize=TRUE,
-                      perplexity=30,
-                      momentum=0.5,
-                      final_momentum=0.8,
-                      eta=200.0,
-                      exaggeration_factor=12.0,
-                      theta=theta,
-                      max_iter=1000)
