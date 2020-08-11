@@ -21,7 +21,8 @@ plot.rtsne = function(rtsne) {
            )
     
     legend(x="topleft", bty="n", cex=0.8, 
-           c(paste("origD",rtsne$origD,sep="="),
+           c("Rtsne parameters",
+             paste("origD",rtsne$origD,sep="="),
              paste("perplexity",rtsne$perplexity,sep="="),
              paste("theta",round(rtsne$theta,3),sep="="),
              paste("max_iter",rtsne$max_iter,sep="="),

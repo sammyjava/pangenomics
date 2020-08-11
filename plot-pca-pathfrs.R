@@ -18,14 +18,17 @@ require(RColorBrewer)
 ## NOT FANCY
 num = length(colnames(pca.pathfrs$rotation))
 
+## casecol = "red"
+## ctrlcol = "blue"
+
 ## ctrlcol = rgb(173,216,230, max = 255, alpha = 80, names = "lt.blue")
 ## casecol = rgb(255,192,203, max = 255, alpha = 80, names = "lt.pink")
 
 ## ctrlcol = rgb(173,216,230, max=255)
 ## casecol = rgb(255,192,203, max=255)
 
-casecol = "red"
-ctrlcol = "blue"
+casecol = rgb(1,0,0, maxColorValue=1, alpha = 0.15, names = "red")
+ctrlcol = rgb(0,0,1, maxColorValue=1, alpha = 0.15, names = "blue")
 
 labels = array(length(rownames(pathfrs)))
 colors = array(dim=length(rownames(pca.pathfrs$rotation)))
@@ -45,6 +48,6 @@ for (i in 1:length(rownames(pathfrs))) {
 for (i in 1:10) {
     xlabel = paste("PC",i,  " ",round(summary(pca.pathfrs)$importance["Proportion of Variance",i]*100,1),"% of variance", sep="")
     ylabel = paste("PC",i+1," ",round(summary(pca.pathfrs)$importance["Proportion of Variance",i+1]*100,1),"% of variance", sep="")
-    plot(pca.pathfrs$rotation[,i], pca.pathfrs$rotation[,i+1], xlab=xlabel, ylab=ylabel, pch=19, cex=0.1, col=colors, main=prefix)
+    plot(pca.pathfrs$rotation[,i], pca.pathfrs$rotation[,i+1], xlab=xlabel, ylab=ylabel, pch=19, cex=1.0, col=colors, main=prefix)
     legend(x="topleft", c(paste(caseNum,"cases"),paste(ctrlNum,"controls")), pch=19, col=c(casecol,ctrlcol), bty="n", cex=1.0)
 }
