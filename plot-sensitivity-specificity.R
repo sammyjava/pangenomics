@@ -5,7 +5,7 @@ col.fr = "darkgreen"
 colors = c(col.graph, col.fr)
 
 plot(graph.specificity, graph.sensitivity, 
-     xlim=c(.40,.75), ylim=c(.40,.70),
+     xlim=c(.40,.70), ylim=c(.40,.70),
      xlab="specificity (TNR)", ylab="sensitivity (TPR)",
      type="n"
      )
@@ -21,9 +21,12 @@ for (tc in (1:19)/20) {
 points(graph.specificity, graph.sensitivity, pch=19, col=col.graph)
 points(fr.specificity, fr.sensitivity, pch=19, col=col.fr)
 
+## HLAA HLAB HLAC SCZ6A SCZ14C SCZ6A+SCZ14C
+positions = c(1,1,4,1,1,2)
+offsets = c(1,1,1,1,1,0.7)
 for (i in 1:length(graph)) {
     offset = (i-1)*2
-    text(specificity[offset+1], sensitivity[offset+1], graph[i], pos=1, offset=1)
+    text(specificity[offset+1], sensitivity[offset+1], graph[i], pos=positions[i], offset=offsets[i])
     arrows(specificity[offset+1], sensitivity[offset+1], specificity[offset+2], sensitivity[offset+2], length=0.1)
 }
 
