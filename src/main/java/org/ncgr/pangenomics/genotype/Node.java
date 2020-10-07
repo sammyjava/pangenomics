@@ -49,6 +49,34 @@ public class Node implements Comparable, Serializable {
     }
 
     /**
+     * Return true if this Node is a homozygous call.
+     */
+    public boolean isHomozygous() {
+	String[] alleles = new String[0];
+	if (genotype.contains("/")) alleles = genotype.split("/"); // unphased
+	if (genotype.contains("|")) alleles = genotype.split("/"); // phased
+	if (alleles.length==2) {
+	    return alleles[0].equals(alleles[1]);
+	} else {
+	    return false;
+	}
+    }
+
+    /**
+     * Return true if this Node is a heterozygous call.
+     */
+    public boolean isHeterozygous() {
+	String[] alleles = new String[0];
+	if (genotype.contains("/")) alleles = genotype.split("/"); // unphased
+	if (genotype.contains("|")) alleles = genotype.split("/"); // phased
+	if (alleles.length==2) {
+	    return !alleles[0].equals(alleles[1]);
+	} else {
+	    return false;
+	}
+    }
+
+    /**
      * Return the id as a string.
      */
     @Override

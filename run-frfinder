@@ -44,6 +44,8 @@
 #  -r,--resume                     resume from a previous run [false]
 #  -rbns,--requirebestnodeset      require the best NodeSet from the
 #                                  previous round in the next round [false]
+#  -rh,--requirehomozygous         require that FR nodes be homozygous
+#                                  genotypes
 #  -rn,--requirednodes <arg>       require that interesting FRs contain the
 #                                  given nodes []
 #  -rns,--requirednodescan <arg>   starting and ending node for a single

@@ -86,6 +86,7 @@ public class FRFinder {
     boolean requireBestNodeSet = false;
     boolean includeNoCalls = false;
     boolean requireSamePosition = false;
+    boolean requireHomozygous = false;
     double minMAF = 0.01;
     double maxPVal = 1.0;
     int minSize = 1;
@@ -138,6 +139,7 @@ public class FRFinder {
 	parameters.setProperty("includeNoCalls", String.valueOf(includeNoCalls));
 	parameters.setProperty("requireBestNodeSet", String.valueOf(requireBestNodeSet));
 	parameters.setProperty("requireSamePosition", String.valueOf(requireSamePosition));
+	parameters.setProperty("requireHomozygous", String.valueOf(requireHomozygous));
     }
 
     /**
@@ -183,6 +185,7 @@ public class FRFinder {
 		   "includeNoCalls="+includeNoCalls+" " +
 		   "requireBestNodeSet="+requireBestNodeSet+" " +
 		   "requireSamePosition="+requireSamePosition+" " +
+		   "requireHomozygous="+requireHomozygous+" " +
                    "requiredNodes="+requiredNodeString+" " +
 		   "includedNodes="+includedNodeString+" " +
                    "excludedNodes="+excludedNodeString+" " +
@@ -235,14 +238,16 @@ public class FRFinder {
 	    // load the single-node FRs into allFrequentedRegions
 	    // - keep if af>=minMAF
 	    // - keep if p<=maxPVal
-	    // - reject those with no genotype call unless includeNoCalls=true
+	    // - reject those with no genotype call unless includeNoCalls
 	    // - keep those not in excludedNodes
 	    // - exclude those with insufficient support if alpha=1.0
+	    // - reject those with HET call if requireHomozygous
 	    ConcurrentSkipListSet<Node> excRejects = new ConcurrentSkipListSet<>();
 	    ConcurrentSkipListSet<Node> ngcRejects = new ConcurrentSkipListSet<>();
 	    ConcurrentSkipListSet<Node> mafRejects = new ConcurrentSkipListSet<>();
 	    ConcurrentSkipListSet<Node> pvalRejects = new ConcurrentSkipListSet<>();
 	    ConcurrentSkipListSet<Node> supportRejects = new ConcurrentSkipListSet<>();
+	    ConcurrentSkipListSet<Node> homRejects = new ConcurrentSkipListSet<>();
 	    ConcurrentSkipListSet<Node> nodes = new ConcurrentSkipListSet<>(graph.getNodes());
 	    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	    nodes.parallelStream().forEach(node -> {
@@ -250,6 +255,8 @@ public class FRFinder {
 			excRejects.add(node);
 		    } else if (!includeNoCalls && !node.isCalled) {
 			ngcRejects.add(node);
+		    } else if (requireHomozygous && !node.isHomozygous()) {
+			homRejects.add(node);
 		    } else if (node.af<minMAF) {
 			mafRejects.add(node);
 		    } else if (maxPVal<1.0 && graph.fisherExactP(node)>maxPVal) {
@@ -270,6 +277,7 @@ public class FRFinder {
 	    printToLog("# "+mafRejects.size()+" nodes excluded because allele frequency<"+minMAF);
 	    printToLog("# "+pvalRejects.size()+" nodes excluded because p>"+maxPVal);
 	    if (alpha==1.0) printToLog("# "+supportRejects.size()+" nodes excluded because FR support<"+minSupport);
+	    if (requireHomozygous) printToLog("# "+homRejects.size()+" nodes excluded because not homozygous");
 	    // store interesting single-node FRs in round 0, since we won't hit them in the loop
 	    for (FrequentedRegion fr : allFrequentedRegions.values()) {
 		if (isInteresting(fr)) {
@@ -712,6 +720,10 @@ public class FRFinder {
 	this.requireSamePosition = true;
 	parameters.setProperty("requireSamePosition", "true");
     }
+    public void setRequireHomozygous() {
+	this.requireHomozygous = true;
+	parameters.setProperty("requireHomozygous", "true");
+    }
     
     /**
      * Print to both the console and the log file
@@ -1012,6 +1024,10 @@ public class FRFinder {
 	Option maxClocktimeOption = new Option("maxct", "maxclocktime", true, "limit the computation to the given clock time in minutes [0=unlimited]");
 	maxClocktimeOption.setRequired(false);
 	options.addOption(maxClocktimeOption);
+	//
+	Option requireHomozygousOption = new Option("rh", "requirehomozygous", false, "require that FR nodes be homozygous genotypes");
+	requireHomozygousOption.setRequired(false);
+	options.addOption(requireHomozygousOption);
 	
         try {
             cmd = parser.parse(options, args);
@@ -1129,6 +1145,7 @@ public class FRFinder {
 	if (cmd.hasOption("requirebestnodeset")) frf.setRequireBestNodeSet();
 	if (cmd.hasOption("includenocalls")) frf.setIncludeNoCalls();
 	if (cmd.hasOption("requiresameposition")) frf.setRequireSamePosition();
+	if (cmd.hasOption("requirehomozygous")) frf.setRequireHomozygous();
 	// these are not stored in parameters
 	if (cmd.hasOption("verbose")) frf.verbose = true;
 	if (cmd.hasOption("debug")) frf.debug = true;

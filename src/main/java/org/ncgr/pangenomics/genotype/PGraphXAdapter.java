@@ -146,15 +146,10 @@ class PGraphXAdapter extends JGraphXAdapter<Node,Edge> {
                         }
                         // set border color based on HOM/HET genotype
                         if (genotypeCalled) {
-                            String[] alleles = new String[0];
-                            if (n.genotype.contains("/")) alleles = n.genotype.split("/"); // unphased
-                            if (n.genotype.contains("|")) alleles = n.genotype.split("/"); // phased
-                            if (alleles.length==2) {
-                                if (alleles[0].equals(alleles[1])) {
-                                    setCellStyles("strokeColor", STROKE_COLOR_HOM, cells);
-                                } else {
-                                    setCellStyles("strokeColor", STROKE_COLOR_HET, cells);
-                                }
+			    if (n.isHomozygous()) {
+				setCellStyles("strokeColor", STROKE_COLOR_HOM, cells);
+			    } else {
+				setCellStyles("strokeColor", STROKE_COLOR_HET, cells);
                             }
                         }
                     }
