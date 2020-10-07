@@ -1,7 +1,7 @@
 ##
 ## load an FR file along with its parameters
-## nodes support avgLen case ctrl size
-##
+## [nodes]           size    support case    ctrl    OR      p         pri
+## [7,15,33,48,93]   159     354     49      305     0.161   8.59E-48  794
 
 ## for plotting and analysis
 library(dplyr)
@@ -10,9 +10,11 @@ prefix = readline(prompt="FR file prefix (ex. HTT.400-0.5-1): ")
 frFilename = paste(prefix, ".frs.txt", sep="")
 
 ## read the FRs table
-## nodes	size	support	case	ctrl	OR	p	pri
+## [nodes] size support case ctrl OR  p  pri
 frs = read.table(frFilename, header=TRUE, stringsAsFactors=FALSE)
+## remove extra header lines when multiple files have been catted
 frs = frs[frs$nodes!="nodes",]
+## convert to numeric
 frs$size = as.numeric(frs$size)
 frs$support = as.numeric(frs$support)
 frs$case = as.numeric(frs$case)
@@ -20,6 +22,7 @@ frs$ctrl = as.numeric(frs$ctrl)
 frs$OR = as.numeric(frs$OR)
 frs$p = as.numeric(frs$p)
 frs$pri = as.numeric(frs$pri)
+## remove dupes
 frs = distinct(frs)
 
 ## rownames(frs) = frs$nodes
@@ -53,4 +56,3 @@ if (labelsExist) {
 ## 1	rs114039523	6	29910286	29910286	T/T	0.6643768400392541
 ## 4	rs114039523	6	29910286	29910286	./.	8.92140244446427E-5
 nodes = read.table(file=paste(graphName,"nodes","txt",sep="."), row.names=1, col.names=c("node","rs","chr","start","end","genotype","p"))
-
