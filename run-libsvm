@@ -31,9 +31,9 @@ NSVMCONTROLS=0
 #####################################
 ## delete SVM files to force rebuild
 #rm -f $SVMFILE
-rm -f $RANGE
-rm -f $FULLSCALE
-rm -f $GRIDOUT
+#rm -f $RANGE
+#rm -f $FULLSCALE
+#rm -f $GRIDOUT
 #####################################
 
 ## write the SVM file

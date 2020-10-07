@@ -542,16 +542,6 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
     }
 
     /**
-     * Print the counts of paths per label.
-     */
-    public void printLabelCounts(PrintStream out) {
-        if (out==System.out) printHeading("LABEL COUNTS");
-        for (String label : labelCounts.keySet()) {
-            out.println(label+"\t"+labelCounts.get(label));
-        }
-    }
-
-    /**
      * Print a delineating heading, for general use.
      */
     static void printHeading(String heading) {
@@ -860,10 +850,6 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 
         // output
 	if (!cmd.hasOption("txtfile")) {
-	    if (graph.labelCounts!=null && graph.labelCounts.size()>0) {
-		PrintStream labelCountsOut = new PrintStream(graph.name+".labelcounts.txt");
-		graph.printLabelCounts(labelCountsOut);
-	    }
 	    if (graph.verbose) System.out.println("Writing nodes file...");
 	    PrintStream nodesOut = new PrintStream(graph.name+".nodes.txt");
 	    graph.printNodes(nodesOut);

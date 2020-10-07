@@ -1045,10 +1045,10 @@ public class FRFinder {
 		String[] parts = cmd.getOptionValue("requirednodescan").split("-");
 		requiredNodeStart = Integer.parseInt(parts[0]);
 		requiredNodeEnd = Integer.parseInt(parts[1]);
+	    } else {
+		System.err.println("ERROR: --requirednodescan requires two numbers separated by dash, like 23-45.");
+		System.exit(1);
 	    }
-	} else {
-	    System.err.println("ERROR: --requirednodescan requireds two numbers separated by dash, like 23-45.");
-	    System.exit(1);
 	}
 	// load graph from a pair of TXT files
 	String graphName = cmd.getOptionValue("graph");

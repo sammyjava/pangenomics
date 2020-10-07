@@ -719,18 +719,6 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
     }
 
     /**
-     * Print the counts of paths per label.
-     */
-    public void printLabelCounts(PrintStream out) {
-        if (labelCounts!=null && labelCounts.size()>0) {
-            if (out==System.out) printHeading("LABEL COUNTS");
-            for (String label : labelCounts.keySet()) {
-                out.println(label+"\t"+labelCounts.get(label));
-            }
-        }
-    }
-
-    /**
      * Print node participation by path, appropriate for PCA analysis.
      */
     public void printPcaData(PrintStream out) throws FileNotFoundException, IOException {
@@ -770,10 +758,6 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
      */
     public void printAll(String outputPrefix) throws FileNotFoundException, IOException {
         if (outputPrefix==null) return;
-        if (labelCounts!=null && labelCounts.size()>0) {
-            PrintStream labelCountsOut = new PrintStream(outputPrefix+".labelcounts.txt");
-            printLabelCounts(labelCountsOut);
-        }
 
         if (verbose) System.out.print("Writing nodes file...");
         PrintStream nodesOut = new PrintStream(outputPrefix+".nodes.txt");
@@ -813,9 +797,6 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
      * Run all the PangenomicGraph printing methods to stdout.
      */
     public void printAll() throws FileNotFoundException, IOException {
-        if (labelCounts!=null && labelCounts.size()>0) {
-            printLabelCounts(System.out);
-        }
         printNodes(System.out);
         printNodeHistogram(System.out);
         printPaths(System.out);
@@ -940,9 +921,6 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 
         // output
         if (cmd.hasOption("gfa")) {
-	    // verbosity
-	    if (cmd.hasOption("verbose")) graph.printLabelCounts(System.out);
-	    // files
 	    graph.printAll(graphName);
         }
     }
