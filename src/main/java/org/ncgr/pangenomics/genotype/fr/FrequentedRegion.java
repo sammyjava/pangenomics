@@ -173,6 +173,29 @@ class FrequentedRegion implements Comparable {
     }
 
     /**
+     * Construct given a line in an frs.txt output file.
+     * 0nodes         1size 2support 3case 4ctrl 5OR    6p        7pri
+     * [711,786,891]  3     104	     2     102   0.020  3.25E-28  1707
+     */
+    FrequentedRegion(String line) {
+	if (line.startsWith("[")) {
+	    String[] fields = line.split("\t");
+	    this.nodes = new NodeSet(fields[0]);
+	    this.size = Integer.parseInt(fields[1]);
+	    this.support = Integer.parseInt(fields[2]);
+	    this.caseSubpathSupport = Integer.parseInt(fields[3]);
+	    this.ctrlSubpathSupport = Integer.parseInt(fields[4]);
+	    try {
+		this.orValue = Double.parseDouble(fields[5]);
+	    } catch (NumberFormatException e) {
+		// do nothing, it's an infinity symbol
+	    }
+	    this.pValue = Double.parseDouble(fields[6]);
+	    this.priority = Integer.parseInt(fields[7]);
+	}
+    }
+
+    /**
      * Update the subpaths, priority, etc.
      */
     void update() {
@@ -254,16 +277,8 @@ class FrequentedRegion implements Comparable {
      * Return the column heading for the toString() fields
      * nodes size support case ctrl OR p pri
      */
-    public String columnHeading() {
-        String s = "nodes\tsize\tsupport";
-        if (graph!=null && graph.labelCounts.size()>0) {
-            for (String label : graph.labelCounts.keySet()) {
-                s += "\t"+label;
-            }
-            // odds ratio and p value
-            s += "\tOR"+"\tp"+"\tpri";
-        }
-        return s;
+    public static String columnHeading() {
+	return "nodes\tsize\tsupport\tcase\tctrl\tOR\tp\tpri";
     }
 
     /**
@@ -398,38 +413,12 @@ class FrequentedRegion implements Comparable {
 
     /**
      * Return a string summary of this frequented region.
+     * nodes         size support case ctrl OR    p        pri
      */
     @Override
     public String toString() {
-        String s = nodes.toString()+"\t"+size+"\t"+support;
-        if (support>0) {
-            // show label support if available
-            if (graph!=null && graph.labelCounts.size()>0) {
-                // count the support per label
-                Map<String,Integer> labelCounts = new TreeMap<>();
-                for (Path subpath : subpaths) {
-                    if (subpath.label!=null) {
-                        if (!labelCounts.containsKey(subpath.label)) {
-                            labelCounts.put(subpath.label, getSubpathSupport(subpath.label));
-                        }
-                    }
-                }
-                for (String label : graph.labelCounts.keySet()) {
-                    if (labelCounts.containsKey(label)) {
-                        s += "\t"+labelCounts.get(label);
-                    } else {
-                        s += "\t"+0;
-                    }
-                }
-                // add the odds ratio
-                s += "\t"+orf.format(oddsRatio());
-                // add the Fisher's exact test p value
-                s += "\t"+pf.format(fisherExactP());
-                // add the priority
-                s += "\t"+priority;
-            }
-        }
-        return s;
+        return nodes.toString()+"\t"+size+"\t"+support+"\t"+caseSubpathSupport+"\t"+ctrlSubpathSupport+
+	    "\t"+orf.format(orValue)+"\t"+pf.format(pValue)+"\t"+priority;
     }
 
     /**

@@ -170,22 +170,7 @@ public class FRUtils {
         BufferedReader reader = new BufferedReader(new FileReader(frFilename));
         String line = null;
         while ((line=reader.readLine())!=null) {
-            if (!line.startsWith("[")) continue; // heading
-            String[] fields = line.split("\t");
-            NodeSet nodes = new NodeSet(fields[0]);
-            int size = Integer.parseInt(fields[1]);
-            int support = Integer.parseInt(fields[2]);
-            int caseSupport = Integer.parseInt(fields[3]);
-            int ctrlSupport = Integer.parseInt(fields[4]);
-            double orValue = Double.POSITIVE_INFINITY;
-            try {
-                orValue = Double.parseDouble(fields[5]);
-            } catch (NumberFormatException e) {
-                // do nothing, it's an infinity symbol
-            }
-            double pValue = Double.parseDouble(fields[6]);
-            int priority = Integer.parseInt(fields[7]);
-            FrequentedRegion fr = new FrequentedRegion(nodes, alpha, kappa, support, caseSupport, ctrlSupport, orValue, pValue, priority);
+	    FrequentedRegion fr = new FrequentedRegion(line);
             sortedFRs.add(fr);
         }
 	System.err.println("FRUtils loaded "+sortedFRs.size()+" unique FRs from "+inputPrefix);
@@ -554,7 +539,7 @@ public class FRUtils {
     }
 
     /**
-     * Print out the best (last per run) FRs from a combined run file.
+     * Print out the best (last per run) FRs from a combined run file. Uses a TreeSet to make sure they're distinct.
      *
      * nodes	size	support	case	ctrl	OR	p	pri
      * [891]	1	4712	2549	2163	1.178	1.01E-14	71
@@ -567,19 +552,27 @@ public class FRUtils {
      * [259,411,873,892]	4	100	23	77	0.299	4.76E-8	524 <== print this one
      */
     public static void printBestFRs(String inputPrefix) throws IOException {
+	TreeSet<FrequentedRegion> sortedFRs = new TreeSet<>();
         String frFilename = getFRsFilename(inputPrefix);
         BufferedReader reader = new BufferedReader(new FileReader(frFilename));
 	String lastLine = null;
         String thisLine = null;
         while ((thisLine=reader.readLine())!=null) {
 	    if (thisLine.startsWith("nodes")) {
-		if (lastLine!=null) System.out.println(lastLine);
+		if (lastLine!=null) {
+		    sortedFRs.add(new FrequentedRegion(lastLine));
+		}
 		lastLine = null;
 	    } else {
 		lastLine = thisLine;
 	    }
 	}
-	System.out.println(lastLine);
+	sortedFRs.add(new FrequentedRegion(lastLine));
+	// output
+	System.out.println("nodes\tsize\tsupport\tcase\tctrl\tOR\tp\tpri");
+	for (FrequentedRegion fr : sortedFRs) {
+	    System.out.println(fr.toString());
+	}
     }
 
      /**
