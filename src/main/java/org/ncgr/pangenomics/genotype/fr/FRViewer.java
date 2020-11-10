@@ -116,8 +116,8 @@ public class FRViewer {
         graph.buildNodePaths();
         graph.tallyLabelCounts();
 
-        // load the FRs into an array, first is best
-        TreeSet<FrequentedRegion> sortedFRs = FRUtils.readFrequentedRegions(prefix);
+        // load the FRs into an array, then resort to best is first
+        TreeSet<FrequentedRegion> sortedFRs = FRUtils.readFrequentedRegions(graph, prefix);
         FrequentedRegion[] frequentedRegions = new FrequentedRegion[sortedFRs.size()];
         int i = 0;
         for (FrequentedRegion fr : sortedFRs.descendingSet()) {

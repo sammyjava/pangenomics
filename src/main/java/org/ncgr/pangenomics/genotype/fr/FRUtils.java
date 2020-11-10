@@ -25,6 +25,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.stream.Collectors;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -43,7 +44,7 @@ public class FRUtils {
 
     /**
      * Read FRs from the text files written by a FRFinder run, given the graph as well.
-     * This constructor populates the FRs fully, with subpaths and the whole bit.
+     * This method populates the FR subpaths based on alpha, kappa, and the given priority option.
      *
      * nodes   size    support case    ctrl    OR      p       pri
      * [1341]  1       21      19      2       9.500   9.48E-3 202
@@ -51,130 +52,65 @@ public class FRUtils {
      * 628863.case:[18,20,21,23,24,26,27,29,30,33,34]
      * etc.
      */
-    public static TreeSet<FrequentedRegion> readFrequentedRegions(String inputPrefix, PangenomicGraph graph) throws FileNotFoundException, IOException {
-        // get alpha, kappa from the input prefix
+    public static TreeSet<FrequentedRegion> readFrequentedRegions(PangenomicGraph graph, String inputPrefix, int priorityOptionKey, String priorityOptionLabel) throws FileNotFoundException, IOException {
+        // get alpha, kappa, and graph from the input prefix
         double alpha = readAlpha(inputPrefix);
         int kappa = readKappa(inputPrefix);
-        // parse the priorityOption and impose defaults
-        String priorityOption = readPriorityOption(inputPrefix);
-        String[] priorityParts = priorityOption.split(":");
-        int priorityOptionKey = Integer.parseInt(priorityParts[0]);
-        String priorityOptionLabel = null;
-        if (priorityParts.length>1) {
-            String priorityOptionParameter = priorityParts[1];
-            if (priorityParts[1].equals("case") || priorityParts[1].equals("ctrl")) {
-                priorityOptionLabel = priorityParts[1];
-            }
-        }
-        if (priorityOptionKey==1 && priorityOptionLabel==null) priorityOptionLabel = "case";
-        if (priorityOptionKey==3 && priorityOptionLabel==null) priorityOptionLabel = "case";
-        // get the graph from the nodes and paths files
-        File nodesFile = new File(getNodesFilename(inputPrefix));
-        File pathsFile = new File(getPathsFilename(inputPrefix));
-        // create a node map for building subpaths
-        Map<Long,Node> nodeMap = new HashMap<>();
-        for (Node n : graph.getNodes()) {
-            nodeMap.put(n.id, n);
-        }
-        // read FRs
-	Map<NodeSet,FrequentedRegion> inputFRMap = new HashMap<>();
-	for (FrequentedRegion fr : readFrequentedRegions(inputPrefix)) {
-	    fr.graph = graph;
-	    inputFRMap.put(fr.nodes, fr);
-	}
-	TreeSet<FrequentedRegion> sortedFRs = new TreeSet<>();
-        String subpathsFilename = getFRSubpathsFilename(inputPrefix);
-	File subpathsFile = new File(subpathsFilename);
-	if (subpathsFile.exists()) {
-	    // read the subpaths, only using subpaths matching those in the FR text file (which may have been trimmed)
-	    BufferedReader reader = new BufferedReader(new FileReader(subpathsFilename));
-	    String line = null;
-	    while ((line=reader.readLine())!=null) {
-		// 0                1       2       3           4           5     6       7
-		// nodes            size    support caseSupport ctrlSupport OR    p       priority
-		// [1341]           1       21      19          2           9.500 9.48E-3 202
-		// 429266.case:1341]
-		// 158005.case:1341]
-		// ...
-		String[] fields = line.split("\t");
-		NodeSet nodes = graph.getNodeSet(fields[0]);
-		int size = Integer.parseInt(fields[1]);
-		int support = Integer.parseInt(fields[2]);
-		int caseSupport = Integer.parseInt(fields[3]);
-		int ctrlSupport = Integer.parseInt(fields[4]);
-		double or = Double.POSITIVE_INFINITY;
-		try {
-		    or = Double.parseDouble(fields[5]);
-		} catch (NumberFormatException e) {
-		    // do nothing, it's an infinity symbol
-		}
-		double p = Double.parseDouble(fields[6]);
-		int priority = Integer.parseInt(fields[7]);
-		List<Path> subpaths = new LinkedList<>();
-		for (int i=0; i<support; i++) {
-		    // have to read lines to run through the file even if skipping this FR
-		    line = reader.readLine();
-		    if (inputFRMap.containsKey(nodes)) {
-			String[] parts = line.split(":");
-			String pathFull = parts[0];
-			String nodeString = parts[1];
-			// split out the name, label, nodes
-			String[] nameParts = pathFull.split("\\.");
-			String name = nameParts[0];
-			String label = null;
-			if (nameParts.length>1) label = nameParts[1];
-			List<Node> subNodes = new LinkedList<>();
-			String[] nodesAsStrings = nodeString.replace("[","").replace("]","").split(",");
-			for (String nodeAsString : nodesAsStrings) {
-			    long nodeId = Long.parseLong(nodeAsString);
-			    subNodes.add(nodeMap.get(nodeId));
-			}
-			// add to the subpaths
-			subpaths.add(new Path(graph, subNodes, name, label));
-		    }
-		}
-		if (inputFRMap.containsKey(nodes)) {
-		    FrequentedRegion fr = new FrequentedRegion(graph, nodes, subpaths, alpha, kappa, priorityOptionKey, priorityOptionLabel, support);
-		    sortedFRs.add(fr);
-		}
-	    }
-	} else {
-	    // we don't have a subpaths file, so we have to build the subpaths for each FR, in parallel
-	    System.err.println("Building FR subpaths...");
-	    ConcurrentSkipListSet<FrequentedRegion> concurrentFRs = new ConcurrentSkipListSet<>();
-	    concurrentFRs.addAll(inputFRMap.values());
-	    ////////////////////////////////////////////////////////////////////////////////////////////
-	    concurrentFRs.parallelStream().forEach(fr -> {
-		    fr.updateSupport();
-		});
-	    ////////////////////////////////////////////////////////////////////////////////////////////
-	    sortedFRs.addAll(concurrentFRs);
-	}
-        return sortedFRs;
-    }
-
-    /**
-     * Read FRs with only parameters from the text file written by a FRFinder run.
-     * This constructor populates the FRs with only their main class variables; no subpaths, for example.
-     * 0       1       2       3       4       5       6       7
-     * nodes   size    support case    ctrl    OR      p       pri
-     * [1341]  1       21      19      2       9.500   9.48E-3 202
-     */
-    public static TreeSet<FrequentedRegion> readFrequentedRegions(String inputPrefix) throws FileNotFoundException, IOException {
-        // get alpha, kappa from the input prefix
-        double alpha = readAlpha(inputPrefix);
-        int kappa = readKappa(inputPrefix);
-        // read the FRs
-        TreeSet<FrequentedRegion> sortedFRs = new TreeSet<>();
         String frFilename = getFRsFilename(inputPrefix);
+	// read the FRs
+        TreeSet<FrequentedRegion> frequentedRegions = new TreeSet<>();
         BufferedReader reader = new BufferedReader(new FileReader(frFilename));
         String line = null;
         while ((line=reader.readLine())!=null) {
-	    FrequentedRegion fr = new FrequentedRegion(line);
-            sortedFRs.add(fr);
-        }
-	System.err.println("FRUtils loaded "+sortedFRs.size()+" unique FRs from "+inputPrefix);
-        return sortedFRs;
+	    // this does NOT run update() and pValue and orValue must be reset to get non-rounded versions below
+	    FrequentedRegion fr = new FrequentedRegion(graph, alpha, kappa, line);
+	    if (fr.size>0) {
+		fr.priorityOptionKey = priorityOptionKey;
+		fr.priorityOptionLabel = priorityOptionLabel;
+		fr.pValue = Double.NEGATIVE_INFINITY;
+		fr.orValue = Double.NEGATIVE_INFINITY;
+		frequentedRegions.add(fr);
+	    }
+	}
+	System.err.println("Loaded "+frequentedRegions.size()+" FRs from "+inputPrefix);
+	// build the subpaths for each FR, serial because parallel seems to drop some data
+	System.err.println("Updating FR support and priorities...");
+	/////////////////////////////////////////////////////////////////////////////////
+	Set<FrequentedRegion> updatedFRs = frequentedRegions.parallelStream().map(fr -> {
+		fr.update();
+		return fr;
+	    }).collect(Collectors.toSet());
+	/////////////////////////////////////////////////////////////////////////////////
+	return new TreeSet<FrequentedRegion>(updatedFRs);
+    }
+
+    /**
+     * Read FRs from the text file written by an FR run, but leaving support, OR, p, priority at the values in the file.
+     * This method does NOT populate the FR subpaths.
+     *
+     * nodes   size    support case    ctrl    OR      p       pri
+     * [1341]  1       21      19      2       9.500   9.48E-3 202
+     * 509678.ctrl:[18,20,21,23,24,26,27,29,30,33,34]
+     * 628863.case:[18,20,21,23,24,26,27,29,30,33,34]
+     * etc.
+     */
+    public static TreeSet<FrequentedRegion> readFrequentedRegions(PangenomicGraph graph, String inputPrefix) throws FileNotFoundException, IOException {
+        // get alpha, kappa, and graph from the input prefix
+        double alpha = readAlpha(inputPrefix);
+        int kappa = readKappa(inputPrefix);
+        String frFilename = getFRsFilename(inputPrefix);
+	// read the FRs
+        TreeSet<FrequentedRegion> frs = new TreeSet<>();
+        BufferedReader reader = new BufferedReader(new FileReader(frFilename));
+        String line = null;
+        while ((line=reader.readLine())!=null) {
+	    FrequentedRegion fr = new FrequentedRegion(graph, alpha, kappa, line);
+	    if (fr.size>0) {
+		frs.add(fr);
+	    }
+	}
+	System.err.println("Loaded "+frs.size()+" unique FRs from "+inputPrefix);
+	return frs;
     }
 
     /**
@@ -331,7 +267,8 @@ public class FRUtils {
 	Properties parameters = readParameters(inputPrefix);
 	parameters.setProperty("minSupport", String.valueOf(minSupport));
 	parameters.setProperty("minSize", String.valueOf(minSize));
-	Set<FrequentedRegion> frequentedRegions = readFrequentedRegions(inputPrefix);
+	PangenomicGraph graph = readGraph(inputPrefix);
+	Set<FrequentedRegion> frequentedRegions = readFrequentedRegions(graph, inputPrefix);
 	Set<FrequentedRegion> filteredFRs = new TreeSet<>();
         for (FrequentedRegion fr : frequentedRegions) {
             boolean passes = true;
@@ -350,7 +287,7 @@ public class FRUtils {
             }
             if (passes) filteredFRs.add(fr);
         }
-        System.out.println(filteredFRs.size()+" FRs passed minSupport="+minSupport+", minSize="+minSize);
+        System.err.println(filteredFRs.size()+" FRs passed minSupport="+minSupport+", minSize="+minSize);
 	// output the filtered FRs
 	if (filteredFRs.size()>0) {
 	    printFrequentedRegions(filteredFRs, formOutputPrefix(inputPrefix, minSupport, minSize));
@@ -366,25 +303,24 @@ public class FRUtils {
      *
      * which is similar, but not identical to, the SVMlight format.
      *
-     * If numCasePaths>0 or numCtrlPaths>0, randomly select numCasePaths cases and/or numCtrlPaths controls.
-     * This also allows pruning on size, support, and p-value.
+     * This also allows pruning on size, support, p-value, and priority with a given priority option.
      */
-    public static void printPathFRsSVM(String inputPrefix, int numCasePaths, int numCtrlPaths, int minSize, int minSupport, double maxPValue, int minPriority) throws IOException {
-        // read the graph and FRs from files
-        PangenomicGraph graph = readGraph(inputPrefix, numCasePaths, numCtrlPaths);
-	TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(inputPrefix, graph);
-	frequentedRegions = pruneFrequentedRegions(frequentedRegions, minSize, minSupport, maxPValue, minPriority);
-	System.err.println("FRUtils: "+frequentedRegions.size()+" FRs to be printed to SVM file.");
+    public static void printPathFRsSVM(String inputPrefix, int priorityOptionKey, String priorityOptionLabel, int minSize, int minSupport, double maxPValue, int minPriority) throws IOException {
+	PangenomicGraph graph = readGraph(inputPrefix);
+        // read the FRs from files
+	TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(graph, inputPrefix, priorityOptionKey, priorityOptionLabel);
+	// prune the FRs
+	TreeSet<FrequentedRegion> prunedFRs = pruneFrequentedRegions(frequentedRegions, minSize, minSupport, maxPValue, minPriority);
+	System.err.println(prunedFRs.size()+" FRs to be printed to SVM file.");
 	// collect the paths, cases and controls
-        ConcurrentSkipListSet<Path> concurrentPaths = buildConcurrentPaths(graph, numCasePaths, numCtrlPaths);
+        ConcurrentSkipListSet<Path> concurrentPaths = buildConcurrentPaths(graph);
 	///////////////////////////////////////////////////////
 	// build the SVM strings in parallel
 	ConcurrentHashMap<String,String> pathSVM = new ConcurrentHashMap<>();
-        ConcurrentSkipListSet<FrequentedRegion> concurrentFRs = new ConcurrentSkipListSet<>(frequentedRegions);
 	concurrentPaths.parallelStream().forEach(path -> {
 		String svm = path.label;
 		int c  = 0;
-		for (FrequentedRegion fr : concurrentFRs) {
+		for (FrequentedRegion fr : prunedFRs) {
 		    c++;
 		    svm += "\t"+c+":"+fr.countSubpathsOf(path);
 		}
@@ -427,56 +363,56 @@ public class FRUtils {
      *
      * This also allows pruning on size, support, and p-value.
      */
-    public static void printPathFRsARFF(String inputPrefix, int numCasePaths, int numCtrlPaths, int minSize, int minSupport, double maxPValue, int minPriority) throws IOException {
-        // load the graph
-	PangenomicGraph graph = readGraph(inputPrefix, numCasePaths, numCtrlPaths);
-	// load the frequented regions and update support in parallel
-	TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(inputPrefix, graph);
-	frequentedRegions = pruneFrequentedRegions(frequentedRegions, minSize, minSupport, maxPValue, minPriority);
-	System.err.println("FRUtils: "+frequentedRegions.size()+" FRs to be printed to ARFF file.");
-	// collect the paths, cases and controls
-        ConcurrentSkipListSet<Path> concurrentPaths = buildConcurrentPaths(graph, numCasePaths, numCtrlPaths);
-	/////////////////////////////////////////////////////////
-	// now load pathARFF for selected paths in parallel
-	ConcurrentHashMap<String,String> pathARFF = new ConcurrentHashMap<>();
-        ConcurrentSkipListSet<FrequentedRegion> concurrentFRs = new ConcurrentSkipListSet<>(frequentedRegions);
-	concurrentPaths.parallelStream().forEach(path -> {
-		String arff = "";
-		for (FrequentedRegion fr : concurrentFRs) {
-		    arff += fr.countSubpathsOf(path)+",";
-		}
-		arff += path.label;
-		pathARFF.put(path.name, arff);
-	    });
-	/////////////////////////////////////////////////////////
-	// sort by ARFF string
-	LinkedHashMap<String,String> sortedPathARFF = new LinkedHashMap<>();
-	pathARFF.entrySet().stream().sorted(Map.Entry.comparingByValue()).forEachOrdered(x->sortedPathARFF.put(x.getKey(),x.getValue()));
-	// ARFF output	
-        PrintStream out = new PrintStream(FRUtils.getPathFRsARFFFilename(inputPrefix));
-        out.println("@RELATION "+inputPrefix);
-        out.println("");
-        // attributes: path ID
-        out.println("@ATTRIBUTE ID STRING");
-        // attributes: each FR is labeled FRn
-        int c = 0;
-        for (FrequentedRegion fr : frequentedRegions) {
-            c++;
-            String frLabel = "FR"+c;
-            out.println("@ATTRIBUTE "+frLabel+" NUMERIC");
-        }
-        // add the class attribute
-        out.println("@ATTRIBUTE class {ctrl,case}");
-        out.println("");
-        // data
-        out.println("@DATA");
-        for (String name : sortedPathARFF.keySet()) {
-	    String paddedName = name;
-	    if (name.length()<6) paddedName = "0" + name; // special hack for 6-digit samples
-            out.println(paddedName+","+sortedPathARFF.get(name));
-        }
-        out.close();
-    }
+    // public static void printPathFRsARFF(String inputPrefix, int minSize, int minSupport, double maxPValue, int minPriority) throws IOException {
+    //     // load the graph
+    // 	PangenomicGraph graph = readGraph(inputPrefix);
+    // 	// load the frequented regions and update support in parallel
+    // 	TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(inputPrefix, graph);
+    // 	frequentedRegions = pruneFrequentedRegions(frequentedRegions, minSize, minSupport, maxPValue, minPriority);
+    // 	System.err.println("FRUtils: "+frequentedRegions.size()+" FRs to be printed to ARFF file.");
+    // 	// collect the paths, cases and controls
+    //     TreeSet<Path> concurrentPaths = buildConcurrentPaths(graph);
+    // 	/////////////////////////////////////////////////////////
+    // 	// now load pathARFF for selected paths in parallel
+    // 	ConcurrentHashMap<String,String> pathARFF = new ConcurrentHashMap<>();
+    //     TreeSet<FrequentedRegion> concurrentFRs = new TreeSet<>(frequentedRegions);
+    // 	concurrentPaths.parallelStream().forEach(path -> {
+    // 		String arff = "";
+    // 		for (FrequentedRegion fr : concurrentFRs) {
+    // 		    arff += fr.countSubpathsOf(path)+",";
+    // 		}
+    // 		arff += path.label;
+    // 		pathARFF.put(path.name, arff);
+    // 	    });
+    // 	/////////////////////////////////////////////////////////
+    // 	// sort by ARFF string
+    // 	LinkedHashMap<String,String> sortedPathARFF = new LinkedHashMap<>();
+    // 	pathARFF.entrySet().stream().sorted(Map.Entry.comparingByValue()).forEachOrdered(x->sortedPathARFF.put(x.getKey(),x.getValue()));
+    // 	// ARFF output	
+    //     PrintStream out = new PrintStream(FRUtils.getPathFRsARFFFilename(inputPrefix));
+    //     out.println("@RELATION "+inputPrefix);
+    //     out.println("");
+    //     // attributes: path ID
+    //     out.println("@ATTRIBUTE ID STRING");
+    //     // attributes: each FR is labeled FRn
+    //     int c = 0;
+    //     for (FrequentedRegion fr : frequentedRegions) {
+    //         c++;
+    //         String frLabel = "FR"+c;
+    //         out.println("@ATTRIBUTE "+frLabel+" NUMERIC");
+    //     }
+    //     // add the class attribute
+    //     out.println("@ATTRIBUTE class {ctrl,case}");
+    //     out.println("");
+    //     // data
+    //     out.println("@DATA");
+    //     for (String name : sortedPathARFF.keySet()) {
+    // 	    String paddedName = name;
+    // 	    if (name.length()<6) paddedName = "0" + name; // special hack for 6-digit samples
+    //         out.println(paddedName+","+sortedPathARFF.get(name));
+    //     }
+    //     out.close();
+    // }
 
     /**
      * Print the (labeled) path FR support in TXT format for the given number of case and control paths (0 for all).
@@ -488,55 +424,55 @@ public class FRUtils {
      *
      * This also allows pruning on size, support, and p-value.
      */
-    public static void printPathFRs(String inputPrefix, int numCasePaths, int numCtrlPaths, int minSize, int minSupport, double maxPValue, int minPriority) throws IOException {
-        // load the graph
-	PangenomicGraph graph = readGraph(inputPrefix, numCasePaths, numCtrlPaths);
-	// load the frequented regions and update support in parallel
-	TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(inputPrefix, graph);
-	frequentedRegions = pruneFrequentedRegions(frequentedRegions, minSize, minSupport, maxPValue, minPriority);
-	System.err.println("FRUtils: "+frequentedRegions.size()+" FRs to be printed to pathfrs.txt file.");
-	// collect the paths, cases and controls
-	ConcurrentSkipListSet<Path> concurrentPaths = buildConcurrentPaths(graph, numCasePaths, numCtrlPaths);
-	// number the FRs in whatever order they're in the set, into a map for parallel processing
-	ConcurrentHashMap<String,FrequentedRegion> concurrentFRMap = new ConcurrentHashMap<>();
-	int n = 0;
-	for (FrequentedRegion fr : frequentedRegions) {
-	    n++;
-	    concurrentFRMap.put("FR"+n, fr);
-	}
-	/////////////////////////////////////////////////////////
-	// now load pathFR strings for each FR in parallel
-	ConcurrentSkipListSet<String> pathFRStrings = new ConcurrentSkipListSet<>();
-	concurrentFRMap.entrySet().parallelStream().forEach(entry -> {
-		String frName = entry.getKey();
-		FrequentedRegion fr = entry.getValue();
-		String pathFR = frName;
-		for (Path path : concurrentPaths) {
-		    pathFR += "\t"+fr.countSubpathsOf(path);
-		}
-		pathFRStrings.add(pathFR);
-	    });
-	/////////////////////////////////////////////////////////
-	// output
-        PrintStream out = new PrintStream(getPathFRsFilename(inputPrefix));
-        boolean first = true;
-        for (Path path : concurrentPaths) {
-            if (first) {
-                first = false;
-            } else {
-                out.print("\t");
-            }
-            out.print(path.name+"."+path.label);
-        }
-        out.println("");
-	/////////////////////////////////////////////////////////
-	// output path FR strings in parallel
-	pathFRStrings.parallelStream().forEach(pathFR -> {
-		out.println(pathFR);
-	    });
-	/////////////////////////////////////////////////////////
-        out.close();
-    }
+    // public static void printPathFRs(String inputPrefix, int minSize, int minSupport, double maxPValue, int minPriority) throws IOException {
+    //     // load the graph
+    // 	PangenomicGraph graph = readGraph(inputPrefix);
+    // 	// load the frequented regions and update support in parallel
+    // 	TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(inputPrefix);
+    // 	frequentedRegions = pruneFrequentedRegions(frequentedRegions, minSize, minSupport, maxPValue, minPriority);
+    // 	System.err.println("FRUtils: "+frequentedRegions.size()+" FRs to be printed to pathfrs.txt file.");
+    // 	// collect the paths, cases and controls
+    // 	TreeSet<Path> concurrentPaths = buildConcurrentPaths(graph);
+    // 	// number the FRs in whatever order they're in the set, into a map for parallel processing
+    // 	ConcurrentHashMap<String,FrequentedRegion> concurrentFRMap = new ConcurrentHashMap<>();
+    // 	int n = 0;
+    // 	for (FrequentedRegion fr : frequentedRegions) {
+    // 	    n++;
+    // 	    concurrentFRMap.put("FR"+n, fr);
+    // 	}
+    // 	/////////////////////////////////////////////////////////
+    // 	// now load pathFR strings for each FR in parallel
+    // 	TreeSet<String> pathFRStrings = new TreeSet<>();
+    // 	concurrentFRMap.entrySet().parallelStream().forEach(entry -> {
+    // 		String frName = entry.getKey();
+    // 		FrequentedRegion fr = entry.getValue();
+    // 		String pathFR = frName;
+    // 		for (Path path : concurrentPaths) {
+    // 		    pathFR += "\t"+fr.countSubpathsOf(path);
+    // 		}
+    // 		pathFRStrings.add(pathFR);
+    // 	    });
+    // 	/////////////////////////////////////////////////////////
+    // 	// output
+    //     PrintStream out = new PrintStream(getPathFRsFilename(inputPrefix));
+    //     boolean first = true;
+    //     for (Path path : concurrentPaths) {
+    //         if (first) {
+    //             first = false;
+    //         } else {
+    //             out.print("\t");
+    //         }
+    //         out.print(path.name+"."+path.label);
+    //     }
+    //     out.println("");
+    // 	/////////////////////////////////////////////////////////
+    // 	// output path FR strings in parallel
+    // 	pathFRStrings.parallelStream().forEach(pathFR -> {
+    // 		out.println(pathFR);
+    // 	    });
+    // 	/////////////////////////////////////////////////////////
+    //     out.close();
+    // }
 
     /**
      * Print out the best (last per run) FRs from a combined run file. Uses a TreeSet to make sure they're distinct.
@@ -552,22 +488,39 @@ public class FRUtils {
      * [259,411,873,892]	4	100	23	77	0.299	4.76E-8	524 <== print this one
      */
     public static void printBestFRs(String inputPrefix) throws IOException {
+	PangenomicGraph graph = readGraph(inputPrefix);
+	double alpha = readAlpha(inputPrefix);
+	int kappa = readKappa(inputPrefix);
 	TreeSet<FrequentedRegion> sortedFRs = new TreeSet<>();
         String frFilename = getFRsFilename(inputPrefix);
         BufferedReader reader = new BufferedReader(new FileReader(frFilename));
 	String lastLine = null;
         String thisLine = null;
+	int count = 0;
         while ((thisLine=reader.readLine())!=null) {
 	    if (thisLine.startsWith("nodes")) {
 		if (lastLine!=null) {
-		    sortedFRs.add(new FrequentedRegion(lastLine));
+		    FrequentedRegion fr = new FrequentedRegion(graph, alpha, kappa, lastLine);
+		    fr.updateNodes();
+		    if (fr.containsNoCallNode()) {
+			count++;
+		    } else {
+			sortedFRs.add(fr);
+		    }
 		}
 		lastLine = null;
 	    } else {
 		lastLine = thisLine;
 	    }
 	}
-	sortedFRs.add(new FrequentedRegion(lastLine));
+	FrequentedRegion lastFR = new FrequentedRegion(graph, alpha, kappa, lastLine);
+	lastFR.updateNodes();
+	if (lastFR.containsNoCallNode()) {
+	    count++;
+	} else {
+	    sortedFRs.add(lastFR);
+	}
+	System.err.println("Removed "+count+" FRs with no-call nodes.");
 	// output
 	System.out.println("nodes\tsize\tsupport\tcase\tctrl\tOR\tp\tpri");
 	for (FrequentedRegion fr : sortedFRs) {
@@ -587,6 +540,10 @@ public class FRUtils {
         Option inputPrefixOption = new Option("i", "inputprefix", true, "prefix of input files (e.g. HLAA-0.1-Inf)");
         inputPrefixOption.setRequired(true);
         options.addOption(inputPrefixOption);
+        //
+        Option priorityOptionOption = new Option("pri", "priorityoption", true, "option for priority weighting of FRs: "+FrequentedRegion.PRIORITY_OPTIONS);
+        priorityOptionOption.setRequired(true);
+        options.addOption(priorityOptionOption);
 	//
 	Option postprocessOption = new Option("p", "postprocess", false, "postprocess by applying new minsup, minsize to an FR set given by inputprefix");
 	postprocessOption.setRequired(false);
@@ -656,19 +613,26 @@ public class FRUtils {
 	}
 
 	if (cmd.hasOption("svm")) {
-	    int numCasePaths = 0;
-	    int numCtrlPaths = 0;
+	    String[] parts = cmd.getOptionValue("priorityoption").split(":");
+	    int priorityOptionKey = Integer.parseInt(parts[0]);
+	    String priorityOptionLabel = null;
+	    if (parts.length>1) {
+		String priorityOptionParameter = parts[1];
+		if (priorityOptionParameter.equals("case") || priorityOptionParameter.equals("ctrl")) {
+		    priorityOptionLabel = priorityOptionParameter;
+		}
+	    }
+	    // impose defaults
+	    if (priorityOptionKey==1 && priorityOptionLabel==null) priorityOptionLabel = "case";
 	    int minSize = 0;
 	    int minSupport = 0;
 	    int minPriority = 0;
 	    double maxPValue = 1.0;
-	    if (cmd.hasOption("ncase")) numCasePaths = Integer.parseInt(cmd.getOptionValue("ncase"));
-	    if (cmd.hasOption("nctrl")) numCtrlPaths = Integer.parseInt(cmd.getOptionValue("nctrl"));
 	    if (cmd.hasOption("minsize")) minSize = Integer.parseInt(cmd.getOptionValue("minsize"));
 	    if (cmd.hasOption("minsupport")) minSupport = Integer.parseInt(cmd.getOptionValue("minsupport"));
 	    if (cmd.hasOption("maxpvalue")) maxPValue = Double.parseDouble(cmd.getOptionValue("maxpvalue"));
 	    if (cmd.hasOption("minpriority")) minPriority = Integer.parseInt(cmd.getOptionValue("minpriority"));
-	    printPathFRsSVM(inputPrefix, numCasePaths, numCtrlPaths, minSize, minSupport, maxPValue, minPriority);
+	    printPathFRsSVM(inputPrefix, priorityOptionKey, priorityOptionLabel, minSize, minSupport, maxPValue, minPriority);
 	}
 
 	if (cmd.hasOption("arff")) {
@@ -684,7 +648,7 @@ public class FRUtils {
 	    if (cmd.hasOption("minsupport")) minSupport = Integer.parseInt(cmd.getOptionValue("minsupport"));
 	    if (cmd.hasOption("maxpvalue")) maxPValue = Double.parseDouble(cmd.getOptionValue("maxpvalue"));
 	    if (cmd.hasOption("minpriority")) minPriority = Integer.parseInt(cmd.getOptionValue("minpriority"));
-	    printPathFRsARFF(inputPrefix, numCasePaths, numCtrlPaths, minSize, minSupport, maxPValue, minPriority);
+	    // printPathFRsARFF(inputPrefix, numCasePaths, numCtrlPaths, minSize, minSupport, maxPValue, minPriority);
 	}
 
 	if (cmd.hasOption("pathfrs")) {
@@ -700,7 +664,7 @@ public class FRUtils {
 	    if (cmd.hasOption("minsupport")) minSupport = Integer.parseInt(cmd.getOptionValue("minsupport"));
 	    if (cmd.hasOption("maxpvalue")) maxPValue = Double.parseDouble(cmd.getOptionValue("maxpvalue"));
 	    if (cmd.hasOption("minpriority")) minPriority = Integer.parseInt(cmd.getOptionValue("minpriority"));
-	    printPathFRs(inputPrefix, numCasePaths, numCtrlPaths, minSize, minSupport, maxPValue, minPriority);
+	    // printPathFRs(inputPrefix, numCasePaths, numCtrlPaths, minSize, minSupport, maxPValue, minPriority);
 	}
 
 	if (cmd.hasOption("extractbestfrs")) {
@@ -731,48 +695,43 @@ public class FRUtils {
     /**
      * Load a graph from a pair of TXT files along with checks on the number of case and control paths desired.
      */
-    static PangenomicGraph readGraph(String inputPrefix, int numCasePaths, int numCtrlPaths) throws FileNotFoundException, IOException {
+    static PangenomicGraph readGraph(String inputPrefix) throws FileNotFoundException, IOException {
 	PangenomicGraph graph = new PangenomicGraph();
 	graph.nodesFile = new File(getNodesFilename(inputPrefix));
 	graph.pathsFile = new File(getPathsFilename(inputPrefix)); 
 	graph.loadTXT();
 	graph.tallyLabelCounts();
-	// check on numCasePaths, numCtrlPaths if nonzero
-	if (numCasePaths>graph.labelCounts.get("case")) {
-	    System.err.println("FRUtils ERROR: numCasePaths > "+graph.labelCounts.get("case")+" cases.");
-	    System.exit(1);
-	}
-	if (numCtrlPaths>graph.labelCounts.get("ctrl")) {
-	    System.err.println("FRUtils ERROR: numCtrlPaths > "+graph.labelCounts.get("ctrl")+" controls.");
-	    System.exit(1);
-	}
         return graph;
     }
 
     /**
      * Prune a TreeSet of FrequentedRegions based on size, support, p-value and priority.
      */
-    public static TreeSet<FrequentedRegion> pruneFrequentedRegions(TreeSet<FrequentedRegion> frequentedRegions, int minSize, int minSupport, double maxPValue, int minPriority) {
-	frequentedRegions = removeNoCalls(frequentedRegions);
-        frequentedRegions = pruneOnSize(frequentedRegions, minSize);
-        frequentedRegions = pruneOnSupport(frequentedRegions, minSupport);
-        frequentedRegions = pruneOnPValue(frequentedRegions, maxPValue);
-        frequentedRegions = pruneOnPriority(frequentedRegions, minPriority);
-	return frequentedRegions;
+    public static TreeSet<FrequentedRegion> pruneFrequentedRegions(TreeSet<FrequentedRegion> frequentedRegions,
+										 int minSize, int minSupport, double maxPValue, int minPriority) {
+	TreeSet<FrequentedRegion> frNoCalls = removeNoCalls(frequentedRegions);
+	TreeSet<FrequentedRegion> frMinSize = pruneOnSize(frNoCalls, minSize);
+        TreeSet<FrequentedRegion> frMinSupport = pruneOnSupport(frMinSize, minSupport);
+        TreeSet<FrequentedRegion> frPValue = pruneOnPValue(frMinSupport, maxPValue);
+        TreeSet<FrequentedRegion> frPriority = pruneOnPriority(frPValue, minPriority);
+	return frPriority;
     }
 
     /**
      * Remove FRs with no-call nodes.
      */
     static TreeSet<FrequentedRegion> removeNoCalls(TreeSet<FrequentedRegion> frequentedRegions) {
-        List<FrequentedRegion> frsToRemove = new LinkedList<>();
+        TreeSet<FrequentedRegion> prunedFRs = new TreeSet<>();
+	int count = 0;
         for (FrequentedRegion fr : frequentedRegions) {
             fr.updateNodes();
-            if (fr.containsNoCallNode()) frsToRemove.add(fr);
+            if (fr.containsNoCallNode()) {
+		count++;
+	    } else {
+		prunedFRs.add(fr);
+	    }
         }
-        TreeSet<FrequentedRegion> prunedFRs = new TreeSet<>(frequentedRegions);
-        prunedFRs.removeAll(frsToRemove);
-        System.err.println("FRUtils removed "+frsToRemove.size()+" FRs with no-call nodes.");
+        System.err.println("Removed "+count+" FRs with no-call nodes.");
         return prunedFRs;
     }    
 
@@ -781,13 +740,16 @@ public class FRUtils {
      */
     static TreeSet<FrequentedRegion> pruneOnSize(TreeSet<FrequentedRegion> frequentedRegions, int minSize) {
         if (minSize<=1) return frequentedRegions;
-        List<FrequentedRegion> frsToRemove = new LinkedList<>();
+	TreeSet<FrequentedRegion> prunedFRs = new TreeSet<>();
+	int count = 0;
         for (FrequentedRegion fr : frequentedRegions) {
-            if (fr.size<minSize) frsToRemove.add(fr);
+            if (fr.size<minSize) {
+		count++;
+	    } else {
+		prunedFRs.add(fr);
+	    }
         }
-        TreeSet<FrequentedRegion> prunedFRs = new TreeSet<>(frequentedRegions);
-        prunedFRs.removeAll(frsToRemove);
-        System.err.println("FRUtils removed "+frsToRemove.size()+" FRs with size<"+minSize);
+        System.err.println("Removed "+count+" FRs with size<"+minSize);
         return prunedFRs;
     }
 
@@ -796,13 +758,16 @@ public class FRUtils {
      */
     static TreeSet<FrequentedRegion> pruneOnSupport(TreeSet<FrequentedRegion> frequentedRegions, int minSupport) {
         if (minSupport<=1) return frequentedRegions;
-        List<FrequentedRegion> frsToRemove = new LinkedList<>();
+	TreeSet<FrequentedRegion> prunedFRs = new TreeSet<>();
+	int count = 0;
         for (FrequentedRegion fr : frequentedRegions) {
-            if (fr.support<minSupport) frsToRemove.add(fr);
+            if (fr.support<minSupport) {
+		count++;
+	    } else {
+		prunedFRs.add(fr);
+	    }
         }
-        TreeSet<FrequentedRegion> prunedFRs = new TreeSet<>(frequentedRegions);
-        prunedFRs.removeAll(frsToRemove);
-        System.err.println("FRUtils removed "+frsToRemove.size()+" FRs with support<"+minSupport);
+        System.err.println("Removed "+count+" FRs with support<"+minSupport);
         return prunedFRs;
     }
 
@@ -811,13 +776,16 @@ public class FRUtils {
      */
     static TreeSet<FrequentedRegion> pruneOnPValue(TreeSet<FrequentedRegion> frequentedRegions, double maxPValue) {
     	if (maxPValue>=1.0) return frequentedRegions;
-        List<FrequentedRegion> frsToRemove = new LinkedList<>();
+	TreeSet<FrequentedRegion> prunedFRs = new TreeSet<>();
+	int count = 0;
         for (FrequentedRegion fr : frequentedRegions) {
-            if (fr.pValue>maxPValue) frsToRemove.add(fr);
+            if (fr.pValue>maxPValue) {
+		count++;
+	    } else {
+		prunedFRs.add(fr);
+	    }
         }
-        TreeSet<FrequentedRegion> prunedFRs = new TreeSet<>(frequentedRegions);
-        prunedFRs.removeAll(frsToRemove);
-        System.err.println("FRUtils removed "+frsToRemove.size()+" FRs with p>"+maxPValue);
+        System.err.println("Removed "+count+" FRs with p>"+maxPValue);
         return prunedFRs;
     }
 
@@ -826,63 +794,38 @@ public class FRUtils {
      */
     static TreeSet<FrequentedRegion> pruneOnPriority(TreeSet<FrequentedRegion> frequentedRegions, int minPriority) {
         if (minPriority<1) return frequentedRegions;
-        List<FrequentedRegion> frsToRemove = new LinkedList<>();
+	TreeSet<FrequentedRegion> prunedFRs = new TreeSet<>();
+	int count = 0;
         for (FrequentedRegion fr : frequentedRegions) {
-            if (fr.priority<minPriority) frsToRemove.add(fr);
+            if (fr.priority<minPriority) {
+		count++;
+	    } else {
+		prunedFRs.add(fr);
+	    }
         }
-        TreeSet<FrequentedRegion> prunedFRs = new TreeSet<>(frequentedRegions);
-        prunedFRs.removeAll(frsToRemove);
-        System.err.println("FRUtils removed "+frsToRemove.size()+" FRs with priority<"+minPriority);
+        System.err.println("Removed "+count+" FRs with priority<"+minPriority);
         return prunedFRs;
     }
 
     /**
-     * Build a ConcurrentSkipListSet of paths according to the given filters.
+     * Build a TreeSet of paths from the given graph.
      */
-    static ConcurrentSkipListSet<Path> buildConcurrentPaths(PangenomicGraph graph, int numCasePaths, int numCtrlPaths) {
+    static ConcurrentSkipListSet<Path> buildConcurrentPaths(PangenomicGraph graph) {
 	ConcurrentSkipListSet<Path> concurrentPaths = new ConcurrentSkipListSet<>();
 	int nCases = 0;
-	if (numCasePaths==0) {
-	    // select all case paths
-	    for (Path path : graph.paths) {
-		if (path.isCase()) {
-		    nCases++;
-		    concurrentPaths.add(path);
-		}
-	    }
-	} else {
-	    // randomly select case paths
-	    while (nCases<numCasePaths) {
-		Optional<Path> optional = graph.paths.stream().skip((int)(graph.paths.size()*Math.random())).findFirst();
-		if (optional.isPresent()) {
-		    Path path = optional.get();
-		    if (path.isCase() && !concurrentPaths.contains(path)) {
-			nCases++;
-			concurrentPaths.add(path);
-		    }
-		}
+	// select all case paths
+	for (Path path : graph.paths) {
+	    if (path.isCase()) {
+		nCases++;
+		concurrentPaths.add(path);
 	    }
 	}
 	int nControls = 0;
-	if (numCtrlPaths==0) {
-	    // select all control paths
-	    for (Path path : graph.paths) {
-		if (path.isControl()) {
-		    nControls++;
-		    concurrentPaths.add(path);
-		}
-	    }
-	} else {
-	    // randomly select control paths
-	    while (nControls<numCtrlPaths) {
-		Optional<Path> optional = graph.paths.stream().skip((int)(graph.paths.size()*Math.random())).findFirst();
-		if (optional.isPresent()) {
-		    Path path = optional.get();
-		    if (path.isControl() && !concurrentPaths.contains(path)) {
-			nControls++;
-			concurrentPaths.add(path);
-		    }
-		}
+	// select all control paths
+	for (Path path : graph.paths) {
+	    if (path.isControl()) {
+		nControls++;
+		concurrentPaths.add(path);
 	    }
 	}
         return concurrentPaths;

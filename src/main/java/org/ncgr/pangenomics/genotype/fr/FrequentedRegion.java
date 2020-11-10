@@ -158,6 +158,7 @@ class FrequentedRegion implements Comparable {
 
     /**
      * Construct given only the pieces in the FR.toString() output (and alpha, kappa).
+     * NOTE: does not update.
      */
     FrequentedRegion(NodeSet nodes, double alpha, int kappa, int support, int caseSubpathSupport, int ctrlSubpathSupport, double orValue, double pValue, int priority) {
         this.nodes = nodes;
@@ -173,12 +174,18 @@ class FrequentedRegion implements Comparable {
     }
 
     /**
-     * Construct given a line in an frs.txt output file.
+     * Construct given a graph, alpha and kappa, and a line from an frs.txt file.
+     * Note: does NOT update(); uses p-value, OR value and priority from file input. (These are rounded from true values.)
+     *
      * 0nodes         1size 2support 3case 4ctrl 5OR    6p        7pri
      * [711,786,891]  3     104	     2     102   0.020  3.25E-28  1707
      */
-    FrequentedRegion(String line) {
+    FrequentedRegion(PangenomicGraph graph, double alpha, int kappa, String line) {
 	if (line.startsWith("[")) {
+	    this.graph = graph;
+	    this.alpha = alpha;
+	    this.kappa = kappa;
+	    // the line values
 	    String[] fields = line.split("\t");
 	    this.nodes = new NodeSet(fields[0]);
 	    this.size = Integer.parseInt(fields[1]);
@@ -192,6 +199,32 @@ class FrequentedRegion implements Comparable {
 	    }
 	    this.pValue = Double.parseDouble(fields[6]);
 	    this.priority = Integer.parseInt(fields[7]);
+	}
+    }
+
+    /**
+     * Construct given a line in an frs.txt output file. Runs update() to get true double-valued p and OR.
+     *
+     * 0nodes         1size 2support 3case 4ctrl 5OR    6p        7pri
+     * [711,786,891]  3     104	     2     102   0.020  3.25E-28  1707
+     */
+    FrequentedRegion(PangenomicGraph graph, double alpha, int kappa, int priorityOptionKey, String priorityOptionLabel, String line) {
+	if (line.startsWith("[")) {
+	    this.graph = graph;
+	    this.alpha = alpha;
+	    this.kappa = kappa;
+	    // the line values
+	    String[] fields = line.split("\t");
+	    this.nodes = new NodeSet(fields[0]);
+	    this.size = Integer.parseInt(fields[1]);
+	    this.support = Integer.parseInt(fields[2]);
+	    this.caseSubpathSupport = Integer.parseInt(fields[3]);
+	    this.ctrlSubpathSupport = Integer.parseInt(fields[4]);
+	    // set the priority option
+	    this.priorityOptionKey = priorityOptionKey;
+	    this.priorityOptionLabel = priorityOptionLabel;
+	    // run update() to get exact p-value and OR values without roundoff from reading in.
+	    update();
 	}
     }
 
@@ -314,6 +347,8 @@ class FrequentedRegion implements Comparable {
      */
     void updatePriority() {
         priority = 0;
+	pValue = fisherExactP();
+	orValue = oddsRatio();
         if (priorityOptionKey==0) {
 	    // support
 	    if (priorityOptionLabel==null) {
@@ -345,7 +380,7 @@ class FrequentedRegion implements Comparable {
             } else if (caseSubpathSupport==0 && ctrlSubpathSupport>0) {
 		priority = -2*mult;                    // set OR=1/100
             } else {
-                double log10OR = Math.log10(oddsRatio());
+                double log10OR = Math.log10(orValue);
 		priority = (int)(log10OR*mult);
 	    }
 	    if (priorityOptionLabel==null) {
@@ -355,7 +390,7 @@ class FrequentedRegion implements Comparable {
 	    }
 	} else if (priorityOptionKey==4) {
 	    // p-value
-	    double mlog10p = -Math.log10(fisherExactP());
+	    double mlog10p = -Math.log10(pValue);
             priority = (int)(mlog10p*100);
         } else {
 	    throwPriorityOptionError();

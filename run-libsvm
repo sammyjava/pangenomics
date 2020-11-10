@@ -1,16 +1,17 @@
 #!/bin/bash
 
 INPUTPREFIX=$1
+MINPRIORITY=$2
+
 SVMFILE="$INPUTPREFIX.svm.txt"
 RANGE="$INPUTPREFIX.svm.range.txt"
 FULLSCALE="$INPUTPREFIX.svm.scale.txt"
 
 ## SVM file building parameters
-NUMCASEPATHS=0
-NUMCTRLPATHS=0
 MINSIZE=0
 MINSUPPORT=100
-MINPRIORITY=1
+PRIORITYOPTION=3
+#MINPRIORITY=1
 
 ## grid scan
 GRIDOUT="$INPUTPREFIX.svm.grid.txt"
@@ -36,12 +37,17 @@ NSVMCONTROLS=0
 #rm -f $GRIDOUT
 #####################################
 
+## TEMP to try different MINPRIORITY values
+echo "DELETING $SVMFILE and $FULLSCALE"
+rm $SVMFILE
+rm $FULLSCALE
+
 ## write the SVM file
 if [ ! -s $SVMFILE ]
 then
-    echo "Writing $SVMFILE with -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -s $MINSIZE -m $MINSUPPORT -minp $MINPRIORITY"
+    echo "Writing $SVMFILE with -s $MINSIZE -m $MINSUPPORT -pri $PRIORITYOPTION --minpriority $MINPRIORITY"
     java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils \
-	 -svm -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -s $MINSIZE -m $MINSUPPORT -minp $MINPRIORITY
+	 -svm -i $INPUTPREFIX -s $MINSIZE -m $MINSUPPORT -pri $PRIORITYOPTION -mpri $MINPRIORITY
 fi
 
 ## scale the SVM data
