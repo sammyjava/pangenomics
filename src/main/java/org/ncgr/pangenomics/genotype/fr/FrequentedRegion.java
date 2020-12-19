@@ -73,6 +73,9 @@ class FrequentedRegion implements Comparable {
     double pValue = Double.NEGATIVE_INFINITY;
     double orValue = Double.NEGATIVE_INFINITY;
 
+    // a number used to label FRs for easy usage, assigned when needed
+    int number = 0;
+
     /**
      * Construct given a PangenomicGraph, NodeSet and alpha and kappa parameters.
      */

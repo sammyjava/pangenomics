@@ -13,6 +13,7 @@ import java.io.PrintStream;
 
 import java.text.DecimalFormat;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.LinkedList;
 import java.util.Map;
@@ -23,7 +24,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.stream.Collectors;
 
@@ -86,7 +87,7 @@ public class FRUtils {
 
     /**
      * Read FRs from the text file written by an FR run, but leaving support, OR, p, priority at the values in the file.
-     * This method does NOT populate the FR subpaths.
+     * This method does NOT populate the FR subpaths. It assigns a number to each FR in TreeSet order.
      *
      * nodes   size    support case    ctrl    OR      p       pri
      * [1341]  1       21      19      2       9.500   9.48E-3 202
@@ -109,6 +110,10 @@ public class FRUtils {
 		frs.add(fr);
 	    }
 	}
+        int number = 0;
+        for (FrequentedRegion fr : frs) {
+            fr.number = number++;
+        }
 	System.err.println("Loaded "+frs.size()+" unique FRs from "+inputPrefix);
 	return frs;
     }
@@ -316,7 +321,7 @@ public class FRUtils {
         ConcurrentSkipListSet<Path> concurrentPaths = buildConcurrentPaths(graph);
 	///////////////////////////////////////////////////////
 	// build the SVM strings in parallel
-	ConcurrentHashMap<String,String> pathSVM = new ConcurrentHashMap<>();
+	ConcurrentSkipListMap<String,String> pathSVM = new ConcurrentSkipListMap<>();
 	concurrentPaths.parallelStream().forEach(path -> {
 		String svm = path.label;
 		int c  = 0;
@@ -374,7 +379,7 @@ public class FRUtils {
         ConcurrentSkipListSet<Path> concurrentPaths = buildConcurrentPaths(graph);
     	/////////////////////////////////////////////////////////
     	// now load pathARFF for selected paths in parallel
-    	ConcurrentHashMap<String,String> pathARFF = new ConcurrentHashMap<>();
+    	ConcurrentSkipListMap<String,String> pathARFF = new ConcurrentSkipListMap<>();
     	concurrentPaths.parallelStream().forEach(path -> {
     		String arff = "";
     		for (FrequentedRegion fr : prunedFRs) {
@@ -433,13 +438,12 @@ public class FRUtils {
     	// collect the paths, cases and controls
     	ConcurrentSkipListSet<Path> concurrentPaths = buildConcurrentPaths(graph);
         // build a map of FR# labels to FR for row labels
-    	ConcurrentHashMap<String,FrequentedRegion> concurrentFRMap = new ConcurrentHashMap<>();
-    	int n = 0;
+    	ConcurrentSkipListMap<String,FrequentedRegion> concurrentFRMap = new ConcurrentSkipListMap<>();
     	for (FrequentedRegion fr : prunedFRs) {
-    	    n++;
-    	    concurrentFRMap.put("FR"+n, fr);
+            String frLabel = "FR"+fr.number;
+    	    concurrentFRMap.put(frLabel, fr);
     	}
-    	/////////////////////////////////////////////////////////
+  	/////////////////////////////////////////////////////////
     	// now load pathFR strings for each FR in parallel
     	TreeSet<String> pathFRStrings = new TreeSet<>();
     	concurrentFRMap.entrySet().parallelStream().forEach(entry -> {
@@ -471,6 +475,55 @@ public class FRUtils {
     	    });
     	/////////////////////////////////////////////////////////
         out.close();
+    }
+
+    /**
+     * Calculate and print out polynomial risk scores per sample from FR support and odds ratio.
+     */
+    public static void calculatePRS(String inputPrefix, int priorityOptionKey, String priorityOptionLabel, int minSize, int minSupport, double maxPValue, int minPriority) throws IOException {
+    	PangenomicGraph graph = readGraph(inputPrefix);
+    	// read the FRs from files
+    	TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(graph, inputPrefix, priorityOptionKey, priorityOptionLabel);
+        // prune the FRs
+        ConcurrentSkipListSet<FrequentedRegion> concurrentFRs = new ConcurrentSkipListSet<>(pruneFrequentedRegions(frequentedRegions, minSize, minSupport, maxPValue, minPriority));
+    	System.err.println(concurrentFRs.size()+" FRs to be processed for polygenic risk scores.");
+    	// collect the paths, cases and controls
+        ConcurrentSkipListSet<Path> concurrentPaths = buildConcurrentPaths(graph);
+    	ConcurrentSkipListMap<Path,Integer> concurrentPathSupport = new ConcurrentSkipListMap<>(); // stores sum of support
+        ConcurrentSkipListMap<Path,Double> concurrentPathPRS = new ConcurrentSkipListMap<>();      // stores PRS
+  	/////////////////////////////////////////////////////////
+        // initialize the result maps
+        concurrentPaths.parallelStream().forEach(path -> {
+                concurrentPathSupport.put(path, 0);
+                concurrentPathPRS.put(path, 0.0);
+            });
+  	/////////////////////////////////////////////////////////
+  	/////////////////////////////////////////////////////////
+        // build the support and PRS values
+        concurrentFRs.parallelStream().forEach(fr -> {
+                double logOR = Math.log(fr.oddsRatio());
+                concurrentPaths.parallelStream().forEach(path -> {
+                        int prevSupport = concurrentPathSupport.get(path);
+                        double prevPRS = concurrentPathPRS.get(path);
+                        int support = fr.countSubpathsOf(path);
+                        double deltaPRS = support*logOR;
+                        concurrentPathSupport.put(path, prevSupport+support);
+                        concurrentPathPRS.put(path, prevPRS+deltaPRS);
+                    });
+            });
+    	/////////////////////////////////////////////////////////
+    	/////////////////////////////////////////////////////////
+        // divide the PRS sums by total support
+        concurrentPaths.parallelStream().forEach(path -> {
+                int totalSupport = concurrentPathSupport.get(path);
+                double totalPRS = concurrentPathPRS.get(path);
+                concurrentPathPRS.put(path, totalPRS/totalSupport);
+            });
+        /////////////////////////////////////////////////////////
+    	// output
+        for (Path path : concurrentPathPRS.keySet()) {
+            System.out.println(path.name+"."+path.label+"\t"+concurrentPathSupport.get(path)+"\t"+concurrentPathPRS.get(path));
+        }
     }
 
     /**
@@ -587,6 +640,10 @@ public class FRUtils {
 	Option extractBestFRsOption = new Option("extractbest", "extractbestfrs", false, "extract the best (last) FRs from a file containing many runs, each starting with the heading line");
 	extractBestFRsOption.setRequired(false);
 	options.addOption(extractBestFRsOption);
+        //
+        Option prsOption = new Option("prs", "prs", false, "generate polynomial risk scores from FRFinder output");
+        prsOption.setRequired(false);
+        options.addOption(prsOption);
 
         try {
             cmd = parser.parse(options, args);
@@ -611,7 +668,7 @@ public class FRUtils {
 	    postprocess(inputPrefix, minSupport, minSize);
 	}
 
-	if (cmd.hasOption("svm") || cmd.hasOption("arff") || cmd.hasOption("pathfrs")) {
+	if (cmd.hasOption("svm") || cmd.hasOption("arff") || cmd.hasOption("pathfrs") || cmd.hasOption("prs")) {
 	    String[] parts = cmd.getOptionValue("priorityoption").split(":");
 	    int priorityOptionKey = Integer.parseInt(parts[0]);
 	    String priorityOptionLabel = null;
@@ -637,6 +694,8 @@ public class FRUtils {
                 printPathFRsARFF(inputPrefix, priorityOptionKey, priorityOptionLabel, minSize, minSupport, maxPValue, minPriority);
             } else if (cmd.hasOption("pathfrs")) {
                 printPathFRs(inputPrefix, priorityOptionKey, priorityOptionLabel, minSize, minSupport, maxPValue, minPriority);
+            } else if (cmd.hasOption("prs")) {
+                calculatePRS(inputPrefix, priorityOptionKey, priorityOptionLabel, minSize, minSupport, maxPValue, minPriority);
             }
         }
 
@@ -668,7 +727,7 @@ public class FRUtils {
     /**
      * Load a graph from a pair of TXT files along with checks on the number of case and control paths desired.
      */
-    static PangenomicGraph readGraph(String inputPrefix) throws FileNotFoundException, IOException {
+    public static PangenomicGraph readGraph(String inputPrefix) throws FileNotFoundException, IOException {
 	PangenomicGraph graph = new PangenomicGraph();
 	graph.nodesFile = new File(getNodesFilename(inputPrefix));
 	graph.pathsFile = new File(getPathsFilename(inputPrefix)); 
@@ -676,7 +735,7 @@ public class FRUtils {
 	graph.tallyLabelCounts();
         return graph;
     }
-
+    
     /**
      * Prune a TreeSet of FrequentedRegions based on size, support, p-value and priority.
      */
