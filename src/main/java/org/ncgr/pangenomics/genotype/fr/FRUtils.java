@@ -324,7 +324,7 @@ public class FRUtils {
 		    c++;
 		    svm += "\t"+c+":"+fr.countSubpathsOf(path);
 		}
-		pathSVM.put(path.name,svm);
+		pathSVM.put(path.name, svm);
 	    });
 	///////////////////////////////////////////////////////
 	// sort by SVM string
@@ -363,56 +363,55 @@ public class FRUtils {
      *
      * This also allows pruning on size, support, and p-value.
      */
-    // public static void printPathFRsARFF(String inputPrefix, int minSize, int minSupport, double maxPValue, int minPriority) throws IOException {
-    //     // load the graph
-    // 	PangenomicGraph graph = readGraph(inputPrefix);
-    // 	// load the frequented regions and update support in parallel
-    // 	TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(inputPrefix, graph);
-    // 	frequentedRegions = pruneFrequentedRegions(frequentedRegions, minSize, minSupport, maxPValue, minPriority);
-    // 	System.err.println("FRUtils: "+frequentedRegions.size()+" FRs to be printed to ARFF file.");
-    // 	// collect the paths, cases and controls
-    //     TreeSet<Path> concurrentPaths = buildConcurrentPaths(graph);
-    // 	/////////////////////////////////////////////////////////
-    // 	// now load pathARFF for selected paths in parallel
-    // 	ConcurrentHashMap<String,String> pathARFF = new ConcurrentHashMap<>();
-    //     TreeSet<FrequentedRegion> concurrentFRs = new TreeSet<>(frequentedRegions);
-    // 	concurrentPaths.parallelStream().forEach(path -> {
-    // 		String arff = "";
-    // 		for (FrequentedRegion fr : concurrentFRs) {
-    // 		    arff += fr.countSubpathsOf(path)+",";
-    // 		}
-    // 		arff += path.label;
-    // 		pathARFF.put(path.name, arff);
-    // 	    });
-    // 	/////////////////////////////////////////////////////////
-    // 	// sort by ARFF string
-    // 	LinkedHashMap<String,String> sortedPathARFF = new LinkedHashMap<>();
-    // 	pathARFF.entrySet().stream().sorted(Map.Entry.comparingByValue()).forEachOrdered(x->sortedPathARFF.put(x.getKey(),x.getValue()));
-    // 	// ARFF output	
-    //     PrintStream out = new PrintStream(FRUtils.getPathFRsARFFFilename(inputPrefix));
-    //     out.println("@RELATION "+inputPrefix);
-    //     out.println("");
-    //     // attributes: path ID
-    //     out.println("@ATTRIBUTE ID STRING");
-    //     // attributes: each FR is labeled FRn
-    //     int c = 0;
-    //     for (FrequentedRegion fr : frequentedRegions) {
-    //         c++;
-    //         String frLabel = "FR"+c;
-    //         out.println("@ATTRIBUTE "+frLabel+" NUMERIC");
-    //     }
-    //     // add the class attribute
-    //     out.println("@ATTRIBUTE class {ctrl,case}");
-    //     out.println("");
-    //     // data
-    //     out.println("@DATA");
-    //     for (String name : sortedPathARFF.keySet()) {
-    // 	    String paddedName = name;
-    // 	    if (name.length()<6) paddedName = "0" + name; // special hack for 6-digit samples
-    //         out.println(paddedName+","+sortedPathARFF.get(name));
-    //     }
-    //     out.close();
-    // }
+    public static void printPathFRsARFF(String inputPrefix, int priorityOptionKey, String priorityOptionLabel, int minSize, int minSupport, double maxPValue, int minPriority) throws IOException {
+    	PangenomicGraph graph = readGraph(inputPrefix);
+    	// read the FRs from files
+    	TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(graph, inputPrefix, priorityOptionKey, priorityOptionLabel);
+        // prune the FRs
+        TreeSet<FrequentedRegion> prunedFRs = pruneFrequentedRegions(frequentedRegions, minSize, minSupport, maxPValue, minPriority);
+    	System.err.println(prunedFRs.size()+" FRs to be printed to ARFF file.");
+    	// collect the paths, cases and controls
+        ConcurrentSkipListSet<Path> concurrentPaths = buildConcurrentPaths(graph);
+    	/////////////////////////////////////////////////////////
+    	// now load pathARFF for selected paths in parallel
+    	ConcurrentHashMap<String,String> pathARFF = new ConcurrentHashMap<>();
+    	concurrentPaths.parallelStream().forEach(path -> {
+    		String arff = "";
+    		for (FrequentedRegion fr : prunedFRs) {
+    		    arff += fr.countSubpathsOf(path)+",";
+    		}
+    		arff += path.label;
+    		pathARFF.put(path.name, arff);
+    	    });
+    	/////////////////////////////////////////////////////////
+    	// sort by ARFF string
+    	LinkedHashMap<String,String> sortedPathARFF = new LinkedHashMap<>();
+    	pathARFF.entrySet().stream().sorted(Map.Entry.comparingByValue()).forEachOrdered(x->sortedPathARFF.put(x.getKey(),x.getValue()));
+    	// ARFF output	
+        PrintStream out = new PrintStream(FRUtils.getPathFRsARFFFilename(inputPrefix));
+        out.println("@RELATION "+inputPrefix);
+        out.println("");
+        // attributes: path ID
+        out.println("@ATTRIBUTE ID STRING");
+        // attributes: each FR is labeled FRn
+        int c = 0;
+        for (FrequentedRegion fr : frequentedRegions) {
+            c++;
+            String frLabel = "FR"+c;
+            out.println("@ATTRIBUTE "+frLabel+" NUMERIC");
+        }
+        // add the class attribute
+        out.println("@ATTRIBUTE class {ctrl,case}");
+        out.println("");
+        // data
+        out.println("@DATA");
+        for (String name : sortedPathARFF.keySet()) {
+    	    String paddedName = name;
+    	    if (name.length()<6) paddedName = "0" + name; // special hack for 6-digit samples
+            out.println(paddedName+","+sortedPathARFF.get(name));
+        }
+        out.close();
+    }
 
     /**
      * Print the (labeled) path FR support in TXT format for the given number of case and control paths (0 for all).
@@ -424,55 +423,55 @@ public class FRUtils {
      *
      * This also allows pruning on size, support, and p-value.
      */
-    // public static void printPathFRs(String inputPrefix, int minSize, int minSupport, double maxPValue, int minPriority) throws IOException {
-    //     // load the graph
-    // 	PangenomicGraph graph = readGraph(inputPrefix);
-    // 	// load the frequented regions and update support in parallel
-    // 	TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(inputPrefix);
-    // 	frequentedRegions = pruneFrequentedRegions(frequentedRegions, minSize, minSupport, maxPValue, minPriority);
-    // 	System.err.println("FRUtils: "+frequentedRegions.size()+" FRs to be printed to pathfrs.txt file.");
-    // 	// collect the paths, cases and controls
-    // 	TreeSet<Path> concurrentPaths = buildConcurrentPaths(graph);
-    // 	// number the FRs in whatever order they're in the set, into a map for parallel processing
-    // 	ConcurrentHashMap<String,FrequentedRegion> concurrentFRMap = new ConcurrentHashMap<>();
-    // 	int n = 0;
-    // 	for (FrequentedRegion fr : frequentedRegions) {
-    // 	    n++;
-    // 	    concurrentFRMap.put("FR"+n, fr);
-    // 	}
-    // 	/////////////////////////////////////////////////////////
-    // 	// now load pathFR strings for each FR in parallel
-    // 	TreeSet<String> pathFRStrings = new TreeSet<>();
-    // 	concurrentFRMap.entrySet().parallelStream().forEach(entry -> {
-    // 		String frName = entry.getKey();
-    // 		FrequentedRegion fr = entry.getValue();
-    // 		String pathFR = frName;
-    // 		for (Path path : concurrentPaths) {
-    // 		    pathFR += "\t"+fr.countSubpathsOf(path);
-    // 		}
-    // 		pathFRStrings.add(pathFR);
-    // 	    });
-    // 	/////////////////////////////////////////////////////////
-    // 	// output
-    //     PrintStream out = new PrintStream(getPathFRsFilename(inputPrefix));
-    //     boolean first = true;
-    //     for (Path path : concurrentPaths) {
-    //         if (first) {
-    //             first = false;
-    //         } else {
-    //             out.print("\t");
-    //         }
-    //         out.print(path.name+"."+path.label);
-    //     }
-    //     out.println("");
-    // 	/////////////////////////////////////////////////////////
-    // 	// output path FR strings in parallel
-    // 	pathFRStrings.parallelStream().forEach(pathFR -> {
-    // 		out.println(pathFR);
-    // 	    });
-    // 	/////////////////////////////////////////////////////////
-    //     out.close();
-    // }
+    public static void printPathFRs(String inputPrefix, int priorityOptionKey, String priorityOptionLabel, int minSize, int minSupport, double maxPValue, int minPriority) throws IOException {
+    	PangenomicGraph graph = readGraph(inputPrefix);
+    	// read the FRs from files
+    	TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(graph, inputPrefix, priorityOptionKey, priorityOptionLabel);
+        // prune the FRs
+        TreeSet<FrequentedRegion> prunedFRs = pruneFrequentedRegions(frequentedRegions, minSize, minSupport, maxPValue, minPriority);
+    	System.err.println(prunedFRs.size()+" FRs to be printed to pathfrs.txt file.");
+    	// collect the paths, cases and controls
+    	ConcurrentSkipListSet<Path> concurrentPaths = buildConcurrentPaths(graph);
+        // build a map of FR# labels to FR for row labels
+    	ConcurrentHashMap<String,FrequentedRegion> concurrentFRMap = new ConcurrentHashMap<>();
+    	int n = 0;
+    	for (FrequentedRegion fr : prunedFRs) {
+    	    n++;
+    	    concurrentFRMap.put("FR"+n, fr);
+    	}
+    	/////////////////////////////////////////////////////////
+    	// now load pathFR strings for each FR in parallel
+    	TreeSet<String> pathFRStrings = new TreeSet<>();
+    	concurrentFRMap.entrySet().parallelStream().forEach(entry -> {
+    		String frName = entry.getKey();
+    		FrequentedRegion fr = entry.getValue();
+    		String pathFR = frName;
+    		for (Path path : concurrentPaths) {
+    		    pathFR += "\t"+fr.countSubpathsOf(path);
+    		}
+    		pathFRStrings.add(pathFR);
+    	    });
+    	/////////////////////////////////////////////////////////
+    	// output
+        PrintStream out = new PrintStream(getPathFRsFilename(inputPrefix));
+        boolean first = true;
+        for (Path path : concurrentPaths) {
+            if (first) {
+                first = false;
+            } else {
+                out.print("\t");
+            }
+            out.print(path.name+"."+path.label);
+        }
+        out.println("");
+    	/////////////////////////////////////////////////////////
+    	// output path FR strings in parallel
+    	pathFRStrings.parallelStream().forEach(pathFR -> {
+    		out.println(pathFR);
+    	    });
+    	/////////////////////////////////////////////////////////
+        out.close();
+    }
 
     /**
      * Print out the best (last per run) FRs from a combined run file. Uses a TreeSet to make sure they're distinct.
@@ -612,7 +611,7 @@ public class FRUtils {
 	    postprocess(inputPrefix, minSupport, minSize);
 	}
 
-	if (cmd.hasOption("svm")) {
+	if (cmd.hasOption("svm") || cmd.hasOption("arff") || cmd.hasOption("pathfrs")) {
 	    String[] parts = cmd.getOptionValue("priorityoption").split(":");
 	    int priorityOptionKey = Integer.parseInt(parts[0]);
 	    String priorityOptionLabel = null;
@@ -632,40 +631,14 @@ public class FRUtils {
 	    if (cmd.hasOption("minsupport")) minSupport = Integer.parseInt(cmd.getOptionValue("minsupport"));
 	    if (cmd.hasOption("maxpvalue")) maxPValue = Double.parseDouble(cmd.getOptionValue("maxpvalue"));
 	    if (cmd.hasOption("minpriority")) minPriority = Integer.parseInt(cmd.getOptionValue("minpriority"));
-	    printPathFRsSVM(inputPrefix, priorityOptionKey, priorityOptionLabel, minSize, minSupport, maxPValue, minPriority);
-	}
-
-	if (cmd.hasOption("arff")) {
-	    int numCasePaths = 0;
-	    int numCtrlPaths = 0;
-	    int minSize = 0;
-	    int minSupport = 0;
-	    int minPriority = 0;
-	    double maxPValue = 1.0;
-	    if (cmd.hasOption("ncase")) numCasePaths = Integer.parseInt(cmd.getOptionValue("ncase"));
-	    if (cmd.hasOption("nctrl")) numCtrlPaths = Integer.parseInt(cmd.getOptionValue("nctrl"));
-	    if (cmd.hasOption("minsize")) minSize = Integer.parseInt(cmd.getOptionValue("minsize"));
-	    if (cmd.hasOption("minsupport")) minSupport = Integer.parseInt(cmd.getOptionValue("minsupport"));
-	    if (cmd.hasOption("maxpvalue")) maxPValue = Double.parseDouble(cmd.getOptionValue("maxpvalue"));
-	    if (cmd.hasOption("minpriority")) minPriority = Integer.parseInt(cmd.getOptionValue("minpriority"));
-	    // printPathFRsARFF(inputPrefix, numCasePaths, numCtrlPaths, minSize, minSupport, maxPValue, minPriority);
-	}
-
-	if (cmd.hasOption("pathfrs")) {
-	    int numCasePaths = 0;
-	    int numCtrlPaths = 0;
-	    int minSize = 0;
-	    int minSupport = 0;
-	    int minPriority = 0;
-	    double maxPValue = 1.0;
-	    if (cmd.hasOption("ncase")) numCasePaths = Integer.parseInt(cmd.getOptionValue("ncase"));
-	    if (cmd.hasOption("nctrl")) numCtrlPaths = Integer.parseInt(cmd.getOptionValue("nctrl"));
-	    if (cmd.hasOption("minsize")) minSize = Integer.parseInt(cmd.getOptionValue("minsize"));
-	    if (cmd.hasOption("minsupport")) minSupport = Integer.parseInt(cmd.getOptionValue("minsupport"));
-	    if (cmd.hasOption("maxpvalue")) maxPValue = Double.parseDouble(cmd.getOptionValue("maxpvalue"));
-	    if (cmd.hasOption("minpriority")) minPriority = Integer.parseInt(cmd.getOptionValue("minpriority"));
-	    // printPathFRs(inputPrefix, numCasePaths, numCtrlPaths, minSize, minSupport, maxPValue, minPriority);
-	}
+            if (cmd.hasOption("svm")) {
+                printPathFRsSVM(inputPrefix, priorityOptionKey, priorityOptionLabel, minSize, minSupport, maxPValue, minPriority);
+            } else if (cmd.hasOption("arff")) {
+                printPathFRsARFF(inputPrefix, priorityOptionKey, priorityOptionLabel, minSize, minSupport, maxPValue, minPriority);
+            } else if (cmd.hasOption("pathfrs")) {
+                printPathFRs(inputPrefix, priorityOptionKey, priorityOptionLabel, minSize, minSupport, maxPValue, minPriority);
+            }
+        }
 
 	if (cmd.hasOption("extractbestfrs")) {
 	    printBestFRs(inputPrefix);
