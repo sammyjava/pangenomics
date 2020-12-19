@@ -521,8 +521,9 @@ public class FRUtils {
             });
         /////////////////////////////////////////////////////////
     	// output
+	System.out.println("sample\tlabel\tscore");
         for (Path path : concurrentPathPRS.keySet()) {
-            System.out.println(path.name+"."+path.label+"\t"+concurrentPathSupport.get(path)+"\t"+concurrentPathPRS.get(path));
+            System.out.println(path.name+"\t"+path.label+"\t"+concurrentPathPRS.get(path));
         }
     }
 

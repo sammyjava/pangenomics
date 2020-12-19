@@ -39,4 +39,4 @@
 
 INPUTPREFIX=$1
 
-java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -prs -pri 3 -i $INPUTPREFIX
+java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -prs -pri 3 -i $INPUTPREFIX > $INPUTPREFIX.prs.txt
