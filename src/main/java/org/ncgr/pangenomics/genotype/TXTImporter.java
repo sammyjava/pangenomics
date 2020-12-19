@@ -55,7 +55,7 @@ public class TXTImporter {
      */
     public void read(File nodesFile, File pathsFile) throws IOException {
         // read the nodes, storing in a map for path building
-        if (verbose) System.out.println("Reading nodes from "+nodesFile.getName()+"...");
+        if (verbose) System.err.println("Reading nodes from "+nodesFile.getName()+"...");
         // instantiate the class collections
         nodes = new ArrayList<>();
         sampleNodesMap = new HashMap<>();
@@ -81,14 +81,14 @@ public class TXTImporter {
         }
         nodesReader.close();
         // read the paths file
-        if (verbose) System.out.println("Reading path lines from "+pathsFile.getName()+"...");
+        if (verbose) System.err.println("Reading path lines from "+pathsFile.getName()+"...");
         BufferedReader pathsReader = new BufferedReader(new FileReader(pathsFile));
         List<String> lines = new ArrayList<String>();
         while ((line=pathsReader.readLine())!=null) {
             lines.add(line);
         }
         // now build the maps in parallel, since each line contains a distinct sample
-        if (verbose) System.out.println("Building sample/node maps...");
+        if (verbose) System.err.println("Building sample/node maps...");
 	for (String l : lines) {
 	    String[] parts = l.split("\t");
 	    String name = parts[0];
@@ -110,6 +110,6 @@ public class TXTImporter {
 		nodeSamplesMap.put(n, nodeSamples);
 	    }
 	}
-	if (verbose) System.out.println("TXTImporter read "+sampleNodesMap.size()+" samples.");
+	if (verbose) System.err.println("TXTImporter read "+sampleNodesMap.size()+" samples.");
     }
 }

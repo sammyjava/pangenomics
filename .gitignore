@@ -19,3 +19,5 @@ buildOutputCleanup
 *.fasta
 *.arff
 scan-*
+.RData
+.Rhistory
