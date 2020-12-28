@@ -83,7 +83,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
     /**
      * Build this graph from the provided Nodes and and maps. sampleLabels must already be populated.
      */
-    public void buildGraph(List<Node> nodes, Map<String,List<Node>> sampleNodesMap, Map<Node,List<String>> nodeSamplesMap) {
+    public void buildGraph(List<Node> nodes, Map<String,List<Node>> sampleNodesMap, Map<Node,Set<String>> nodeSamplesMap) {
 	if (sampleLabels.size()==0) {
 	    System.err.println("ERROR in PangenomicGraph.buildGraph: sampleLabels has not been populated.");
 	    System.exit(1);
@@ -104,7 +104,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
             for (Node n : nodes) {
                 if (n.isNoCall()) {
                     nodesToDrop.add(n);
-                    List<String> sampleNames = nodeSamplesMap.get(n);
+		    Set<String> sampleNames = nodeSamplesMap.get(n);
                     samplesToDrop.addAll(sampleNames);
                 }
             }
@@ -151,13 +151,13 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
                 sampleNodesMap.remove(sampleName);
             }
             for (Node n : nodeSamplesMap.keySet()) {
-                List<String> sampleNames = nodeSamplesMap.get(n);
+                Set<String> sampleNames = nodeSamplesMap.get(n);
                 for (String sampleName : samplesToDrop) sampleNames.remove(sampleName);
             }
             // drop nodes that no longer have any samples
             Set<Node> nodesToDrop = new HashSet<>();
             for (Node n : nodeSamplesMap.keySet()) {
-                List<String> sampleNames = nodeSamplesMap.get(n);
+                Set<String> sampleNames = nodeSamplesMap.get(n);
                 if (sampleNames.size()==0) nodesToDrop.add(n);
             }
             for (Node n : nodesToDrop) {
@@ -719,6 +719,16 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
     }
 
     /**
+     * Load the graph from a PLINK list output file for the samples listed in sampleLabels.
+     */
+    public void loadList(File listFile) throws IOException {
+        ListImporter listImporter = new ListImporter();
+	listImporter.verbose = true;
+        listImporter.read(listFile, sampleLabels.keySet());
+        buildGraph(listImporter.nodes, listImporter.sampleNodesMap, listImporter.nodeSamplesMap);
+    }
+
+    /**
      * Load the graph from a pair of TXT files.
      * nodesFile and pathsFile must already be set.
      */
@@ -752,14 +762,18 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         Option vcfFileOption = new Option("vcf", "vcffile", true, "load graph from <graph>.vcf.gz");
         vcfFileOption.setRequired(false);
         options.addOption(vcfFileOption);
-        // 
-        Option labelsOption = new Option("l", "labelfile", true, "tab-delimited file containing one sample<tab>label per line");
-        labelsOption.setRequired(false);
-        options.addOption(labelsOption);
+	// if list then labelfile is required
+	Option listFileOption = new Option("list", "listfile", true, "load graph from a PLINK list file");
+	listFileOption.setRequired(false);
+	options.addOption(listFileOption);
         // txt does not require labelfile
         Option txtFileOption = new Option("txt", "txtfile", true, "root name of a pair of TXT files containing nodes and paths (e.g. FOO means FOO.nodes.txt and FOO.paths.txt)");
         txtFileOption.setRequired(false);
         options.addOption(txtFileOption);
+	// 
+        Option labelFileOption = new Option("l", "labelfile", true, "tab-delimited file containing one sample<tab>label per line");
+        labelFileOption.setRequired(false);
+        options.addOption(labelFileOption);
         // drop no-call nodes and paths
         Option dropNoCallPathsOption = new Option("dncp", "dropnocallpaths", false, "drop no-call nodes and paths that traverse them [false]");
         dropNoCallPathsOption.setRequired(false);
@@ -805,13 +819,14 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         }
         // validation
         boolean loadVCF = cmd.hasOption("vcffile");
+	boolean loadList = cmd.hasOption("listfile");
         boolean loadTXT = cmd.hasOption("txtfile");
-        if (!loadVCF && !loadTXT) {
-            System.err.println("ERROR: You must specify loading from either a VCF with --vcffile [filename] or a pair of TXT files with --txtfile.");
+        if (!loadVCF && !loadList && !loadTXT) {
+            System.err.println("ERROR: You must specify loading from a VCF with --vcffile [filename], a LIST file with --listfile, or a pair of TXT files with --txtfile.");
             System.exit(1);
         }
-	if (loadVCF && !cmd.hasOption("labelfile")) {
-	    System.err.println("ERROR: You must specify a label file with --labelfile if you are loading a graph from a VCF.");
+	if ((loadVCF || loadList) && !cmd.hasOption("labelfile")) {
+	    System.err.println("ERROR: You must specify a label file with --labelfile if you are loading a graph from a VCF or LIST file.");
 	    System.exit(1);
 	}
 
@@ -824,10 +839,6 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         // populate graph instance vars from parameters
         graph.name = cmd.getOptionValue("graph");
         if (loadVCF) {
-	    if (!cmd.hasOption("labelfile")) {
-		System.err.println("ERROR: --labelfile is required if --vcffile is specified.");
-		System.exit(1);
-	    }
             // VCF load needs separate sample labels load
             graph.labelsFile = new File(cmd.getOptionValue("labelfile"));
             graph.readSampleLabels();
@@ -836,6 +847,16 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 	    System.err.println("Graph has "+graph.vertexSet().size()+" nodes, "+graph.edgeSet().size()+" edges, and "+graph.paths.size()+
                                " paths: "+graph.labelCounts.get("case")+"/"+graph.labelCounts.get("ctrl")+" cases/controls");
         }
+	if (loadList) {
+            // LIST load needs separate sample labels load
+            graph.labelsFile = new File(cmd.getOptionValue("labelfile"));
+            graph.readSampleLabels();
+	    graph.loadList(new File(cmd.getOptionValue("listfile")));
+	    graph.tallyLabelCounts();
+	    System.err.println("Graph has "+graph.vertexSet().size()+" nodes, "+graph.edgeSet().size()+" edges, and "+graph.paths.size()+
+                               " paths: "+graph.labelCounts.get("case")+"/"+graph.labelCounts.get("ctrl")+" cases/controls");
+	    
+	}
         if (loadTXT) {
             // TXT load pulls sample labels from paths file
             graph.nodesFile = new File(graph.name+".nodes.txt");

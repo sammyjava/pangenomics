@@ -9,6 +9,7 @@
 #  -g,--graph <arg>                  name of graph
 #  -l,--labelfile <arg>              tab-delimited file containing one
 #                                    sample<tab>label per line
+#  -list,--listfile <arg>            load graph from a PLINK list file
 #  -nodepaths,--printnodepathsfile   print out node paths file [false]
 #  -pca,--printpcafile               print out path pca file [false]
 #  -svm,--printsvmfile               print out a LIBSVM-compatible file of
@@ -19,9 +20,13 @@
 #  -v,--verbose                      verbose output (false)
 #  -vcf,--vcffile <arg>              load graph from <graph>.vcf.gz
 
-GRAPH=$1
-LABELSFILE=$2
-VCFFILE=$3
+# HLA_PHEWAS/
+# ├── HLA_PHEWAS.list
+# └── HLA_PHEWAS_T1D.labels.txt
+GRAPHDIR=HLA_PHEWAS
+GRAPH=HLA_PHEWAS_T1D
+LABELSFILE=HLA_PHEWAS_T1D.labels.txt
+LISTFILE=HLA_PHEWAS.list
 
-java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.PangenomicGraph \
-     -v -ecc -pca -arff -svm -g $GRAPH -l $LABELSFILE -vcf $VCFFILE $4 $5 $6
+java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.PangenomicGraph \
+     -v -pca -arff -svm -ecc -g $GRAPHDIR/$GRAPH -l $GRAPHDIR/$LABELSFILE -list $GRAPHDIR/$LISTFILE $4 $5 $6

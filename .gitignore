@@ -1,10 +1,13 @@
 *~
+## dbGaP data
 CIDR_HD_Modifiers
 NeuropsychiatricNeurodevelopmental_Disorders
 eMERGE_EMRPhenome
 SchizophreniaSwedish_Sklar
 AREDS
 GenomicPsychiatryCohort
+HLA_PHEWAS
+## general
 runs
 .gradle
 build

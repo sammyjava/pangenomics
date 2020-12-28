@@ -12,8 +12,7 @@ MINPRIORITY=1
 
 MINSIZE=0
 
-#MINSUPPORT=100
-MINSUPPORT=$2
+MINSUPPORT=100
 
 ## grid scan
 GRIDOUT="$INPUTPREFIX.svm.grid.txt"
@@ -38,11 +37,6 @@ NSVMCONTROLS=0
 #rm -f $FULLSCALE
 #rm -f $GRIDOUT
 #####################################
-
-## TEMP to try different MINPRIORITY values
-echo "DELETING $SVMFILE and $FULLSCALE"
-rm $SVMFILE
-rm $FULLSCALE
 
 ## write the SVM file
 if [ ! -s $SVMFILE ]

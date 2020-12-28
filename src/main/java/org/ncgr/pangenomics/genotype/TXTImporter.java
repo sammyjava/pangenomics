@@ -11,9 +11,11 @@ import java.io.IOException;
 import java.io.Reader;
 
 import java.util.List;
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Set;
+import java.util.HashSet;
 
 /**
  * Importer for TXT files [graph].nodes.txt and [graph].paths.txt containing Nodes and Paths.
@@ -30,11 +32,11 @@ public class TXTImporter {
     // the Nodes we import
     public List<Node> nodes;
 
-    // map the sample names to the List of Nodes they traverse
+    // map the sample names to the ordered List of Nodes they traverse
     public Map<String,List<Node>> sampleNodesMap;
 
-    // map the Nodes to the list of samples that traverse them
-    public Map<Node,List<String>> nodeSamplesMap;
+    // map the Nodes to the Set of samples that traverse them
+    public Map<Node,Set<String>> nodeSamplesMap;
 
     // map the sample names to their label
     public Map<String,String> sampleLabels;
@@ -57,7 +59,7 @@ public class TXTImporter {
         // read the nodes, storing in a map for path building
         if (verbose) System.err.println("Reading nodes from "+nodesFile.getName()+"...");
         // instantiate the class collections
-        nodes = new ArrayList<>();
+        nodes = new LinkedList<>();
         sampleNodesMap = new HashMap<>();
         nodeSamplesMap = new HashMap<>();
         sampleLabels = new HashMap<>();
@@ -83,7 +85,7 @@ public class TXTImporter {
         // read the paths file
         if (verbose) System.err.println("Reading path lines from "+pathsFile.getName()+"...");
         BufferedReader pathsReader = new BufferedReader(new FileReader(pathsFile));
-        List<String> lines = new ArrayList<String>();
+        List<String> lines = new LinkedList<String>();
         while ((line=pathsReader.readLine())!=null) {
             lines.add(line);
         }
@@ -94,17 +96,17 @@ public class TXTImporter {
 	    String name = parts[0];
 	    String label = parts[1];
 	    sampleLabels.put(name, label);
-	    List<Node> nodeList = new ArrayList<>();
+	    List<Node> nodeList = new LinkedList<>();
 	    for (int i=2; i<parts.length; i++) {
 		nodeList.add(nodeMap.get(Long.parseLong(parts[i])));
 	    }
 	    sampleNodesMap.put(name, nodeList);
 	    for (Node n : nodeList) {
-		List<String> nodeSamples;
+		Set<String> nodeSamples;
 		if (nodeSamplesMap.containsKey(n)) {
 		    nodeSamples = nodeSamplesMap.get(n);
 		} else {
-		    nodeSamples = new ArrayList<>();
+		    nodeSamples = new HashSet<>();
 		}
 		nodeSamples.add(name);
 		nodeSamplesMap.put(n, nodeSamples);

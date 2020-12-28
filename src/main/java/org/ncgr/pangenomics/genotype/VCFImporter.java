@@ -1,19 +1,16 @@
 package org.ncgr.pangenomics.genotype;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.Reader;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.HashMap;
-import java.util.TreeSet;
+import java.util.Set;
+import java.util.HashSet;
 
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -31,17 +28,14 @@ public class VCFImporter {
     // verbosity flag
     public boolean verbose = false;
 
-    // the File we've imported
-    public File vcfFile;
-
     // the Nodes we import
     public List<Node> nodes;
 
-    // map the sample names to the List of Nodes they traverse
+    // map the sample names to the ordered List of Nodes they traverse
     public Map<String,List<Node>> sampleNodesMap;
 
-    // map the Nodes to the list of samples that traverse them
-    public Map<Node,List<String>> nodeSamplesMap;
+    // map the Nodes to the Set of samples that traverse them
+    public Map<Node,Set<String>> nodeSamplesMap;
 
     /**
      * Read the nodes and paths in from a VCF file.
@@ -53,7 +47,7 @@ public class VCFImporter {
     public void read(File vcfFile, boolean ignorePhase) throws FileNotFoundException, IOException {
         if (verbose) System.out.println("Reading samples and nodes from VCF...");
         // initiate the class collections
-        nodes = new ArrayList<>();
+        nodes = new LinkedList<>();
         sampleNodesMap = new HashMap<>();
         nodeSamplesMap = new HashMap<>();
         // create the VCF file reader
@@ -93,19 +87,27 @@ public class VCFImporter {
                     nodes.add(n);
                     nodesMap.put(nodeString, n);
                 }
-                List<Node> sampleNodes = sampleNodesMap.get(sampleName);
-                if (sampleNodes==null) sampleNodes = new ArrayList<>();
+                List<Node> sampleNodes;
+		if (sampleNodesMap.containsKey(sampleName)) {
+		    sampleNodes = sampleNodesMap.get(sampleName);
+		} else {
+		    sampleNodes = new LinkedList<>();
+		}
                 sampleNodes.add(n);
                 sampleNodesMap.put(sampleName, sampleNodes);
-                List<String> nodeSamples = nodeSamplesMap.get(n);
-                if (nodeSamples==null) nodeSamples = new ArrayList<>();
+                Set<String> nodeSamples;
+		if (nodeSamplesMap.containsKey(n)) {
+		    nodeSamples = nodeSamplesMap.get(n);
+		} else {
+		    nodeSamples = new HashSet<>();
+		}
                 nodeSamples.add(sampleName);
                 nodeSamplesMap.put(n, nodeSamples);
 	    }
         }
         // update the nodes with their allele frequencies
         for (Node n : nodeSamplesMap.keySet()) {
-            List<String> nodeSamples = nodeSamplesMap.get(n);
+            Set<String> nodeSamples = nodeSamplesMap.get(n);
             n.af = (double)nodeSamples.size() / (double)sampleNameList.size();
         }
 	if (verbose) System.out.println("VCFImporter read "+sampleNodesMap.size()+" samples.");
