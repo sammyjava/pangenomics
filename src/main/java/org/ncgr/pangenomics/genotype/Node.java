@@ -45,16 +45,31 @@ public class Node implements Comparable, Serializable {
 	    System.err.println("ERROR: Node.isNoCall() called but genotype="+genotype);
 	    System.exit(1);
 	}
-        return genotype.equals("./.");
+        return genotype.equals("./.") || genotype.equals("00");
+    }
+
+    String[] getAlleles() {
+	String[] alleles = new String[0];
+	if (genotype.contains("/")) {
+            // G/T
+            alleles = genotype.split("/"); // unphased
+        } else if (genotype.contains("|")) {
+            // G|T
+            alleles = genotype.split("/"); // phased
+        } else if (genotype.length()==2) {
+            // PA
+            alleles = new String[2];
+            alleles[0] = String.valueOf(genotype.charAt(0));
+            alleles[1] = String.valueOf(genotype.charAt(1));
+        }
+        return alleles;
     }
 
     /**
      * Return true if this Node is a homozygous call.
      */
     public boolean isHomozygous() {
-	String[] alleles = new String[0];
-	if (genotype.contains("/")) alleles = genotype.split("/"); // unphased
-	if (genotype.contains("|")) alleles = genotype.split("/"); // phased
+        String[] alleles = getAlleles();
 	if (alleles.length==2) {
 	    return alleles[0].equals(alleles[1]);
 	} else {
@@ -66,9 +81,7 @@ public class Node implements Comparable, Serializable {
      * Return true if this Node is a heterozygous call.
      */
     public boolean isHeterozygous() {
-	String[] alleles = new String[0];
-	if (genotype.contains("/")) alleles = genotype.split("/"); // unphased
-	if (genotype.contains("|")) alleles = genotype.split("/"); // phased
+	String[] alleles = getAlleles();
 	if (alleles.length==2) {
 	    return !alleles[0].equals(alleles[1]);
 	} else {

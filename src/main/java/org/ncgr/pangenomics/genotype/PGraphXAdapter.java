@@ -219,7 +219,7 @@ class PGraphXAdapter extends JGraphXAdapter<Node,Edge> {
                 tip += "<br/>"+
                     nodeCaseCounts+"/"+nodeCtrlCounts+"<br/>" +
                     percf.format(nodeCaseFrac)+"/"+percf.format(nodeCtrlFrac)+"<br/>" +
-                    "OR="+orf.format(or)+"<br/>" +
+                    "OR="+orf.format(or)+"("+orf.format(Math.log10(or))+")<br/>" +
                     "p="+pf.format(p);
             }
             tip += "</html>";
