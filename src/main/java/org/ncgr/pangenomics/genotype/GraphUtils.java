@@ -40,9 +40,9 @@ public class GraphUtils {
         options.addOption(graphOption);
 
         // other parameters
-        Option mafOption = new Option("maf", "maf", true, "minimum MAF for inclusion");
-        mafOption.setRequired(false);
-        options.addOption(mafOption);
+        Option mgfOption = new Option("mgf", "mgf", true, "minimum MGF for inclusion");
+        mgfOption.setRequired(false);
+        options.addOption(mgfOption);
 
         // actions
         Option prsOption = new Option("prs", "prs", false, "compute polygenic risk scores");
@@ -82,18 +82,18 @@ public class GraphUtils {
 
         // actions
         if (prs) {
-            double minMAF = 1e-2;
-            if (cmd.hasOption("maf")) {
-                minMAF = Double.parseDouble(cmd.getOptionValue("maf"));
+            double minMGF = 1e-2;
+            if (cmd.hasOption("mgf")) {
+                minMGF = Double.parseDouble(cmd.getOptionValue("mgf"));
             }
-            computePRS(graph, minMAF);
+            computePRS(graph, minMGF);
         }
     }
 
     /**
-     * Compute the polygenic risk scores from a graph, tossing nodes with af<minMAF.
+     * Compute the polygenic risk scores from a graph, tossing nodes with gf<minMGF.
      */
-    public static void computePRS(PangenomicGraph graph, double minMAF) {
+    public static void computePRS(PangenomicGraph graph, double minMGF) {
         // need node paths
         graph.buildNodePaths();
         // calculate map of log odds ratio
@@ -105,9 +105,9 @@ public class GraphUtils {
             // public int end;
             // public String rs;
             // public String genotype;
-            // public double af;
+            // public double gf;
             // public boolean isCalled;
-            if (!(n.af<minMAF)) {
+            if (!(n.gf<minMGF)) {
                 nodeOddsRatios.put(n, Math.log(graph.oddsRatio(n)));
             }
         }

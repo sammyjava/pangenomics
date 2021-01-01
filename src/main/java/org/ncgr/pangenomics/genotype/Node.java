@@ -11,9 +11,9 @@ public class Node implements Comparable, Serializable {
     public String contig;
     public int start;
     public int end;
-    public String rs;
+    public String rs;        // NCBI rsID or other identifier
     public String genotype;
-    public double af;
+    public double gf;        // genotype (not allele) frequency
     public boolean isCalled;
 
     /**
@@ -26,14 +26,14 @@ public class Node implements Comparable, Serializable {
     /**
      * Construct the full Monty.
      */
-    public Node(long id, String rs, String contig, int start, int end, String genotype, double af) {
+    public Node(long id, String rs, String contig, int start, int end, String genotype, double gf) {
         this.id = id;
 	this.contig = contig;
 	this.start = start;
         this.end = end;
         this.rs = rs;
 	this.genotype = genotype;
-        this.af = af;
+        this.gf = gf;
 	isCalled = !isNoCall();
     }
 

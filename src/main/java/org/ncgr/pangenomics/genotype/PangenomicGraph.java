@@ -478,32 +478,32 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
     }
 
     /**
-     * Return the odds ratio for case paths versus control paths that traverse the given node
-     * versus total case and control paths.
-     * 0                 = all control paths on node
-     * POSITIVE_INFINITY = all case paths on node
+     * Return the odds ratio for case/control paths that traverse the given node vs. case/control paths that don't.
+     * 0                 = all control paths traverse node
+     * POSITIVE_INFINITY = all case paths traverse node
      */
     public double oddsRatio(Node n) {
-        int totalCasePaths = labelCounts.get("case");
-        int totalCtrlPaths = labelCounts.get("ctrl");
-        Map<String,Integer> map = getLabelCounts(n);
-        int nodeCasePaths = 0; if (map.containsKey("case")) nodeCasePaths = map.get("case");
-        int nodeCtrlPaths = 0; if (map.containsKey("ctrl")) nodeCtrlPaths = map.get("ctrl");
-        return (double)(nodeCasePaths*totalCtrlPaths) / (double)(nodeCtrlPaths*totalCasePaths);
+        Map<String,Integer> countsMap = getLabelCounts(n);
+        int nodeCasePaths = 0; if (countsMap.containsKey("case")) nodeCasePaths = countsMap.get("case");
+        int nodeCtrlPaths = 0; if (countsMap.containsKey("ctrl")) nodeCtrlPaths = countsMap.get("ctrl");
+        int otherCasePaths = labelCounts.get("case") - nodeCasePaths;
+        int otherCtrlPaths = labelCounts.get("ctrl") - nodeCtrlPaths;
+        return (double)(nodeCasePaths*otherCtrlPaths) / (double)(nodeCtrlPaths*otherCasePaths);
     }
 
     /**
-     * Return the Fisher's exact test two-tailed p value for case paths vs control paths that traverse the given node.
+     * Return the Fisher's exact test two-tailed p value for case/control paths that traverse the given node
+     * vs. case/control paths that don't.
      *
-     *      | node paths    | other paths    |
+     *      | traverse node | don't trv node |
      *      |--------------------------------|
      * case | nodeCasePaths | otherCasePaths |
      * ctrl | nodeCtrlPaths | otherCtrlPaths |
      */
     public double fisherExactP(Node n) {
-        Map<String,Integer> map = getLabelCounts(n);
-        int nodeCasePaths = 0; if (map.containsKey("case")) nodeCasePaths = map.get("case");
-        int nodeCtrlPaths = 0; if (map.containsKey("ctrl")) nodeCtrlPaths = map.get("ctrl");
+        Map<String,Integer> countsMap = getLabelCounts(n);
+        int nodeCasePaths = 0; if (countsMap.containsKey("case")) nodeCasePaths = countsMap.get("case");
+        int nodeCtrlPaths = 0; if (countsMap.containsKey("ctrl")) nodeCtrlPaths = countsMap.get("ctrl");
         int otherCasePaths = labelCounts.get("case") - nodeCasePaths;
         int otherCtrlPaths = labelCounts.get("ctrl") - nodeCtrlPaths;
         return fisherExact.getTwoTailedP(nodeCasePaths, otherCasePaths, nodeCtrlPaths, otherCtrlPaths);
@@ -521,7 +521,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
     public void printNodes(PrintStream out) {
         if (out==System.out) printHeading("NODES");
         for (Node n : getNodes()) {
-            out.println(n.id+"\t"+n.rs+"\t"+n.contig+"\t"+n.start+"\t"+n.end+"\t"+n.genotype+"\t"+n.af);
+            out.println(n.id+"\t"+n.rs+"\t"+n.contig+"\t"+n.start+"\t"+n.end+"\t"+n.genotype+"\t"+n.gf);
         }
     }
 

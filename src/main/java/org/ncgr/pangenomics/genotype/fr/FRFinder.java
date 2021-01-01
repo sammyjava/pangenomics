@@ -87,7 +87,7 @@ public class FRFinder {
     boolean includeNoCalls = false;
     boolean requireSamePosition = false;
     boolean requireHomozygous = false;
-    double minMAF = 0.01;
+    double minMGF = 0.01;
     double maxPVal = 1.0;
     int minSize = 1;
     int maxSize = Integer.MAX_VALUE;
@@ -134,7 +134,7 @@ public class FRFinder {
         parameters.setProperty("priorityOption", priorityOption);
         parameters.setProperty("keepOption", keepOption);
         parameters.setProperty("keepOption", "null");
-        parameters.setProperty("minMAF", String.valueOf(minMAF));
+        parameters.setProperty("minMGF", String.valueOf(minMGF));
 	parameters.setProperty("maxPVal", String.valueOf(maxPVal));
 	parameters.setProperty("includeNoCalls", String.valueOf(includeNoCalls));
 	parameters.setProperty("requireBestNodeSet", String.valueOf(requireBestNodeSet));
@@ -177,7 +177,7 @@ public class FRFinder {
                    "minSupport="+minSupport+" " +
                    "minSize="+minSize+" " +
 		   "maxSize="+maxSize+" " +
-                   "minMAF="+minMAF+" " +
+                   "minMGF="+minMGF+" " +
 		   "maxPVal="+maxPVal+" " +
                    "maxRound="+maxRound+" " +
 		   "maxClocktime="+maxClocktime+" " +
@@ -236,7 +236,7 @@ public class FRFinder {
             printToLog("# Now continuing with FR finding...");
         } else {
 	    // load the single-node FRs into allFrequentedRegions
-	    // - keep if af>=minMAF
+	    // - keep if gf>=minMGF
 	    // - keep if p<=maxPVal
 	    // - reject those with no genotype call unless includeNoCalls
 	    // - keep those not in excludedNodes
@@ -244,7 +244,7 @@ public class FRFinder {
 	    // - reject those with HET call if requireHomozygous
 	    ConcurrentSkipListSet<Node> excRejects = new ConcurrentSkipListSet<>();
 	    ConcurrentSkipListSet<Node> ngcRejects = new ConcurrentSkipListSet<>();
-	    ConcurrentSkipListSet<Node> mafRejects = new ConcurrentSkipListSet<>();
+	    ConcurrentSkipListSet<Node> mgfRejects = new ConcurrentSkipListSet<>();
 	    ConcurrentSkipListSet<Node> pvalRejects = new ConcurrentSkipListSet<>();
 	    ConcurrentSkipListSet<Node> supportRejects = new ConcurrentSkipListSet<>();
 	    ConcurrentSkipListSet<Node> homRejects = new ConcurrentSkipListSet<>();
@@ -257,8 +257,8 @@ public class FRFinder {
 			ngcRejects.add(node);
 		    } else if (requireHomozygous && !node.isHomozygous()) {
 			homRejects.add(node);
-		    } else if (node.af<minMAF) {
-			mafRejects.add(node);
+		    } else if (node.gf<minMGF) {
+			mgfRejects.add(node);
 		    } else if (maxPVal<1.0 && graph.fisherExactP(node)>maxPVal) {
 			pvalRejects.add(node);
 		    } else {
@@ -274,7 +274,7 @@ public class FRFinder {
 	    // DX
 	    printToLog("# "+excRejects.size()+" nodes excluded because contained in excludedNodes");
 	    printToLog("# "+ngcRejects.size()+" nodes excluded because not called and includeNoCalls=false");
-	    printToLog("# "+mafRejects.size()+" nodes excluded because allele frequency<"+minMAF);
+	    printToLog("# "+mgfRejects.size()+" nodes excluded because allele frequency<"+minMGF);
 	    printToLog("# "+pvalRejects.size()+" nodes excluded because p>"+maxPVal);
 	    if (alpha==1.0) printToLog("# "+supportRejects.size()+" nodes excluded because FR support<"+minSupport);
 	    if (requireHomozygous) printToLog("# "+homRejects.size()+" nodes excluded because not homozygous");
@@ -597,8 +597,8 @@ public class FRFinder {
     public String getKeepOption() {
         return parameters.getProperty("keepOption");
     }
-    public double getMinMAF() {
-        return Double.parseDouble(parameters.getProperty("minMAF"));
+    public double getMinMGF() {
+        return Double.parseDouble(parameters.getProperty("minMGF"));
     }
     public double getMaxPVal() {
 	return Double.parseDouble(parameters.getProperty("maxPVal"));
@@ -700,9 +700,9 @@ public class FRFinder {
 	this.graphName = graphName;
         parameters.setProperty("graphName", graphName);
     }
-    public void setMinMAF(double minMAF) {
-	this.minMAF = minMAF;
-        parameters.setProperty("minMAF", String.valueOf(minMAF));
+    public void setMinMGF(double minMGF) {
+	this.minMGF = minMGF;
+        parameters.setProperty("minMGF", String.valueOf(minMGF));
     }
     public void setMaxPVal(double maxPVal) {
 	this.maxPVal = maxPVal;
@@ -832,12 +832,12 @@ public class FRFinder {
      * Form an outputPrefix with given alpha and kappa and single required node, if required.
      */
     String formOutputPrefix(double alpha, int kappa, NodeSet requiredNodes) {
-        DecimalFormat af = new DecimalFormat("0.0");
+        DecimalFormat alphaFormat = new DecimalFormat("0.0");
 	String prefix = "";
         if (kappa==Integer.MAX_VALUE) {
-            prefix = getGraphName()+"-"+af.format(alpha)+"-Inf";
+            prefix = getGraphName()+"-"+alphaFormat.format(alpha)+"-Inf";
         } else {
-            prefix = getGraphName()+"-"+af.format(alpha)+"-"+kappa;
+            prefix = getGraphName()+"-"+alphaFormat.format(alpha)+"-"+kappa;
         }
 	if (requiredNodes.size()==1) {
 	    prefix += "-"+requiredNodes.first();
@@ -1001,9 +1001,9 @@ public class FRFinder {
         keepOptionOption.setRequired(false);
         options.addOption(keepOptionOption);
         //
-        Option minMAFOption = new Option("minmaf", "minmaf", true, "minimum MAF for nodes included in search [0.01]");
-        minMAFOption.setRequired(false);
-        options.addOption(minMAFOption);
+        Option minMGFOption = new Option("minmgf", "minmgf", true, "minimum MGF for nodes included in search [0.01]");
+        minMGFOption.setRequired(false);
+        options.addOption(minMGFOption);
 	//
         Option maxPValOption = new Option("maxp", "maxpval", true, "maximum p-value for nodes included in search [1.0]");
         maxPValOption.setRequired(false);
@@ -1140,7 +1140,7 @@ public class FRFinder {
 	if (cmd.hasOption("writesavefiles")) frf.setWriteSaveFiles();
 	if (cmd.hasOption("writepathfrs")) frf.setWritePathFRs();
 	if (cmd.hasOption("writefrsubpaths")) frf.setWriteFRSubpaths();
-	if (cmd.hasOption("minmaf")) frf.setMinMAF(Double.parseDouble(cmd.getOptionValue("minmaf")));
+	if (cmd.hasOption("minmgf")) frf.setMinMGF(Double.parseDouble(cmd.getOptionValue("minmgf")));
 	if (cmd.hasOption("maxpval")) frf.setMaxPVal(Double.parseDouble(cmd.getOptionValue("maxpval")));
 	if (cmd.hasOption("requirebestnodeset")) frf.setRequireBestNodeSet();
 	if (cmd.hasOption("includenocalls")) frf.setIncludeNoCalls();

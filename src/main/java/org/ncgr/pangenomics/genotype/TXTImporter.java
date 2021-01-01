@@ -75,13 +75,14 @@ public class TXTImporter {
             int start = Integer.parseInt(parts[3]);
             int end = Integer.parseInt(parts[4]);
             String genotype = parts[5];
-            double af = Double.parseDouble(parts[6]);
+            double gf = Double.parseDouble(parts[6]);
             if (rs.equals(".")) rs = null;
-            Node n = new Node(id, rs, contig, start, end, genotype, af);
+            Node n = new Node(id, rs, contig, start, end, genotype, gf);
             nodes.add(n);
             nodeMap.put(id, n);
         }
         nodesReader.close();
+        if (verbose) System.err.println("...read "+nodes.size()+" nodes.");
         // read the paths file
         if (verbose) System.err.println("Reading path lines from "+pathsFile.getName()+"...");
         BufferedReader pathsReader = new BufferedReader(new FileReader(pathsFile));
@@ -89,6 +90,7 @@ public class TXTImporter {
         while ((line=pathsReader.readLine())!=null) {
             lines.add(line);
         }
+        if (verbose) System.err.println("...read "+lines.size()+" path lines.");
         // now build the maps in parallel, since each line contains a distinct sample
         if (verbose) System.err.println("Building sample/node maps...");
 	for (String l : lines) {
@@ -112,6 +114,6 @@ public class TXTImporter {
 		nodeSamplesMap.put(n, nodeSamples);
 	    }
 	}
-	if (verbose) System.err.println("TXTImporter read "+sampleNodesMap.size()+" samples.");
+	if (verbose) System.err.println("TXTImporter read "+sampleNodesMap.size()+" samples/paths and "+nodes.size()+" nodes.");
     }
 }

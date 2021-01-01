@@ -64,7 +64,7 @@ class PGraphXAdapter extends JGraphXAdapter<Node,Edge> {
         defaultStylesheet.setDefaultEdgeStyle(defaultEdgeStyle);
         // set default vertex (Node) style
         Map<String,Object> defaultVertexStyle = defaultStylesheet.getDefaultVertexStyle();
-        defaultVertexStyle.put("fillColor", "white");
+        defaultVertexStyle.put("fillColor", "gray");
         defaultVertexStyle.put("fontColor", "black");
         defaultVertexStyle.put("shape", mxConstants.SHAPE_ELLIPSE);
         defaultVertexStyle.put("spacingTop", "2");
@@ -97,7 +97,7 @@ class PGraphXAdapter extends JGraphXAdapter<Node,Edge> {
                 }
                 double pathFrac = (double)pathCount / (double)numPaths;
                 if (hasCaseControlLabels) {
-                    if (pathCount>0 && n.genotype.equals("./.")) {
+                    if (pathCount>0 && (n.genotype.equals("./.") || n.genotype.equals("00"))) {
                         setCellStyle(noCallStyle, cells);
                     } else if (pathCount>0 && pathFrac<minorNodeFrac) {
                         setCellStyle(minorStyle, cells);

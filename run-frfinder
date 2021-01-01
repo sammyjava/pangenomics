@@ -25,7 +25,7 @@
 #  -maxs,--maxsize <arg>           maximum number of nodes that a FR can
 #                                  contain to be considered interesting
 #                                  [unlimited]
-#  -minmaf,--minmaf <arg>          minimum MAF for nodes included in search
+#  -minmgf,--minmgf <arg>          minimum MGF for nodes included in search
 #                                  [0.01]
 #  -mp,--minpriority <arg>         minimum priority for an FR to be
 #                                  considered interesting [0=disabled]
@@ -70,7 +70,7 @@
 
 ## static parameters
 maxp=1.0
-minmaf=0.0
+minmgf=0.0
 minsupport=100
 minpriority=1
 
@@ -88,6 +88,6 @@ echo "# $graph alpha=$alpha kappa=$kappa priorityOption=$priorityoption $5 $6 $7
 ## DO NOT USE -XX:+UseG1GC!!! Causes hang at certain RAM limit.
 java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRFinder \
 	--verbose --txt \
-	--maxp=$maxp  --minmaf=$minmaf --minsupport=$minsupport --minpriority=$minpriority \
+	--maxp=$maxp  --minmgf=$minmgf --minsupport=$minsupport --minpriority=$minpriority \
 	--graph=$graph --alpha=$alpha --kappa=$kappa --priorityoption=$priorityoption \
 	$5 $6 $7 $8 $9 ${10} ${11} ${12} ${13} ${14} ${15}
