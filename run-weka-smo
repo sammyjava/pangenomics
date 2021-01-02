@@ -1,14 +1,15 @@
 #!/bin/bash
 # usage: WekaSMO
-#  -a,--arfffile <arg>        ARFF input file (required)
-#  -C,--complexity <arg>      complexity constant C (1.0)
-#  -calibrator <arg>          calibration model (Logistic)
-#  -G,--gamma <arg>           gamma option for RBFKernel (0.01)
-#  -k,--kfold <arg>           cross-validation k-fold (10)
-#  -K,--kernel <arg>          the kernel to use (PolyKernel)
-#  -L,--tolerance <arg>       tolerance parameter (0.001)
-#  -N,--normalization <arg>   0=normalize, 1=standardize, 2=neither (0)
-#  -nruns <arg>               number of parallel runs [1]
+#  -a,--arfffile <arg>          ARFF input file (required)
+#  -C,--complexity <arg>        complexity constant C [1.0]
+#  -k,--kfold <arg>             cross-validation k-fold (required)
+#  -L,--tolerance <arg>         tolerance parameter [1.0e-3]
+#  -M,--fitcalibrationmodels    fit calibration models to SVM outputs
+#  -N,--normalization <arg>     0=normalize, 1=standardize, 2=neither [0]
+#  -nruns,--nruns <arg>         number of parallel runs [10]
+#  -P,--epsilon <arg>           epsilon for round-off error [1.0e-12]
+#  -V,--internalcvfolds <arg>   the number of folds for the internal
+#                               cross-validation [-1=use training data]
 
 INPUTPREFIX=$1
 ARFFFILE=$INPUTPREFIX.arff
@@ -19,28 +20,20 @@ NUMCTRLPATHS=0
 MINSIZE=1
 MINSUPPORT=1
 MAXPVALUE=1.0
+PRIORITYOPTION=3
+MINPRIORITY=1
 
-## SVM options
-C=1.0
-calibrator="Logistic"
-K="PolyKernel"
-G=0.01
-N=0
-NRUNS=10
-
-# cross-validation options
+# SMO cross-validation options
 KFOLD=10
-
-## delete former ARFF file
-#rm -f $ARFFFILE
 
 if [ ! -s $ARFFFILE ]
 then
     echo "Writing $ARFFFILE with $NUMCASEPATHS cases and $NUMCTRLPATHS controls"
-    java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -s $MINSIZE -m $MINSUPPORT -mp $MAXPVALUE
+    java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff \
+	    -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -s $MINSIZE -m $MINSUPPORT -mp $MAXPVALUE -pri $PRIORITYOPTION -mpri $MINPRIORITY
 fi
     
 if [ -s $ARFFFILE ]
 then
-    java -server -cp "build/install/fr/lib/*" org.ncgr.weka.WekaSMO -a $ARFFFILE -nruns $NRUNS -k $KFOLD -C $C -N $N -K $K -G $G -calibrator $calibrator
+    java -server -cp "build/install/fr/lib/*" org.ncgr.weka.WekaSMO -a $ARFFFILE -k $KFOLD $2 $3 $4 $5 $6 $7 $8 $9
 fi

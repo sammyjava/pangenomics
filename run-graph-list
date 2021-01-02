@@ -20,13 +20,12 @@
 #  -v,--verbose                      verbose output (false)
 #  -vcf,--vcffile <arg>              load graph from <graph>.vcf.gz
 
-# HLA_PHEWAS/
-# ├── HLA_PHEWAS.list
-# └── HLA_PHEWAS_T1D.labels.txt
+## HLA_PHEWAS
 GRAPHDIR=HLA_PHEWAS
-GRAPH=HLA_PHEWAS_T1D
-LABELSFILE=HLA_PHEWAS_T1D.labels.txt
 LISTFILE=HLA_PHEWAS.list
+
+LABELSFILE=HLA_PHEWAS_5pheno.labels.txt
+GRAPH=HLA_PHEWAS_5pheno
 
 java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.PangenomicGraph \
      -v -pca -arff -svm -ecc -g $GRAPHDIR/$GRAPH -l $GRAPHDIR/$LABELSFILE -list $GRAPHDIR/$LISTFILE $4 $5 $6

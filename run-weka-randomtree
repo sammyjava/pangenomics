@@ -12,17 +12,16 @@ NUMCTRLPATHS=0
 MINSIZE=0
 MINSUPPORT=0
 MAXPVALUE=1.0
+PRIORITYOPTION=3
+MINPRIORITY=1
 
-## RandomForest options - vary S for random variance; set to 0 to use system clock
-S=0
-
-## delete former ARFF file
-rm -f $ARFFFILE
+KFOLD=10
 
 if [ ! -s $ARFFFILE ]
 then
     echo "Writing $ARFFFILE with $NUMCASEPATHS cases and $NUMCTRLPATHS controls"
-    java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -s $MINSIZE -m $MINSUPPORT -mp $MAXPVALUE
+    java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff \
+	    -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -s $MINSIZE -m $MINSUPPORT -mp $MAXPVALUE -pri $PRIORITYOPTION -mpri $MINPRIORITY
 fi
     
-java -server -cp "build/install/fr/lib/*" org.ncgr.weka.WekaRandomTree -a $ARFFFILE -S $S 
+java -server -cp "build/install/fr/lib/*" org.ncgr.weka.WekaRandomTree -a $ARFFFILE -k $KFOLD

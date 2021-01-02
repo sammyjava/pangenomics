@@ -32,9 +32,10 @@ ARFFFILE=$INPUTPREFIX.arff
 NUMCASEPATHS=0
 NUMCTRLPATHS=0
 MINSUPPORT=100
-MINPRIORITY=1
 MINSIZE=1
 MAXPVALUE=1.0
+PRIORITYOPTION=3
+MINPRIORITY=1
 
 ## delete former ARFF file
 #rm -f $ARFFFILE
@@ -43,7 +44,7 @@ if [ ! -s $ARFFFILE ]
 then
     echo "Writing $ARFFFILE with $NUMCASEPATHS cases and $NUMCTRLPATHS controls"
     java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff \
-	 -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -m $MINSUPPORT  -s $MINSIZE -mpri $MINPRIORITY -mp $MAXPVALUE
+	 -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -m $MINSUPPORT -s $MINSIZE -pri $PRIORITYOPTION -mpri $MINPRIORITY -mp $MAXPVALUE
 fi
     
 java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.weka.WekaDecisionStump -a $ARFFFILE -k 10
