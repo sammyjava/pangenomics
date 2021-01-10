@@ -10,4 +10,4 @@ TRAIN="hd.svm.txt"
 TRAINRANGE="hd.svm.range.txt"
 TRAINSCALE="hd.svm.scale.txt"
 
-java -cp "build/install/fr/lib/*" org.ncgr.svm.SvmScaler -s $TRAINRANGE $TRAIN > $TRAINSCALE
+java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmScaler -s $TRAINRANGE $TRAIN > $TRAINSCALE

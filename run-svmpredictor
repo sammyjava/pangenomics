@@ -21,7 +21,7 @@ PREDICT="$TEST.predict"
 rm -f $PREDICT
 
 # now run the predictor on the scaled test data with this model
-java -cp build/install/fr/lib/fr.jar:build/install/fr/lib/commons-cli-1.4.jar org.ncgr.svm.SvmPredictor $TESTSCALE $MODEL $PREDICT
+java -server -cp build/install/fr/lib/fr.jar:build/install/fr/lib/commons-cli-1.4.jar org.ncgr.svm.SvmPredictor $TESTSCALE $MODEL $PREDICT
 
 # compare to what it should be
 echo "TESTS:"

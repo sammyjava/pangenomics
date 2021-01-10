@@ -5,4 +5,4 @@
 
 PREFIX=$1
 
-java -cp "build/install/fr/lib/*" org.ncgr.svm.SvmUtil -t -i $PREFIX.features.txt > $PREFIX.svm.txt
+java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmUtil -t -i $PREFIX.features.txt > $PREFIX.svm.txt

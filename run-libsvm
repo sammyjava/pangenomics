@@ -42,15 +42,15 @@ NSVMCONTROLS=0
 if [ ! -s $SVMFILE ]
 then
     echo "Writing $SVMFILE with -s $MINSIZE -m $MINSUPPORT -pri $PRIORITYOPTION --minpriority $MINPRIORITY"
-    java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils \
-	 -svm -i $INPUTPREFIX -s $MINSIZE -m $MINSUPPORT -pri $PRIORITYOPTION -mpri $MINPRIORITY
+    java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -svm \
+	 -i $INPUTPREFIX -s $MINSIZE -m $MINSUPPORT -pri $PRIORITYOPTION -mpri $MINPRIORITY
 fi
 
 ## scale the SVM data
 if [ ! -s $FULLSCALE ]
 then
     echo "Scaling $SVMFILE"
-    java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.svm.SvmScaler -s $RANGE -d $SVMFILE > $FULLSCALE
+    java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmScaler -s $RANGE -d $SVMFILE > $FULLSCALE
 fi
 
 ## run GridSearcher on the full scaled data to find optimum SVM parameters
@@ -59,7 +59,7 @@ fi
 #    starttime=`date`
 #    ARGS="-datafile $FULLSCALE -log10C $LOG10C -log10gamma $LOG10GAMMA -k $K -ncases $NGRIDCASES -ncontrols $NGRIDCONTROLS"
 #    echo "Running GridSearcher with $ARGS"
-#    java -server -Xms10g -Xmx600g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.svm.GridSearcher $ARGS > $GRIDOUT
+#    java -server -cp "build/install/fr/lib/*" org.ncgr.svm.GridSearcher $ARGS > $GRIDOUT
 #    endtime=`date`
 #    echo "$starttime - $endtime"
 # fi
@@ -76,5 +76,5 @@ fi
 
 ## run the cross-validation
 echo "Running $NRUNS SvmCrossValidator runs on $FULLSCALE with $ARGS"
-java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.svm.SvmCrossValidator \
+java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmCrossValidator \
      $ARGS -nruns $NRUNS -i $FULLSCALE > "$INPUTPREFIX.crossvalidation.txt"

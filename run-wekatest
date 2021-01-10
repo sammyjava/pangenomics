@@ -50,7 +50,7 @@ fi
 
 if [ -s $ARFFFILE ]
 then
-    java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.weka.WekaTest -i $ARFFFILE -nruns $NRUNS
+    java -server -cp "build/install/fr/lib/*" org.ncgr.weka.WekaTest -i $ARFFFILE -nruns $NRUNS
 fi
 
 echo $ARFFFILE

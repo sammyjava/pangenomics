@@ -44,4 +44,4 @@ SCALE=$INPUTPREFIX.scale.txt
 ARGS="-k 10 -C $C -gamma $gamma"
 
 echo "SvmCrossValidator $ARGS"
-java -cp "build/install/fr/lib/*" org.ncgr.svm.SvmCrossValidator $ARGS -i $SCALE > "$INPUTPREFIX.crossvalidation.txt"
+java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmCrossValidator $ARGS -i $SCALE > "$INPUTPREFIX.crossvalidation.txt"

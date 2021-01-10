@@ -22,5 +22,4 @@
 
 GRAPH=$1
 
-java -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.PangenomicGraph \
-     -v -g $GRAPH -txt $GRAPH -svm
+java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.PangenomicGraph -svm -v -g $GRAPH -txt $GRAPH

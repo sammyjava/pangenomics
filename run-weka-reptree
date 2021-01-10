@@ -39,10 +39,10 @@ MINPRIORITY=1
 if [ ! -s $ARFFFILE ]
 then
     echo "Writing $ARFFFILE with $NUMCASEPATHS cases and $NUMCTRLPATHS controls"
-    java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff \
+    java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff \
 	 -i $INPUTPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -m $MINSUPPORT -s $MINSIZE -pri $PRIORITYOPTION -mpri $MINPRIORITY -mp $MAXPVALUE
 fi
     
-java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.weka.WekaREPTree -a $ARFFFILE -k 9
+java -server -cp "build/install/fr/lib/*" org.ncgr.weka.WekaREPTree -a $ARFFFILE -k 9
 
 echo $ARFFFILE
