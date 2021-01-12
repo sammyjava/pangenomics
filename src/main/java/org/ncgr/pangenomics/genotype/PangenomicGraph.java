@@ -242,10 +242,12 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
     }
 
     /**
-     * Read sample labels from the instance tab-delimited file. Comment lines start with #.
+     * Read sample labels from the instance tab-delimited file. Comment lines start with #. Header starts with "sample".
      *
-     * 28304	case
-     * 60372	ctrl
+     * sample	comb	pheno_241.2	pheno_555	pheno_695.42	pheno_714.1	pheno_250.1
+     * 476296	ctrl	ctrl	ctrl	ctrl	ctrl	ctrl
+     * 261580	ctrl	ctrl	ctrl	ctrl	ctrl	ctrl
+     * 273564	unkn	ctrl	ctrl	ctrl	ctrl	unkn
      */
     public void readSampleLabels() throws FileNotFoundException, IOException {
         if (labelsFile==null) {
@@ -257,11 +259,10 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         BufferedReader reader = new BufferedReader(new FileReader(labelsFile));
         String line = null;
         while ((line=reader.readLine())!=null) {
-            if (!line.startsWith("#")) {
-                String[] fields = line.split("\t");
-                if (fields.length==2) {
-                    sampleLabels.put(fields[0], fields[1]); // sample,label
-                }
+            if (line.startsWith("#") || line.startsWith("sample")) continue;
+            String[] fields = line.split("\t");
+            if (fields.length>=2) {
+                sampleLabels.put(fields[0], fields[1]); // sample,label
             }
         }
         reader.close();
@@ -533,7 +534,6 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         for (Path path : paths) {
             StringBuilder builder = new StringBuilder();
             builder.append(path.name);
-            builder.append("\t"+path.label);
             for (Node node : path.getNodes()) {
                 builder.append("\t"+node.id);
             }
@@ -582,7 +582,6 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
             } else {
                 headerBuilder.append("\t"+path.name);
             }
-            if (path.label!=null) headerBuilder.append("."+path.label);
         }
         out.println(headerBuilder.toString());
 	/////////////////////////////////////////////////////////////////////////////

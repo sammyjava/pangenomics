@@ -18,23 +18,25 @@ require(RColorBrewer)
 ## NOT FANCY
 num = length(colnames(pca.paths$rotation))
 
-## ctrlcol = rgb(173,216,230, max = 255, alpha = 80, names = "lt.blue")
-## casecol = rgb(255,192,203, max = 255, alpha = 80, names = "lt.pink")
+## labels
+##                  1         2            3           4           5
+##        pheno_241.2 pheno_555 pheno_695.42 pheno_714.1 pheno_250.1
+## 476296        ctrl      ctrl         case        ctrl        ctrl
+## 261580        ctrl      ctrl         ctrl        unkn        ctrl
 
-casecol = "red"
-ctrlcol = "blue"
+## assign colors to phenotypes
+phenotypes = colnames(labels)
+colors = brewer.pal(length(phenotypes), "Dark2")
 
-labels = array(length(rownames(paths)))
-colors = array(dim=length(rownames(pca.paths$rotation)))
-parts = strsplit(rownames(paths), ".", fixed=T)
-for (i in 1:length(rownames(paths))) {
-    labels[i] = parts[[i]][2]
-    if (labels[i]=="case") {
-        colors[i] = casecol
-    } else if (labels[i]=="ctrl") {
-        colors[i] = ctrlcol
-    } else {
-        colors[i] = "black"
+## assign phenotype colors to paths; or default gray
+phenotypeColor = array(dim=nrow(paths))
+transparent = rgb(125, 125, 125, max=255, alpha=32)
+for (i in 1:nrow(paths)) {
+    phenotypeColor[i] = transparent
+    for (j in 1:length(phenotypes)) {
+        if (labels[i,j]=="case") {
+            phenotypeColor[i] = colors[j]
+        }
     }
 }
 
@@ -42,6 +44,6 @@ for (i in 1:length(rownames(paths))) {
 for (i in 1:10) {
     xlabel = paste("PC",i,  " ",round(summary(pca.paths)$importance["Proportion of Variance",i]*100,1),"% of variance", sep="")
     ylabel = paste("PC",i+1," ",round(summary(pca.paths)$importance["Proportion of Variance",i+1]*100,1),"% of variance", sep="")
-    plot(pca.paths$rotation[,i], pca.paths$rotation[,i+1], xlab=xlabel, ylab=ylabel, pch=19, cex=0.2, col=colors, main=prefix)
-    legend(x="topleft", c(paste(caseNum,"cases"),paste(ctrlNum,"controls")), pch=19, col=c(casecol,ctrlcol), bty="n", cex=1.0)
+    plot(pca.paths$rotation[,i], pca.paths$rotation[,i+1], xlab=xlabel, ylab=ylabel, pch=19, cex=0.3, col=phenotypeColor, main=prefix)
+    legend(x="topleft", phenotypes, pch=19, col=colors, bty="n", cex=1.0)
 }

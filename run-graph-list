@@ -27,5 +27,8 @@ LISTFILE=HLA_PHEWAS.list
 LABELSFILE=HLA_PHEWAS_5pheno.labels.txt
 GRAPH=HLA_PHEWAS_5pheno
 
+#java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.PangenomicGraph -list $GRAPHDIR/$LISTFILE \
+#     -v -pca -arff -svm -ecc -g $GRAPHDIR/$GRAPH -l $GRAPHDIR/$LABELSFILE $4 $5 $6
+
 java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.PangenomicGraph -list $GRAPHDIR/$LISTFILE \
-     -v -pca -arff -svm -ecc -g $GRAPHDIR/$GRAPH -l $GRAPHDIR/$LABELSFILE $4 $5 $6
+     -v -pca -g $GRAPHDIR/$GRAPH -l $GRAPHDIR/$LABELSFILE $4 $5 $6

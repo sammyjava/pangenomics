@@ -52,7 +52,7 @@ public class ListImporter {
 	BufferedReader listReader = new BufferedReader(new FileReader(listFile));
 	String listLine = null;
 	while ((listLine=listReader.readLine())!=null) {
-	    if (verbose) System.out.print(".");
+	    if (verbose) System.err.print(".");
 	    String[] fields = listLine.split("\\t");
 	    if (fields.length==3) continue; // empty no-call line
 	    String contig = fields[0];
@@ -98,14 +98,11 @@ public class ListImporter {
 		nodeSamplesMap.put(n, nodeSamples);
 	    }
 	}
+        if (verbose) System.err.println("");
 	// update the nodes with their genotype (not allele) frequencies
 	for (Node n : nodeSamplesMap.keySet()) {
             Set<String> nodeSamples = nodeSamplesMap.get(n);
             n.gf = (double)nodeSamples.size() / (double)sampleNodesMap.size();
-            // DEBUG
-            if (n.rs.equals("HLA_DQB1_0302")) {
-                System.out.println(n.id+"\t"+n.rs+"\t"+n.genotype+"\tnodeSamples.size()="+nodeSamples.size()+"\t"+"sampleNodesMap.size()="+sampleNodesMap.size()+"\tn.gf="+n.gf);
-            }
         }
 	if (verbose) {
 	    System.err.println("");
