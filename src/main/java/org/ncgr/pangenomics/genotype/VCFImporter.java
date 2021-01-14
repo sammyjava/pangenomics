@@ -19,23 +19,11 @@ import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 
 /**
- * Importer for VCF files. Creates public collections that can be used to build a graph.
+ * Importer for VCF files.
  *
  * @author Sam Hokin
  */
-public class VCFImporter {
-
-    // verbosity flag
-    public boolean verbose = false;
-
-    // the Nodes we import
-    public List<Node> nodes;
-
-    // map the sample names to the ordered List of Nodes they traverse
-    public Map<String,List<Node>> sampleNodesMap;
-
-    // map the Nodes to the Set of samples that traverse them
-    public Map<Node,Set<String>> nodeSamplesMap;
+public class VCFImporter extends Importer {
 
     /**
      * Read the nodes and paths in from a VCF file.
@@ -46,10 +34,6 @@ public class VCFImporter {
      */
     public void read(File vcfFile, boolean ignorePhase) throws FileNotFoundException, IOException {
         if (verbose) System.out.println("Reading samples and nodes from VCF...");
-        // initiate the class collections
-        nodes = new LinkedList<>();
-        sampleNodesMap = new HashMap<>();
-        nodeSamplesMap = new HashMap<>();
         // create the VCF file reader
 	VCFFileReader vcfReader = new VCFFileReader(vcfFile);
 	// load the VCF sample names
@@ -87,29 +71,29 @@ public class VCFImporter {
                     nodes.add(n);
                     nodesMap.put(nodeString, n);
                 }
-                List<Node> sampleNodes;
-		if (sampleNodesMap.containsKey(sampleName)) {
-		    sampleNodes = sampleNodesMap.get(sampleName);
+                NodeSet sampleNodes;
+		if (sampleNodeSets.containsKey(sampleName)) {
+		    sampleNodes = sampleNodeSets.get(sampleName);
 		} else {
-		    sampleNodes = new LinkedList<>();
+		    sampleNodes = new NodeSet();
 		}
                 sampleNodes.add(n);
-                sampleNodesMap.put(sampleName, sampleNodes);
-                Set<String> nodeSamples;
-		if (nodeSamplesMap.containsKey(n)) {
-		    nodeSamples = nodeSamplesMap.get(n);
+                sampleNodeSets.put(sampleName, sampleNodes);
+                Set<String> samples;
+		if (nodeSamples.containsKey(n)) {
+		    samples = nodeSamples.get(n);
 		} else {
-		    nodeSamples = new HashSet<>();
+		    samples = new HashSet<>();
 		}
-                nodeSamples.add(sampleName);
-                nodeSamplesMap.put(n, nodeSamples);
+                samples.add(sampleName);
+                nodeSamples.put(n, samples);
 	    }
         }
         // update the nodes with their genotype (not allele) frequencies
-        for (Node n : nodeSamplesMap.keySet()) {
-            Set<String> nodeSamples = nodeSamplesMap.get(n);
-            n.gf = (double)nodeSamples.size() / (double)sampleNameList.size();
+        for (Node n : nodeSamples.keySet()) {
+            Set<String> samples = nodeSamples.get(n);
+            n.gf = (double)samples.size() / (double)sampleNameList.size();
         }
-	if (verbose) System.out.println("VCFImporter read "+sampleNodesMap.size()+" samples.");
+	if (verbose) System.out.println("VCFImporter read "+sampleNodeSets.size()+" samples.");
     }
 }

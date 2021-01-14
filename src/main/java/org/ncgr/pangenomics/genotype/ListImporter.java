@@ -17,26 +17,14 @@ import java.util.Set;
 import java.util.HashSet;
 
 /**
- * Importer for PLINK list output files. Creates public collections that can be used to build a graph.
+ * Importer for PLINK --list output files.
  *
  * @author Sam Hokin
  */
-public class ListImporter {
-
-    // verbosity flag
-    public boolean verbose = false;
-
-    // the nodes we've imported, in order
-    public List<Node> nodes = new LinkedList<>();
-
-    // map each sample to the ordered list nodes it traverses
-    public Map<String,List<Node>> sampleNodesMap = new HashMap<>();
-    
-    // map each Node to the Set of samples that traverse it
-    public Map<Node,Set<String>> nodeSamplesMap = new HashMap<>();
+public class ListImporter extends Importer {
 
     /**
-     * Read the nodes and paths in from a List file, for the samples listed in samples.
+     * Read the nodes and samples in from a List file, for the samples listed in desiredSamples.
      * Each locus has four lines: HOM, HET, REF, and NC with each sample listed TWICE!
      * contig   identifier              gtype   smp1    smp1    smp2    smp2    smp3    smp3    smp4   ...
      * 6	AA_A_9_30018537_FS	AA	174	174	509	509	1099	1099	1360   ...
@@ -44,21 +32,22 @@ public class ListImporter {
      * 6	AA_A_9_30018537_FS	PP	45	45	55	55	57	57	59     ...
      * 6	AA_A_9_30018537_FS	00
      */
-    public void read(File listFile, Set<String> samples) throws FileNotFoundException, IOException {
-        if (verbose) System.err.println("Reading nodes from LIST file");
-	// spin through the List records storing the loaded samples and nodes in local maps
+    public void read(File listFile, Set<String> desiredSamples) throws FileNotFoundException, IOException {
+        if (verbose) System.err.println("Reading nodes and samples from PLINK LIST file "+listFile.getName());
+	// spin through the List records storing the loaded desiredSamples and nodes in local maps
 	long nodeId = 0;
 	Map<String,Node> nodesMap = new HashMap<>();
+	String line = null;
 	BufferedReader listReader = new BufferedReader(new FileReader(listFile));
-	String listLine = null;
-	while ((listLine=listReader.readLine())!=null) {
+	while ((line=listReader.readLine())!=null) {
 	    if (verbose) System.err.print(".");
-	    String[] fields = listLine.split("\\t");
+	    String[] fields = line.split("\\t");
 	    if (fields.length==3) continue; // empty no-call line
 	    String contig = fields[0];
 	    String rs = fields[1];
 	    String genotype = fields[2]; // includes "00" if any samples
 	    String nodeString = rs+"_"+genotype;
+	    // handle multiple lines with same node
 	    Node n;
 	    if (nodesMap.containsKey(nodeString)) {
 		n = nodesMap.get(nodeString);
@@ -72,41 +61,41 @@ public class ListImporter {
 	    // read the samples for this node that are in the supplied samples list, using a Set for uniqueness
 	    Set<String> lineSamples = new HashSet<>();
 	    for (int i=3; i<fields.length; i++) {
-		if (samples.contains(fields[i])) {
+		if (desiredSamples.contains(fields[i])) {
 		    lineSamples.add(fields[i]);
 		}
 	    }
-	    // spin through the samples, incrementing the maps
+	    // spin through these samples, incrementing the maps
 	    for (String sampleName : lineSamples) {
 		// nodes per sample
-		List<Node> sampleNodes;
-		if (sampleNodesMap.containsKey(sampleName)) {
-		    sampleNodes = sampleNodesMap.get(sampleName);
+		NodeSet sampleNodes;
+		if (sampleNodeSets.containsKey(sampleName)) {
+		    sampleNodes = sampleNodeSets.get(sampleName);
 		} else {
-		    sampleNodes = new LinkedList<>();
+		    sampleNodes = new NodeSet();
 		}
 		sampleNodes.add(n);
-		sampleNodesMap.put(sampleName, sampleNodes);
+		sampleNodeSets.put(sampleName, sampleNodes);
 		// samples per node
-		Set<String> nodeSamples;
-		if (nodeSamplesMap.containsKey(n)) {
-		    nodeSamples = nodeSamplesMap.get(n);
+		Set<String> samples;
+		if (nodeSamples.containsKey(n)) {
+		    samples = nodeSamples.get(n);
 		} else {
-		    nodeSamples = new HashSet<>();
+		    samples = new HashSet<>();
 		}
-		nodeSamples.add(sampleName);
-		nodeSamplesMap.put(n, nodeSamples);
+		samples.add(sampleName);
+		nodeSamples.put(n, samples);
 	    }
 	}
         if (verbose) System.err.println("");
 	// update the nodes with their genotype (not allele) frequencies
-	for (Node n : nodeSamplesMap.keySet()) {
-            Set<String> nodeSamples = nodeSamplesMap.get(n);
-            n.gf = (double)nodeSamples.size() / (double)sampleNodesMap.size();
+	for (Node n : nodeSamples.keySet()) {
+            Set<String> samples = nodeSamples.get(n);
+            n.gf = (double)samples.size() / (double)sampleNodeSets.size();
         }
 	if (verbose) {
 	    System.err.println("");
-	    System.err.println("ListImporter read "+sampleNodesMap.size()+" samples and "+nodes.size()+" nodes.");
+	    System.err.println("ListImporter read "+sampleNodeSets.size()+" samples and "+nodes.size()+" nodes.");
 	}
     }
 }

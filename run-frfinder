@@ -68,12 +68,6 @@
 ## use kappa=-1 to represent kappa=infinity (unlimited extra nodes between FR nodes on a path)
 ######################################################################################################################
 
-## static parameters
-maxp=1.0
-minmgf=0.0
-minsupport=100
-minpriority=1
-
 ## required parameters
 graph=$1
 alpha=$2
@@ -88,6 +82,5 @@ echo "# $graph alpha=$alpha kappa=$kappa priorityOption=$priorityoption $5 $6 $7
 ## DO NOT USE -XX:+UseG1GC!!! Causes hang at certain RAM limit.
 java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRFinder \
 	--verbose --txt \
-	--maxp=$maxp  --minmgf=$minmgf --minsupport=$minsupport --minpriority=$minpriority \
 	--graph=$graph --alpha=$alpha --kappa=$kappa --priorityoption=$priorityoption \
 	$5 $6 $7 $8 $9 ${10} ${11} ${12} ${13} ${14} ${15}

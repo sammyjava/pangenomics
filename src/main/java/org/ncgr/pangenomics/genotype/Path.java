@@ -1,7 +1,7 @@
 package org.ncgr.pangenomics.genotype;
 
 import java.util.List;
-import java.util.ArrayList;
+import java.util.LinkedList;
 
 import org.jgrapht.Graph;
 import org.jgrapht.graph.GraphWalk;
@@ -18,7 +18,7 @@ public class Path extends GraphWalk<Node,Edge> implements Comparable {
     public String sequence;          // this path's full genomic sequence (may be null)
 
     /**
-     * Create a path defined by a List of Nodes; weight=1.0.
+     * Create a path defined by a NodeSet, name, and label. weight=1.0.
      */
     public Path(Graph<Node,Edge> graph, List<Node> nodes, String name, String label) {
         super(graph, nodes, 1.0);
@@ -85,7 +85,7 @@ public class Path extends GraphWalk<Node,Edge> implements Comparable {
     @Override
     public String toString() {
         NodeSet ns = new NodeSet(getNodes());
-    	return name+"."+label+":"+ns.toString();
+    	return name+"\t"+label+"\t"+ns.toString();
     }
 
     /**
@@ -95,7 +95,7 @@ public class Path extends GraphWalk<Node,Edge> implements Comparable {
      * @return the Path inclusively between nl and nr
      */
     public Path subpath(Node nl, Node nr) {
-        List<Node> subnodes = new ArrayList<>();
+        List<Node> subnodes = new LinkedList<>();
         List<Node> nodeList = getNodes();
         if (nodeList.contains(nl) && nodeList.contains(nr)) {
             if (nl.equals(nr)) {

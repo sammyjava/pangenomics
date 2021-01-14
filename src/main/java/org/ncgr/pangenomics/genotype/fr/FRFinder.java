@@ -10,12 +10,13 @@ import java.io.IOException;
 import java.io.PrintStream;
 
 import java.util.List;
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.TreeMap;
 import java.util.Properties;
 import java.util.Set;
+import java.util.HashSet;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
@@ -55,13 +56,13 @@ public class FRFinder {
     PangenomicGraph graph;
 
     // store paths locally since post-processing doesn't build a graph
-    List<Path> paths;
+    Set<Path> paths;
 
     // parameters are stored in a Properties object
     Properties parameters = new Properties();
 
     // the output FRs
-    Map<String,FrequentedRegion> frequentedRegions;
+    Map<String,FrequentedRegion> frequentedRegions = new HashMap<>();
 
     // priority option
     String priorityOption = "4";    // default
@@ -149,9 +150,6 @@ public class FRFinder {
      * int kappa = maximum insertion: the maximum number of inserted nodes that a supporting path may have.
       */
     public void findFRs(double alpha, int kappa) throws FileNotFoundException, IOException {
-        // store the saved FRs in a map
-        frequentedRegions = new HashMap<>();
-
         // optional required and excluded nodes
 	NodeSet requiredNodes = graph.getNodeSet(requiredNodeString);
 	NodeSet includedNodes = graph.getNodeSet(includedNodeString);
@@ -1081,7 +1079,7 @@ public class FRFinder {
 	}
 	NodeSet excludedPathNodes = pg.getNodeSet(excludedPathNodeString);
 	if (excludedPathNodes.size()>0) {
-	    List<Path> pathsToRemove = new ArrayList<>();
+	    List<Path> pathsToRemove = new LinkedList<>();
 	    for (Path path : pg.paths) {
 		for (Node node : excludedPathNodes) {
 		    if (path.getNodes().contains(node)) {
@@ -1101,7 +1099,7 @@ public class FRFinder {
 	NodeSet includedPathNodes = pg.getNodeSet(includedPathNodeString);
 	int formerPathCount = pg.paths.size();
 	if (includedPathNodes.size()>0) {
-	    List<Path> pathsToKeep = new ArrayList<>();
+	    Set<Path> pathsToKeep = new HashSet<>();
 	    for (Path path : pg.paths) {
 		for (Node node : includedPathNodes) {
 		    if (path.contains(node)) {

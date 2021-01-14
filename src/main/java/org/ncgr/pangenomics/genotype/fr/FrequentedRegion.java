@@ -9,10 +9,11 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 
 import java.util.List;
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.Set;
+import java.util.HashSet;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -285,7 +286,7 @@ class FrequentedRegion implements Comparable {
      * Update the subpaths and support from the graph paths for the current alpha and kappa values.
      */
     void updateSupport() {
-        subpaths = new ArrayList<>();
+        subpaths = new LinkedList<>();
         for (Path p : graph.paths) {
             List<Path> supportPaths = computeSupport(p);
             subpaths.addAll(supportPaths);
@@ -322,7 +323,7 @@ class FrequentedRegion implements Comparable {
      */
     public int getPathSupport(String label) {
         int count = 0;
-        List<String> countedPaths = new ArrayList<>();
+        List<String> countedPaths = new LinkedList<>();
         for (Path subpath : subpaths) {
             if (!countedPaths.contains(subpath.name) && subpath.label!=null && subpath.label.equals(label)) {
                 countedPaths.add(subpath.name);
@@ -683,7 +684,7 @@ class FrequentedRegion implements Comparable {
 	}
 	NodeSet excludedPathNodes = pg.getNodeSet(excludedPathNodeString);
 	if (excludedPathNodes.size()>0) {
-	    List<Path> pathsToRemove = new ArrayList<>();
+	    Set<Path> pathsToRemove = new HashSet<>();
 	    for (Path path : pg.paths) {
 		for (Node node : excludedPathNodes) {
 		    if (path.contains(node)) {
@@ -703,7 +704,7 @@ class FrequentedRegion implements Comparable {
 	NodeSet includedPathNodes = pg.getNodeSet(includedPathNodeString);
 	int formerPathCount = pg.paths.size();
 	if (includedPathNodes.size()>0) {
-	    List<Path> pathsToKeep = new ArrayList<>();
+	    Set<Path> pathsToKeep = new HashSet<>();
 	    for (Path path : pg.paths) {
 		for (Node node : includedPathNodes) {
 		    if (path.contains(node)) {
@@ -740,9 +741,9 @@ class FrequentedRegion implements Comparable {
      */
     public List<Path> computeSupport(Path p) {
         // s = the supporting subpaths
-        List<Path> s = new ArrayList<>();
+        List<Path> s = new LinkedList<>();
         // m = the list of the path's nodes that are in C=nodes
-        List<Node> m = new ArrayList<>();
+        List<Node> m = new LinkedList<>();
         for (Node n : p.getNodes()) {
             if (nodes.contains(n)) m.add(n);
         }

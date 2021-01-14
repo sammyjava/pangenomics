@@ -20,53 +20,33 @@ import java.util.HashSet;
 /**
  * Importer for TXT files [graph].nodes.txt and [graph].paths.txt containing Nodes and Paths.
  *
- * NOTE: no node or path sequences!!
- *
  * @author Sam Hokin
  */
-public class TXTImporter {
+public class TXTImporter extends Importer {
 
-    // verbosity flag
-    public boolean verbose = false;
+    // map each sample name to its label
+    public Map<String,String> sampleLabels = new HashMap<>();
 
-    // the Nodes we import
-    public List<Node> nodes;
-
-    // map the sample names to the ordered List of Nodes they traverse
-    public Map<String,List<Node>> sampleNodesMap;
-
-    // map the Nodes to the Set of samples that traverse them
-    public Map<Node,Set<String>> nodeSamplesMap;
-
-    // map the sample names to their label
-    public Map<String,String> sampleLabels;
-    
     /**
      * Import instance values from a nodes text file and a paths text file.
      *
      * node line:
-     * 0id    1rs     2contig 3start  4end    5genotype  
+     * id     rs      contig  start   end     genotype  
      * 12764  rs12345 2       3228938 3229006 CCCACCCCTGCCCTGTCTGGGGCTGAAGTACAGTGCCACCCCTGCCCTGTCTGGGGCTGAAGGACAGTG/C
      *
      * path line:
-     * 0name    1label  2...nodes...
-     * 642913	case	1	8	17	21	24	25	28	33	35	37 ...
+     * name     label   nodes
+     * 642913	case	[1,8,17,21,24,25,28,33,35,37,...]
      *
-     * @param nodesFile the nodes file (typically [graph].nodes.txt)
-     * @param pathsFile the paths file (typically [graph].paths.txt)
+     * @param nodesFile the nodes File (typically [graph].nodes.txt)
+     * @param pathsFile the paths File (typically [graph].paths.txt)
      */
     public void read(File nodesFile, File pathsFile) throws IOException {
         // read the nodes, storing in a map for path building
         if (verbose) System.err.println("Reading nodes from "+nodesFile.getName()+"...");
-        // instantiate the class collections
-        nodes = new LinkedList<>();
-        sampleNodesMap = new HashMap<>();
-        nodeSamplesMap = new HashMap<>();
-        sampleLabels = new HashMap<>();
-        // read the nodes file
-        Map<Long,Node> nodeMap = new HashMap<>();
-        BufferedReader nodesReader = new BufferedReader(new FileReader(nodesFile));
+	Map<Long,Node> nodesMap = new HashMap<>();
         String line = null;
+        BufferedReader nodesReader = new BufferedReader(new FileReader(nodesFile));
         while ((line=nodesReader.readLine())!=null) {
             String[] parts = line.split("\t");
             long id = Long.parseLong(parts[0]);
@@ -78,42 +58,45 @@ public class TXTImporter {
             double gf = Double.parseDouble(parts[6]);
             if (rs.equals(".")) rs = null;
             Node n = new Node(id, rs, contig, start, end, genotype, gf);
-            nodes.add(n);
-            nodeMap.put(id, n);
+            nodesMap.put(n.id, n);
         }
         nodesReader.close();
-        if (verbose) System.err.println("...read "+nodes.size()+" nodes.");
-        // read the paths file
-        if (verbose) System.err.println("Reading path lines from "+pathsFile.getName()+"...");
+        if (verbose) System.err.println("...read "+nodesMap.size()+" nodes.");
+        // read the paths file with lines like
+	// 0      1    2
+	// 123ABC case [2,3,6,7,8,9,12,15,24]
+        if (verbose) System.err.println("Reading paths from "+pathsFile.getName()+"...");
         BufferedReader pathsReader = new BufferedReader(new FileReader(pathsFile));
         List<String> lines = new LinkedList<String>();
         while ((line=pathsReader.readLine())!=null) {
-            lines.add(line);
-        }
-        if (verbose) System.err.println("...read "+lines.size()+" path lines.");
-        // now build the maps in parallel, since each line contains a distinct sample
-        if (verbose) System.err.println("Building sample/node maps...");
-	for (String l : lines) {
-	    String[] parts = l.split("\t");
-	    String name = parts[0];
-	    String label = parts[1];
+	    String[] fields = line.split("\t");
+	    String name = fields[0];
+	    String label = fields[1];
 	    sampleLabels.put(name, label);
-	    List<Node> nodeList = new LinkedList<>();
-	    for (int i=2; i<parts.length; i++) {
-		nodeList.add(nodeMap.get(Long.parseLong(parts[i])));
-	    }
-	    sampleNodesMap.put(name, nodeList);
-	    for (Node n : nodeList) {
-		Set<String> nodeSamples;
-		if (nodeSamplesMap.containsKey(n)) {
-		    nodeSamples = nodeSamplesMap.get(n);
+	    // input NodeSet contains different Nodes from above, so grab the ones above by id identity
+	    NodeSet inputNodeSet = new NodeSet(fields[2]);
+	    NodeSet outputNodeSet = new NodeSet();
+	    for (Node n : inputNodeSet) {
+		if (nodesMap.containsKey(n.id)) {
+		    outputNodeSet.add(nodesMap.get(n.id)); // id is key
 		} else {
-		    nodeSamples = new HashSet<>();
+		    System.err.println("ERROR: node "+n.id+" in paths file is not present in nodes file.");
 		}
-		nodeSamples.add(name);
-		nodeSamplesMap.put(n, nodeSamples);
+	    }
+	    sampleNodeSets.put(name, outputNodeSet);
+	    for (Node n : outputNodeSet) {
+		Set<String> samples;
+		if (nodeSamples.containsKey(n)) {
+		    samples = nodeSamples.get(n);
+		} else {
+		    samples = new HashSet<>();
+		}
+		samples.add(name);
+		nodeSamples.put(n, samples);
 	    }
 	}
-	if (verbose) System.err.println("TXTImporter read "+sampleNodesMap.size()+" samples/paths and "+nodes.size()+" nodes.");
+	// wrap up
+	this.nodes = new LinkedList<Node>(nodesMap.values());
+	if (verbose) System.err.println("TXTImporter read "+sampleNodeSets.size()+" sample paths and "+nodes.size()+" nodes.");
     }
 }

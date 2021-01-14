@@ -39,30 +39,27 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
     // a name for this graph
     public String name;
 
-    // the file holding the labels for each path (typically "case" and "control")
-    public File labelsFile;
-
     // the TXT files holding the nodes and paths
     public File nodesFile;
     public File pathsFile;
     
-    // list of the paths that traverse this graph
-    public List<Path> paths;
+    // Set of Paths that traverse this graph
+    public Set<Path> paths = new HashSet<>();
 
-    // map Path names to their Path (convenience)
-    public Map<String,Path> pathNameMap;
+    // Map of Path names to their Path (convenience)
+    public Map<String,Path> pathNameMap = new HashMap<>();
 
-    // map Node ids to their Node (convenience)
-    public Map<Long,Node> nodeIdMap;
+    // Map of Node ids to their Nodes (convenience)
+    public Map<Long,Node> nodeIdMap = new HashMap<>();
 
     // maps a Node to the Paths that traverse it
-    public Map<Node,List<Path>> nodePaths;
+    public Map<Node,List<Path>> nodePaths = new HashMap<>();
 
     // associate samples with labels like "case" and "ctrl"
-    public Map<String,String> sampleLabels;
+    public Map<String,String> sampleLabels = new HashMap<>();
     
     // maps a path label to a count of paths that have that label
-    public Map<String,Integer> labelCounts; // keyed by label
+    public Map<String,Integer> labelCounts; // keyed by label, construct in method
 
     // computed once to save time
     public FisherExact fisherExact;
@@ -83,39 +80,55 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
     /**
      * Build this graph from the provided Nodes and and maps. sampleLabels must already be populated.
      */
-    public void buildGraph(List<Node> nodes, Map<String,List<Node>> sampleNodesMap, Map<Node,Set<String>> nodeSamplesMap) {
+    public void buildGraph(List<Node> nodes, Map<String,NodeSet> sampleNodeSets, Map<Node,Set<String>> nodeSamples) {
+	// validation
 	if (sampleLabels.size()==0) {
 	    System.err.println("ERROR in PangenomicGraph.buildGraph: sampleLabels has not been populated.");
 	    System.exit(1);
 	}
-        paths = new LinkedList<Path>();
-        pathNameMap = new HashMap<>();
-        nodeIdMap = new HashMap<>();
-        // clear sampleLabels entries that aren't in sampleNodesMap
-        Map<String,String> newSampleLabels = new HashMap<>();
-        for (String sampleName : sampleNodesMap.keySet()) {
-            if (sampleLabels.containsKey(sampleName)) newSampleLabels.put(sampleName, sampleLabels.get(sampleName));
+	if (nodes.size()==0) {
+	    System.err.println("ERROR in PangenomicGraph.buildGraph: nodes list is empty.");
+	    System.exit(1);
+	}
+	if (sampleNodeSets.size()==0) {
+	    System.err.println("ERROR in PangenomicGraph.buildGraph: sampleNodeSets is empty.");
+	    System.exit(1);
+	}
+	if (nodeSamples.size()==0) {
+	    System.err.println("ERROR in PangenomicGraph.buildGraph: nodeSamples is empty.");
+	    System.exit(1);
+	}
+        // remove sampleLabels entries that aren't in sampleNodeSets
+	int removeCount = 0;
+        for (String sampleName : sampleNodeSets.keySet()) {
+            if (!sampleLabels.containsKey(sampleName)) {
+		sampleLabels.remove(sampleName);
+		removeCount++;
+	    }
         }
-        sampleLabels = newSampleLabels;
-        // optionally drop no-call nodes and paths that traverse them
+	if (verbose && removeCount>0) {
+	    System.err.println("Removed "+removeCount+" samples that were not in sampleNodeSets.");
+	    System.err.println(sampleLabels.size()+" samples remain.");
+	}
+        // optionally drop no-call nodes and all paths that traverse them
         if (dropNoCallPaths) {
-            List<Node> nodesToDrop = new LinkedList<>();
+            Set<Node> nodesToDrop = new HashSet<>();
             Set<String> samplesToDrop = new HashSet<>();
             for (Node n : nodes) {
                 if (n.isNoCall()) {
                     nodesToDrop.add(n);
-		    Set<String> sampleNames = nodeSamplesMap.get(n);
+		    Set<String> sampleNames = nodeSamples.get(n);
                     samplesToDrop.addAll(sampleNames);
                 }
             }
             for (Node n : nodesToDrop) {
                 nodes.remove(n);
-                nodeSamplesMap.remove(n);
+                nodeSamples.remove(n);
             }
-            for (String sampleName : samplesToDrop) {
-                sampleNodesMap.remove(sampleName);
-                sampleLabels.remove(sampleName);
-            }
+	    for (String sampleName : samplesToDrop) {
+		sampleNodeSets.remove(sampleName);
+		sampleLabels.remove(sampleName);
+	    }
             System.err.println("Removed "+nodesToDrop.size()+" no-call nodes and "+samplesToDrop.size()+" samples containing no-call nodes.");
         }
         // optionally enforce cases=controls
@@ -146,44 +159,45 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
                     }
                 }
 	    }
-            for (String sampleName : samplesToDrop) {
-                sampleLabels.remove(sampleName);
-                sampleNodesMap.remove(sampleName);
-            }
-            for (Node n : nodeSamplesMap.keySet()) {
-                Set<String> sampleNames = nodeSamplesMap.get(n);
-                for (String sampleName : samplesToDrop) sampleNames.remove(sampleName);
+	    // remove dropped samples
+	    for (String sampleName : samplesToDrop) {
+		sampleLabels.remove(sampleName);
+		sampleNodeSets.remove(sampleName);
+		for (Node n : nodeSamples.keySet()) {
+		    Set<String> sampleNames = nodeSamples.get(n);
+		    sampleNames.remove(sampleName);
+		}
             }
             // drop nodes that no longer have any samples
             Set<Node> nodesToDrop = new HashSet<>();
-            for (Node n : nodeSamplesMap.keySet()) {
-                Set<String> sampleNames = nodeSamplesMap.get(n);
+            for (Node n : nodeSamples.keySet()) {
+                Set<String> sampleNames = nodeSamples.get(n);
                 if (sampleNames.size()==0) nodesToDrop.add(n);
             }
-            for (Node n : nodesToDrop) {
-                nodes.remove(n);
-                nodeSamplesMap.remove(n);
-            }
+	    for (Node n : nodesToDrop) {
+		nodes.remove(n);
+		nodeSamples.remove(n);
+	    }
             System.err.println("Removed "+samplesToDrop.size()+" samples and "+nodesToDrop.size()+" orphaned nodes to equalize cases and controls.");
         }
         // add the nodes as graph vertices
         if (verbose) System.err.println("Adding nodes to graph vertices...");
         for (Node n : nodes) {
             addVertex(n);
-            nodeIdMap.put(n.id, n);
+	    nodeIdMap.put(n.id, n);
         }
-        // build the paths and path-labeled graph edges from the sampleLabels and sample-nodes map
-	// NOTE: sampleLabels may contain some samples not in sampleNodesMap and vice-versa
+        // build the paths and path-labeled graph edges from the sampleLabels and sampleNodeSets map
+	// NOTE: sampleLabels may contain some samples not in sampleNodeSets and vice-versa
         if (verbose) System.err.println("Creating paths and adding edges to graph...");
         for (String sampleName : sampleLabels.keySet()) {
-	    if (sampleNodesMap.containsKey(sampleName)) {
-		List<Node> sampleNodes = sampleNodesMap.get(sampleName);
-		Path path = new Path(this, sampleNodes, sampleName, sampleLabels.get(sampleName));
+	    if (sampleNodeSets.containsKey(sampleName)) {
+		NodeSet sampleNodes = sampleNodeSets.get(sampleName);
+		Path path = new Path(this, new LinkedList<Node>(sampleNodes), sampleName, sampleLabels.get(sampleName));
 		paths.add(path);
 		pathNameMap.put(sampleName, path);
 		// add edges
 		Node lastNode = null;
-		for (Node node : sampleNodesMap.get(sampleName)) {
+		for (Node node : sampleNodes) {
 		    if (lastNode!=null) {
 			if (!containsEdge(lastNode, node)) {
 			    try {
@@ -204,17 +218,15 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
     }
 
     /**
-     * Build this graph from the provided Lists of Nodes and Paths.
+     * Build this graph from the provided Nodes and Paths.
      */
-    public void buildGraph(List<Node> nodes, List<Path> paths) {
+    public void buildGraph(List<Node> nodes, Set<Path> paths) {
         this.paths = paths;
         pathNameMap = new HashMap<>();
-        nodeIdMap = new HashMap<>();
         // add the nodes as graph vertices
         if (verbose) System.err.println("Adding nodes to graph vertices...");
         for (Node n : nodes) {
             addVertex(n);
-            nodeIdMap.put(n.id, n);
         }
         // build the path-labeled graph edges
         if (verbose) System.err.println("Adding edges to graph from paths...");
@@ -243,27 +255,31 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 
     /**
      * Read sample labels from the instance tab-delimited file. Comment lines start with #. Header starts with "sample".
+     * Disregard samples not labeled "case" or "ctrl".
      *
-     * sample	comb	pheno_241.2	pheno_555	pheno_695.42	pheno_714.1	pheno_250.1
-     * 476296	ctrl	ctrl	ctrl	ctrl	ctrl	ctrl
-     * 261580	ctrl	ctrl	ctrl	ctrl	ctrl	ctrl
-     * 273564	unkn	ctrl	ctrl	ctrl	ctrl	unkn
+     * sample	pheno_241.2 pheno_555 pheno_695.42 pheno_714.1 pheno_250.1
+     * 476296	case        ctrl      ctrl         ctrl        ctrl
+     * 261580	ctrl        ctrl      ctrl         ctrl        ctrl
+     * 273564	ctrl        ctrl      ctrl         ctrl        unkn
      */
-    public void readSampleLabels() throws FileNotFoundException, IOException {
-        if (labelsFile==null) {
-            System.err.println("ERROR: graph.labelsFile is not set!");
-            System.exit(1);
-        }
-	if (verbose) System.err.println("Reading sample labels from "+labelsFile);
-        sampleLabels = new HashMap<>();
-        BufferedReader reader = new BufferedReader(new FileReader(labelsFile));
+    public void readSampleLabels(File labelsFile) throws FileNotFoundException, IOException {
+	if (verbose) System.err.println("Reading samples and labels from "+labelsFile.getName());
         String line = null;
+        BufferedReader reader = new BufferedReader(new FileReader(labelsFile));
         while ((line=reader.readLine())!=null) {
-            if (line.startsWith("#") || line.startsWith("sample")) continue;
+            if (line.startsWith("#")) continue;
             String[] fields = line.split("\t");
+	    if (fields[0].equals("sample")) continue;
             if (fields.length>=2) {
-                sampleLabels.put(fields[0], fields[1]); // sample,label
-            }
+		// only keep case or control samples
+		if (fields[1].equals("case") || fields[1].equals("ctrl")) {
+		    sampleLabels.put(fields[0], fields[1]); // name, label
+		}
+            } else {
+		System.err.println("Found a line in "+labelsFile+" with less than two fields:");
+		System.err.println(line);
+		System.exit(1);
+	    }
         }
         reader.close();
     }
@@ -272,7 +288,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
      * Tally the label counts for the paths in this graph (can be a subset of all samples/paths).
      */
     public void tallyLabelCounts() {
-        labelCounts = new TreeMap<>();
+	labelCounts = new HashMap<>();
         for (Path path : paths) {
             if (labelCounts.containsKey(path.label)) {
                 int count = labelCounts.get(path.label);
@@ -288,7 +304,6 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
      */
     public void buildNodePaths() {
 	if (verbose) System.err.println("Building node paths...");
-        nodePaths = new HashMap<>();
         // initialize empty paths for each node
         for (Node n : getNodes()) {
             nodePaths.put(n, new LinkedList<Path>());
@@ -471,10 +486,10 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
      */
     public String[] getPathNames() {
         String[] names = new String[paths.size()];
-        for (int i=0; i<names.length; i++) {
-            Path p = paths.get(i);
-            names[i] = p.name;
-        }
+	int i = 0;
+	for (Path p : paths) {
+	    names[i++] = p.name;
+	}
         return names;
     }
 
@@ -532,12 +547,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
     public void printPaths(PrintStream out) {
         if (out==System.out) printHeading("PATHS");
         for (Path path : paths) {
-            StringBuilder builder = new StringBuilder();
-            builder.append(path.name);
-            for (Node node : path.getNodes()) {
-                builder.append("\t"+node.id);
-            }
-            out.println(builder.toString());
+	    out.println(path.toString());
         }
     }
 
@@ -714,7 +724,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         VCFImporter vcfImporter = new VCFImporter();
 	vcfImporter.verbose = true;
         vcfImporter.read(vcfFile, true); // ignore phasing
-        buildGraph(vcfImporter.nodes, vcfImporter.sampleNodesMap, vcfImporter.nodeSamplesMap);
+        buildGraph(vcfImporter.nodes, vcfImporter.sampleNodeSets, vcfImporter.nodeSamples);
     }
 
     /**
@@ -723,8 +733,9 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
     public void loadList(File listFile) throws IOException {
         ListImporter listImporter = new ListImporter();
 	listImporter.verbose = true;
+	if (verbose) System.err.println("Loading LIST data for "+sampleLabels.size()+" samples.");
         listImporter.read(listFile, sampleLabels.keySet());
-        buildGraph(listImporter.nodes, listImporter.sampleNodesMap, listImporter.nodeSamplesMap);
+        buildGraph(listImporter.nodes, listImporter.sampleNodeSets, listImporter.nodeSamples);
     }
 
     /**
@@ -740,7 +751,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 	txtImporter.verbose = true;
         txtImporter.read(nodesFile, pathsFile);
 	this.sampleLabels = txtImporter.sampleLabels;
-        buildGraph(txtImporter.nodes, txtImporter.sampleNodesMap, txtImporter.nodeSamplesMap);
+        buildGraph(txtImporter.nodes, txtImporter.sampleNodeSets, txtImporter.nodeSamples);
     }
 
     /**
@@ -839,8 +850,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         graph.name = cmd.getOptionValue("graph");
         if (loadVCF) {
             // VCF load needs separate sample labels load
-            graph.labelsFile = new File(cmd.getOptionValue("labelfile"));
-            graph.readSampleLabels();
+	    graph.readSampleLabels(new File(cmd.getOptionValue("labelfile")));
             graph.loadVCF(new File(cmd.getOptionValue("vcffile")));
 	    graph.tallyLabelCounts();
 	    System.err.println("Graph has "+graph.vertexSet().size()+" nodes, "+graph.edgeSet().size()+" edges, and "+graph.paths.size()+
@@ -848,8 +858,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         }
 	if (loadList) {
             // LIST load needs separate sample labels load
-            graph.labelsFile = new File(cmd.getOptionValue("labelfile"));
-            graph.readSampleLabels();
+	    graph.readSampleLabels(new File(cmd.getOptionValue("labelfile")));
 	    graph.loadList(new File(cmd.getOptionValue("listfile")));
 	    graph.tallyLabelCounts();
 	    System.err.println("Graph has "+graph.vertexSet().size()+" nodes, "+graph.edgeSet().size()+" edges, and "+graph.paths.size()+
