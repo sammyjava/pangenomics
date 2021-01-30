@@ -70,6 +70,9 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
     // make balanced graph, equal cases and controls
     public boolean equalizeCasesControls = false;
 
+    // set the maximum number of cases
+    public int maxCases;
+
     /**
      * Basic constructor.
      */
@@ -131,7 +134,53 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 	    }
             System.err.println("Removed "+nodesToDrop.size()+" no-call nodes and "+samplesToDrop.size()+" samples containing no-call nodes.");
         }
-        // optionally enforce cases=controls
+	// optionally limit maximum cases
+	if (maxCases>0) {
+	    int nCases = 0;
+	    int nControls = 0;
+            for (String label : sampleLabels.values()) {
+                if (label.equals("case")) {
+                    nCases++;
+                } else if (label.equals("ctrl")) {
+                    nControls++;
+                }
+            }
+            Set<String> samplesToDrop = new HashSet<>();
+            int numberToRemove = nCases - maxCases;
+	    int count = 0;
+	    // randomly select samples to drop
+	    while (count<numberToRemove) {
+		Optional<String> optional = sampleLabels.keySet().stream().skip((int)(sampleLabels.size()*Math.random())).findFirst();
+		if (optional.isPresent()) {
+		    String sampleName = optional.get();
+		    if (count<numberToRemove && sampleLabels.get(sampleName).equals("case") && !samplesToDrop.contains(sampleName)) {
+			samplesToDrop.add(sampleName);
+			count++;
+		    }
+                }
+	    }
+	    // remove dropped samples
+	    for (String sampleName : samplesToDrop) {
+		sampleLabels.remove(sampleName);
+		sampleNodeSets.remove(sampleName);
+		for (Node n : nodeSamples.keySet()) {
+		    Set<String> sampleNames = nodeSamples.get(n);
+		    sampleNames.remove(sampleName);
+		}
+            }
+            // drop nodes that no longer have any samples
+            Set<Node> nodesToDrop = new HashSet<>();
+            for (Node n : nodeSamples.keySet()) {
+                Set<String> sampleNames = nodeSamples.get(n);
+                if (sampleNames.size()==0) nodesToDrop.add(n);
+            }
+	    for (Node n : nodesToDrop) {
+		nodes.remove(n);
+		nodeSamples.remove(n);
+	    }
+            System.err.println("Removed "+samplesToDrop.size()+" samples and "+nodesToDrop.size()+" orphaned nodes to set number of cases = "+maxCases+".");
+	}
+	// optionally enforce cases=controls
         if (equalizeCasesControls) {
             int nCases = 0;
             int nControls = 0;
@@ -767,7 +816,6 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         Option graphOption = new Option("g", "graph", true, "name of graph");
         graphOption.setRequired(true);
         options.addOption(graphOption);
-
         // if vcf then labelfile is required
         Option vcfFileOption = new Option("vcf", "vcffile", true, "load graph from <graph>.vcf.gz");
         vcfFileOption.setRequired(false);
@@ -792,6 +840,10 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         Option equalizeCasesControlsOption = new Option("ecc", "equalizecasescontrols", false, "reduce cases or controls to make equal in number [false]");
         equalizeCasesControlsOption.setRequired(false);
         options.addOption(equalizeCasesControlsOption);
+	// set max cases
+	Option maxCasesOption = new Option("maxc", "maxcases", true, "maxiumum number of cases in the graph");
+	maxCasesOption.setRequired(false);
+	options.addOption(maxCasesOption);
 	// optional output
 	Option printPcaFileOption = new Option("pca", "printpcafile", false, "print out path pca file [false]");
 	printPcaFileOption.setRequired(false);
@@ -845,6 +897,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         if (cmd.hasOption("verbose")) graph.verbose = true;
         if (cmd.hasOption("dropnocallpaths")) graph.dropNoCallPaths = true;
         if (cmd.hasOption("equalizecasescontrols")) graph.equalizeCasesControls = true;
+	if (cmd.hasOption("maxcases")) graph.maxCases = Integer.parseInt(cmd.getOptionValue("maxcases"));
 
         // populate graph instance vars from parameters
         graph.name = cmd.getOptionValue("graph");

@@ -12,7 +12,7 @@ MINPRIORITY=1
 
 MINSIZE=0
 
-MINSUPPORT=100
+MINSUPPORT=10
 
 ## grid scan
 GRIDOUT="$INPUTPREFIX.svm.grid.txt"
@@ -30,13 +30,13 @@ NRUNS=10
 NSVMCASES=0
 NSVMCONTROLS=0
 
-#####################################
-## delete SVM files to force rebuild
+#####################################################
+## delete SVM files to force rebuild after new FR run
 #rm -f $SVMFILE
-#rm -f $RANGE
-#rm -f $FULLSCALE
+rm -f $RANGE
+rm -f $FULLSCALE
 #rm -f $GRIDOUT
-#####################################
+#####################################################
 
 ## write the SVM file
 if [ ! -s $SVMFILE ]

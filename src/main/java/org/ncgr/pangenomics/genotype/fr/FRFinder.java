@@ -62,7 +62,7 @@ public class FRFinder {
     Properties parameters = new Properties();
 
     // the output FRs
-    Map<String,FrequentedRegion> frequentedRegions = new HashMap<>();
+    Map<String,FrequentedRegion> frequentedRegions;
 
     // priority option
     String priorityOption = "4";    // default
@@ -150,6 +150,9 @@ public class FRFinder {
      * int kappa = maximum insertion: the maximum number of inserted nodes that a supporting path may have.
       */
     public void findFRs(double alpha, int kappa) throws FileNotFoundException, IOException {
+	// refresh this on each run
+	frequentedRegions = new HashMap<>();
+	
         // optional required and excluded nodes
 	NodeSet requiredNodes = graph.getNodeSet(requiredNodeString);
 	NodeSet includedNodes = graph.getNodeSet(includedNodeString);
