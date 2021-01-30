@@ -17,26 +17,23 @@ MINSUPPORT=10
 ## grid scan
 GRIDOUT="$INPUTPREFIX.svm.grid.txt"
 K=10
-LOG10C="-6,6,1"
-LOG10GAMMA="-8,1,1"
+# samples to use in grid search
 NGRIDCASES=100
 NGRIDCONTROLS=100
-
-# LOG10C="0,0,1"
-# LOG10GAMMA="-3,-1,0.5"
+C_POWER_STEP=1
+GAMMA_POWER_STEP=1
 
 ## SVM
 NRUNS=10
 NSVMCASES=0
 NSVMCONTROLS=0
 
-#####################################################
-## delete SVM files to force rebuild after new FR run
-#rm -f $SVMFILE
-rm -f $RANGE
-rm -f $FULLSCALE
-#rm -f $GRIDOUT
-#####################################################
+########################################################
+## delete output files to force rebuild
+#rm -f $FULLSCALE
+#rm -f $RANGE
+rm -f $GRIDOUT
+########################################################
 
 ## write the SVM file
 if [ ! -s $SVMFILE ]
@@ -54,15 +51,23 @@ then
 fi
 
 ## run GridSearcher on the full scaled data to find optimum SVM parameters
-# if [ ! -s $GRIDOUT ]
-# then
-#    starttime=`date`
-#    ARGS="-datafile $FULLSCALE -log10C $LOG10C -log10gamma $LOG10GAMMA -k $K -ncases $NGRIDCASES -ncontrols $NGRIDCONTROLS"
-#    echo "Running GridSearcher with $ARGS"
-#    java -server -cp "build/install/fr/lib/*" org.ncgr.svm.GridSearcher $ARGS > $GRIDOUT
-#    endtime=`date`
-#    echo "$starttime - $endtime"
-# fi
+# usage: GridSearcher [options]
+#  -Cstep <arg>       step for n in C=2^n [1]
+#  -datafile <arg>    input data file in SVM format [required]
+#  -gammastep <arg>   step for n in gamma=2^n [1]
+#  -k <arg>           k-fold for cross validation [10]
+#  -ncases <arg>      set number of cases to use in search [0=all]
+#  -ncontrols <arg>   set number of controls to use in search [0=all]
+#  -v                 toggle verbose output
+if [ ! -s $GRIDOUT ]
+then
+   starttime=`date`
+   ARGS="-datafile $FULLSCALE -k $K -ncases $NGRIDCASES -ncontrols $NGRIDCONTROLS -Cstep $C_POWER_STEP -gammastep $GAMMA_POWER_STEP"
+   echo "Running GridSearcher with $ARGS"
+   java -server -cp "build/install/fr/lib/*" org.ncgr.svm.GridSearcher -v $ARGS > $GRIDOUT
+   endtime=`date`
+   echo "$starttime - $endtime"
+fi
 
 ## set SVM parameters, default or from GridSearcher
 ARGS="-h 0 -m 10000 -C 1.0 -k $K -ncases $NSVMCASES -ncontrols $NSVMCONTROLS"
@@ -72,9 +77,10 @@ then
     gamma=`tail -1 $GRIDOUT | awk '{ print $2; }'`
     perc=`tail -1 $GRIDOUT | awk '{ print $3; }'`
     ARGS="-C $C -gamma $gamma -k $K -ncases $NSVMCASES -ncontrols $NSVMCONTROLS"
+    echo "GRID search resulted in: $ARGS"
 fi
 
 ## run the cross-validation
-echo "Running $NRUNS SvmCrossValidator runs on $FULLSCALE with $ARGS"
-java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmCrossValidator \
-     $ARGS -nruns $NRUNS -i $FULLSCALE > "$INPUTPREFIX.crossvalidation.txt"
+#echo "Running $NRUNS SvmCrossValidator runs on $FULLSCALE with $ARGS"
+#java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmCrossValidator \
+#     $ARGS -nruns $NRUNS -i $FULLSCALE > "$INPUTPREFIX.crossvalidation.txt"

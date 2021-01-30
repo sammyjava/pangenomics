@@ -21,12 +21,12 @@ for (tc in (1:19)/20) {
 points(graph.specificity, graph.sensitivity, pch=19, col=col.graph)
 points(fr.specificity, fr.sensitivity, pch=19, col=col.fr)
 
-## HLAA HLAB HLAC SCZ6A SCZ14C SCZ6A+SCZ14C 4GENES
-positions = c(1,1,4,1,1,2,1)
-offsets = c(1,1,1,1,1,0.7,1)
+##        HLAA  HLAB  HLAC  SCZ6A SCZ14C SCZ6A+SCZ14C 4GENES
+xtext = c(0.414,0.540,0.572,0.528,0.618, 0.610,       0.627)
+ytext = c(0.657,0.558,0.538,0.510,0.440, 0.557,       0.610)
 for (i in 1:length(graph)) {
     offset = (i-1)*2
-    text(specificity[offset+1], sensitivity[offset+1], graph[i], pos=positions[i], offset=offsets[i])
+    text(xtext[i], ytext[i], graph[i], pos=4)
     arrows(specificity[offset+1], sensitivity[offset+1], specificity[offset+2], sensitivity[offset+2], length=0.1)
 }
 

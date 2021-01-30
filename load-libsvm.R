@@ -28,7 +28,7 @@ fr.sensitivity = c(0.655,0.656,0.641,0.652,0.645,0.650,0.650,0.645,0.648,0.647,
                    0.536,0.542,0.546,0.541,0.543,0.538,0.542,0.537,0.543,0.539,
                    0.458,0.465,0.459,0.463,0.470,0.466,0.466,0.468,0.462,0.464,
 		   0.571,0.571,0.568,0.567,0.572,0.571,0.568,0.572,0.571,0.566,
-		   .65,.65,.65,.65,.65,.65,.65,.65,.65,.65)
+		   0.648,0.649,0.650,0.649,0.652,0.650,0.650,0.654,0.647,0.649)
 
 fr.specificity = c(
     0.461,0.455,0.465,0.461,0.464,0.460,0.457,0.464,0.462,0.462,
@@ -37,7 +37,7 @@ fr.specificity = c(
     0.566,0.564,0.558,0.567,0.557,0.574,0.561,0.567,0.560,0.568,
     0.618,0.623,0.622,0.627,0.622,0.627,0.623,0.622,0.620,0.616,
     0.615,0.618,0.624,0.617,0.619,0.621,0.626,0.618,0.620,0.622,
-    .65,.65,.65,.65,.65,.65,.65,.65,.65,.65)
+    0.644,0.647,0.644,0.644,0.644,0.644,0.644,0.642,0.646,0.645)
 
 
 totCorrect = c(53.0,55.5,
@@ -46,36 +46,25 @@ totCorrect = c(53.0,55.5,
                51.7,55.2,
                51.9,54.3,
 	       52.4,59.5,
-	       55.0,65)
+	       55.0,64.7)
 
-TPR = c(.653,.649,
-        .544,.559,
-        .502,.550,
-        .468,.541,
-        .418,.464,
-	.485,.570,
-	.505,.65)
+sensitivity = c(
+    mean(graph.sensitivity[1:10]), mean(fr.sensitivity[1:10]),
+    mean(graph.sensitivity[11:20]), mean(fr.sensitivity[11:20]),
+    mean(graph.sensitivity[21:30]), mean(fr.sensitivity[21:30]),
+    mean(graph.sensitivity[31:40]), mean(fr.sensitivity[31:40]),
+    mean(graph.sensitivity[41:50]), mean(fr.sensitivity[41:50]),
+    mean(graph.sensitivity[51:60]), mean(fr.sensitivity[51:60]),
+    mean(graph.sensitivity[61:70]), mean(fr.sensitivity[61:70])
+    )
 
-FPR = c(.592,.539,
-        .466,.414,
-        .412,.428,
-        .433,.436,
-        .381,.378,
-	.437,.380,
-	.405,.35)
-
-MCC = c(.063,.112,
-        .079,.145,
-        .091,.122,
-        .035,.105,
-        .038,.087,
-	.049,.190,
-	.101,.15)
-
-
-sensitivity = TPR
-specificity = 1.0 - FPR
-
-precision = TPR/(TPR+FPR)
-recall = TPR
+specificity = c(
+    mean(graph.specificity[1:10]), mean(fr.specificity[1:10]),
+    mean(graph.specificity[11:20]), mean(fr.specificity[11:20]),
+    mean(graph.specificity[21:30]), mean(fr.specificity[21:30]),
+    mean(graph.specificity[31:40]), mean(fr.specificity[31:40]),
+    mean(graph.specificity[41:50]), mean(fr.specificity[41:50]),
+    mean(graph.specificity[51:60]), mean(fr.specificity[51:60]),
+    mean(graph.specificity[61:70]), mean(fr.specificity[61:70])
+    )
 

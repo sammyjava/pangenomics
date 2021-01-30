@@ -38,20 +38,16 @@ public class GridSearcher {
     boolean verbose = false;
 
     // grid defaults
-    static double C_BEGIN = -2.0;
-    static double C_END = 5.0;
-    static double C_STEP = 1.0;
-    static double G_BEGIN = -4.0;
-    static double G_END = 0.0;
-    static double G_STEP = 1.0;
+    static final int C_POWER_BEGIN = -5;
+    static final int C_POWER_END = 15;
+    static final int C_POWER_STEP = 1;
+    static final int G_POWER_BEGIN = -15;
+    static final int G_POWER_END = 3;
+    static final int G_POWER_STEP = 1;
 
-    // search grid ranges
-    double c_begin = C_BEGIN;
-    double c_end = C_END;
-    double c_step = C_STEP;
-    double g_begin = G_BEGIN;
-    double g_end = G_END;
-    double g_step = G_STEP;
+    // grid sparsity
+    int CPowerStep = C_POWER_STEP;
+    int GPowerStep = G_POWER_STEP;
 
     // quantities that only depend on samples
     Vector<Double> vy = new Vector<>();
@@ -121,45 +117,46 @@ public class GridSearcher {
 	    System.err.println("GridSearcher: "+inputFilename);
 	    System.err.println("GridSearcher: "+samples.size()+" samples");
             System.err.println("GridSearcher: "+nrFold+"-fold cross-validation");
-	    System.err.println("GridSearcher: log10(C) from "+c_begin+" to "+c_end+" in steps of "+c_step);
-	    System.err.println("GridSearcher: log10(gamma) from "+g_begin+" to "+g_end+" in steps of "+g_step);
+	    System.err.println("GridSearcher: C=2^n from n="+C_POWER_BEGIN+" to "+C_POWER_END+" in steps of "+CPowerStep);
+	    System.err.println("GridSearcher: gamma=2^n from n="+G_POWER_BEGIN+" to "+G_POWER_END+" in steps of "+GPowerStep);
 	}
-	List<Double> log10CList = new LinkedList<>();
-        for (double c=c_begin; c<=c_end; c+=c_step) {
-	    log10CList.add(c);
-	}
-	ConcurrentSkipListSet<Double> log10gammaSet = new ConcurrentSkipListSet<>();
-	for (double g=g_begin; g<=g_end; g+=g_step) {
-	    log10gammaSet.add(g);
+	ConcurrentSkipListSet<Double> CSet = new ConcurrentSkipListSet<>();
+        for (int n=C_POWER_BEGIN; n<=C_POWER_END; n+=CPowerStep) {
+            CSet.add(Math.pow(2.0, n));
+        }
+	ConcurrentSkipListSet<Double> gammaSet = new ConcurrentSkipListSet<>();
+	for (int n=G_POWER_BEGIN; n<=G_POWER_END; n+=GPowerStep) {
+            gammaSet.add(Math.pow(2.0, n));
 	}
 	// these maps are keyed by a string representing C and gamma
 	ConcurrentSkipListMap<String,svm_parameter> paramMap = new ConcurrentSkipListMap<>();
 	ConcurrentSkipListMap<String,Integer> totalCorrectMap = new ConcurrentSkipListMap<>();
 	ConcurrentSkipListMap<String,Double> accuracyMap = new ConcurrentSkipListMap<>();
-	// loop through C,gamma
-	for (double log10C : log10CList) {
-	    ////////////////////////////////////////////////////////////////////////////////////////////////
-	    // start gamma scan
-	    log10gammaSet.parallelStream().forEach(log10gamma -> {
-		    svm_parameter param = SvmUtil.getDefaultParam();
-		    param.C = Math.pow(10.0,log10C);
-		    param.gamma = Math.pow(10.0,log10gamma);
-		    String key = param.C+":"+param.gamma;
-		    SvmCrossValidator svc = new SvmCrossValidator(param, nrFold, vy, vx);
-		    svc.samples = samples;
-		    svc.inputFilename = inputFilename;
-		    svc.run();
-		    if (verbose) {
-			System.err.println("GridSearcher: C="+df.format(param.C)+" gamma="+df.format(param.gamma)+" totalCorrect="+svc.totalCorrect+" accuracy="+pf.format(svc.accuracy));
-		    }
-		    // store the results
-		    paramMap.put(key, param);
-		    totalCorrectMap.put(key, svc.totalCorrect);
-		    accuracyMap.put(key, svc.accuracy);
-		});
-	    // end gamma scan
-	    ////////////////////////////////////////////////////////////////////////////////////////////////
-	}
+        ////////////////////////////////////////////////////////////////////////////////////////////////
+        // C loop
+        CSet.parallelStream().forEach(C -> {
+                ////////////////////////////////////////////////////////////////////////////////////////////////
+                // gamma loop
+                gammaSet.parallelStream().forEach(gamma -> {
+                        svm_parameter param = SvmUtil.getDefaultParam();
+                        param.C = C;
+                        param.gamma = gamma;
+                        String key = param.C+":"+param.gamma;
+                        SvmCrossValidator svc = new SvmCrossValidator(param, nrFold, vy, vx);
+                        svc.samples = samples;
+                        svc.inputFilename = inputFilename;
+                        svc.run();
+                        if (verbose) {
+                            System.err.println("GridSearcher: C="+df.format(param.C)+" gamma="+df.format(param.gamma)+" totalCorrect="+svc.totalCorrect+" accuracy="+pf.format(svc.accuracy));
+                        }
+                        // store the results
+                        paramMap.put(key, param);
+                        totalCorrectMap.put(key, svc.totalCorrect);
+                        accuracyMap.put(key, svc.accuracy);
+                    });
+                ////////////////////////////////////////////////////////////////////////////////////////////////
+            });              
+        ////////////////////////////////////////////////////////////////////////////////////////////////
 	// scan the results for best results
 	svm_parameter bestParam = null;
 	int bestTotalCorrect = 0;
@@ -200,14 +197,14 @@ public class GridSearcher {
 	Option dataFileOption = new Option("datafile", true, "input data file in SVM format [required]");
 	dataFileOption.setRequired(true);
 	options.addOption(dataFileOption);
-	
-	Option log10COption = new Option("log10C", true, "set range/step of log10(C) ["+C_BEGIN+","+C_END+","+C_STEP+"]");
-        log10COption.setRequired(false);
-        options.addOption(log10COption);
-	//
-        Option log10gammaOption = new Option("log10gamma", true, "set range/step of log10(gamma) ["+G_BEGIN+","+G_END+","+G_STEP+"]");
-        log10gammaOption.setRequired(false);
-        options.addOption(log10gammaOption);
+        //
+        Option CStepOption = new Option("Cstep", true, "step for n in C=2^n [1]");
+        CStepOption.setRequired(false);
+        options.addOption(CStepOption);
+        //
+        Option GStepOption = new Option("gammastep", true, "step for n in gamma=2^n [1]");
+        GStepOption.setRequired(false);
+        options.addOption(GStepOption);
 	//
         Option nFoldOption = new Option("k", true, "k-fold for cross validation ["+SvmUtil.NRFOLD+"]");
         nFoldOption.setRequired(false);
@@ -245,26 +242,18 @@ public class GridSearcher {
 	if (cmd.hasOption("ncases")) nCases = Integer.parseInt(cmd.getOptionValue("ncases"));
 	if (cmd.hasOption("ncontrols")) nControls = Integer.parseInt(cmd.getOptionValue("ncontrols"));
 
+
         // initialize
 	GridSearcher gs = new GridSearcher(datafile, nCases, nControls);
-        if (cmd.hasOption("v")) gs.setVerbose();
-
-        if (cmd.hasOption("log10C")) {
-            String log10CValues = cmd.getOptionValue("log10C");
-            String[] parts = log10CValues.split(",");
-            gs.c_begin = Double.parseDouble(parts[0]);
-            gs.c_end = Double.parseDouble(parts[1]);
-            gs.c_step = Double.parseDouble(parts[2]);
+        if (cmd.hasOption("v")) {
+            gs.setVerbose();
         }
-
-        if (cmd.hasOption("log10gamma")) {
-            String log10gammaValues = cmd.getOptionValue("log10gamma");
-            String[] parts = log10gammaValues.split(",");
-            gs.g_begin = Double.parseDouble(parts[0]);
-            gs.g_end = Double.parseDouble(parts[1]);
-            gs.g_step = Double.parseDouble(parts[2]);
+        if (cmd.hasOption("Cstep")) {
+            gs.CPowerStep = Integer.parseInt(cmd.getOptionValue("Cstep"));
         }
-
+        if (cmd.hasOption("gammastep")) {
+            gs.GPowerStep = Integer.parseInt(cmd.getOptionValue("gammastep"));
+        }
         if (cmd.hasOption("k")) {
             gs.nrFold = Integer.parseInt(cmd.getOptionValue("k"));
         }
