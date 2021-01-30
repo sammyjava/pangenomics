@@ -7,10 +7,11 @@ import java.text.DecimalFormat;
 
 import java.util.List;
 import java.util.LinkedList;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -158,7 +159,7 @@ public class GridSearcher {
             });              
         ////////////////////////////////////////////////////////////////////////////////////////////////
 	// scan the results for best results
-	svm_parameter bestParam = null;
+        svm_parameter bestParam = null;
 	int bestTotalCorrect = 0;
 	double bestAccuracy = 0.0;
 	for (String key : paramMap.keySet()) {
@@ -171,11 +172,25 @@ public class GridSearcher {
 		bestAccuracy = accuracy;
 	    }
 	}
+        // now get all parameters that match the best results
+        Map<svm_parameter,Integer> bestCorrectMap = new HashMap<>();
+        Map<svm_parameter,Double> bestAccuracyMap = new HashMap<>();
+        for (String key : paramMap.keySet()) {
+	    svm_parameter param = paramMap.get(key);
+	    int totalCorrect = totalCorrectMap.get(key);
+	    double accuracy = accuracyMap.get(key);
+            if (totalCorrect==bestTotalCorrect) {
+                bestCorrectMap.put(param, totalCorrect);
+                bestAccuracyMap.put(param, accuracy);
+            }
+        }
 	// output
-        System.out.println("BEST VALUES:");
-        System.out.println("correct/samples="+bestTotalCorrect+"/"+samples.size());
-        System.out.println("C\tgamma\taccuracy");
-        System.out.println(bestParam.C+"\t"+bestParam.gamma+"\t"+bestAccuracy);
+        System.out.println("C\tgamma\tcorrect\taccuracy");
+        for (svm_parameter param : bestCorrectMap.keySet()) {
+            int totalCorrect = bestCorrectMap.get(param);
+            double accuracy = bestAccuracyMap.get(param);
+            System.out.println(df.format(param.C)+"\t"+df.format(param.gamma)+"\t"+totalCorrect+"\t"+pf.format(accuracy));
+        }
     }
 
     /**
