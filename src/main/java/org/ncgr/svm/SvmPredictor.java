@@ -47,6 +47,11 @@ public class SvmPredictor {
     public double meanSquareError;
     public double squaredCorrCoeff;
 
+    // file names
+    String inputFilename;
+    String modelFilename;
+    String outputFilename;
+
     // the chosen output
     static svm_print_interface svm_print_string;
 
@@ -54,6 +59,10 @@ public class SvmPredictor {
      * Construct given file names and the predictProbability flag
      */
     public SvmPredictor(String inputFilename, String modelFilename, String outputFilename, boolean predictProbability) throws FileNotFoundException, IOException {
+        this.inputFilename = inputFilename;
+        this.modelFilename = modelFilename;
+        this.outputFilename = outputFilename;
+        
         this.input = new BufferedReader(new FileReader(inputFilename));
         this.model = svm.svm_load_model(modelFilename);
         this.output = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(outputFilename)));
@@ -103,9 +112,18 @@ public class SvmPredictor {
         String line;
         while ((line=input.readLine())!=null) {
             StringTokenizer st = new StringTokenizer(line," \t\n\r\f:");
-            double target = atof(st.nextToken());
-            int m = st.countTokens()/2;
-
+            String sample = st.nextToken();
+            String label = st.nextToken();
+            double target = 0;
+            if (label.equals("ctrl")) {
+                target = -1;
+            } else if (label.equals("case")) {
+                target = +1;
+            } else {
+                System.err.println("ERROR: label values in "+inputFilename+" must be 'case' or 'ctrl'.");
+                System.exit(1);
+            }
+            int m = st.countTokens()/2 - 1;
             svm_node[] x = new svm_node[m];
             for (int j=0; j<m; j++) {
                 x[j] = new svm_node();
@@ -151,11 +169,23 @@ public class SvmPredictor {
         CommandLineParser parser = new DefaultParser();
         HelpFormatter formatter = new HelpFormatter();
         CommandLine cmd;
-
-        Option predictProbabilityOption = new Option("b", false, "toggle on prediction of probability estimates");
+        
+	Option dataFileOption = new Option("datafile", true, "input data file in SVM format [required]");
+	dataFileOption.setRequired(true);
+	options.addOption(dataFileOption);
+	//
+	Option modelFileOption = new Option("modelfile", true, "output model file [required]");
+        modelFileOption.setRequired(true);
+        options.addOption(modelFileOption);
+        //
+        Option outputFileOption = new Option("outputfile", true, "output prediction file [required]");
+        outputFileOption.setRequired(true);
+        options.addOption(outputFileOption);
+        //
+        Option predictProbabilityOption = new Option("b", "predict-probability", false, "toggle prediction of probability estimates [false]");
         predictProbabilityOption.setRequired(false);
         options.addOption(predictProbabilityOption);
-
+        // 
         Option verboseOption = new Option("v", "verbose", false, "verbose output");
         verboseOption.setRequired(false);
         options.addOption(verboseOption);
@@ -184,13 +214,13 @@ public class SvmPredictor {
             SvmUtil.setVerbose();
         }
 
-        // files are last three arguments
-        String inputFilename = args[args.length-3];
-        String modelFilename = args[args.length-2];
-        String outputFilename = args[args.length-1];
+        // file names
+        String datafilename = cmd.getOptionValue("datafile");
+        String modelfilename = cmd.getOptionValue("modelfile");
+        String outputfilename = cmd.getOptionValue("outputfile");
 
         // create the predictor
-        SvmPredictor sp = new SvmPredictor(inputFilename, modelFilename, outputFilename, predictProbability);
+        SvmPredictor sp = new SvmPredictor(datafilename, modelfilename, outputfilename, predictProbability);
         
         // run it
         sp.run();

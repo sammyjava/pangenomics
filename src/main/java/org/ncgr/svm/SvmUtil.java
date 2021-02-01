@@ -5,6 +5,8 @@ import java.io.FileReader;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
+import java.text.DecimalFormat;
+
 import java.util.List;;
 import java.util.LinkedList;
 import java.util.LinkedHashMap;
@@ -26,6 +28,8 @@ import libsvm.svm_print_interface;
  * Some utility static methods.
  */
 public class SvmUtil {
+    static DecimalFormat pf = new DecimalFormat("0.0%");
+    static DecimalFormat df = new DecimalFormat("0.000");
 
     // cross-validation k-fold default value
     public static int NRFOLD = 10;
@@ -66,9 +70,9 @@ public class SvmUtil {
     /**
      * Load a list of samples from a data file.
      */
-    public static List<Sample> readSamples(String dataFilename) throws FileNotFoundException, IOException {
+    public static List<Sample> readSamples(String datafilename) throws FileNotFoundException, IOException {
         List<Sample> samples = new LinkedList<>();
-        BufferedReader reader = new BufferedReader(new FileReader(dataFilename));
+        BufferedReader reader = new BufferedReader(new FileReader(datafilename));
         String line = null;
         while ((line=reader.readLine())!=null) {
             Sample sample = new Sample(line);
@@ -175,6 +179,66 @@ public class SvmUtil {
     }
 
     /**
+     * Compute prediction statistics from a data file (which has the actual case/control values) and a prediction file (with predicted -1/1 values).
+     */
+    public static void computeStats(String datafilename, String predfilename) throws FileNotFoundException, IOException {
+        List<Sample> samples = readSamples(datafilename);
+        LinkedHashMap<Sample,String> predictions = new LinkedHashMap<>();
+        BufferedReader reader = new BufferedReader(new FileReader(predfilename));
+        String line = reader.readLine();
+        String[] fields = line.split("\t");
+        for (int i=0; i<samples.size(); i++) {
+            Sample sample = samples.get(i);
+            if (Integer.parseInt(fields[i])==-1) {
+                predictions.put(sample, "ctrl");
+            } else if (Integer.parseInt(fields[i])==1) {
+                predictions.put(sample, "case");
+            } else {
+                System.err.println("ERROR: value in predictions file "+predfilename+" is not -1/1: "+fields[i]);
+                System.exit(1);
+            }
+        }
+        int correctCount = 0;
+        int caseCount = 0;
+        int ctrlCount = 0;
+        int tpCount = 0;
+        int fpCount = 0;
+        int tnCount = 0;
+        int fnCount = 0;
+        for (Sample sample : samples) {
+            String prediction = predictions.get(sample);
+            String status = "";
+            if (sample.label.equals("case")) {
+                caseCount++;
+                if (prediction.equals("case")) {
+                    correctCount++;
+                    status = "TP";
+                    tpCount++;
+                } else if (prediction.equals("ctrl")) {
+                    status = "FN";
+                    fnCount++;
+                }
+            } else if (sample.label.equals("ctrl")) {
+                ctrlCount++;
+                if (prediction.equals("ctrl")) {
+                    correctCount++;
+                    status = "TN";
+                    tnCount++;
+                } else if (prediction.equals("case")) {
+                    status = "FP";
+                    fpCount++;
+                }
+            }
+            System.out.println(sample.name+"\t"+sample.label+"\t"+prediction+"\t"+status);
+        }
+        System.out.println("tot\tTPR\tFPR");
+        System.out.println(pf.format((double)(correctCount)/(double)samples.size())
+                           +"\t"+df.format((double)tpCount/caseCount)
+                           +"\t"+df.format((double)fpCount/ctrlCount));
+        //
+    }
+
+    /**
      * Main method for some utilities
      */
     public static void main(String[] args) throws IOException {
@@ -183,13 +247,21 @@ public class SvmUtil {
         HelpFormatter formatter = new HelpFormatter();
         CommandLine cmd = null;
 	//
-	Option inputFileOption = new Option("i", "inputfile", true, "input file");
-	inputFileOption.setRequired(true);
-	options.addOption(inputFileOption);
+	Option datafileOption = new Option("datafile", true, "SVM scaled data file");
+	datafileOption.setRequired(true);
+	options.addOption(datafileOption);
+        //
+        Option predfileOption = new Option("predfile", true, "SVM prediction output file (one line)");
+        predfileOption.setRequired(false);
+        options.addOption(predfileOption);
 	//
 	Option transposeOption = new Option("t", "transpose", false, "transpose input file into SVM format");
-	transposeOption.setRequired(true);
+	transposeOption.setRequired(false);
 	options.addOption(transposeOption);
+        //
+        Option statsOption = new Option("s", "stats", false, "compute prediction stats from datafile and predfile");
+        statsOption.setRequired(false);
+        options.addOption(statsOption);
 
         if (args.length==0) {
             formatter.printHelp("SvmUtil [options]", options);
@@ -203,11 +275,15 @@ public class SvmUtil {
             System.exit(1);
         }
 	
-	String filename = cmd.getOptionValue("inputfile");
+	String datafilename = cmd.getOptionValue("datafile");
 
 	if (cmd.hasOption("transpose")) {
-	    transposeFeatures(filename);
+	    transposeFeatures(datafilename);
 	}
+
+        if (cmd.hasOption("stats")) {
+            String predfilename = cmd.getOptionValue("predfile");
+            computeStats(datafilename, predfilename);
+        }
     }
-    
 }

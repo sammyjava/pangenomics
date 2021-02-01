@@ -1,0 +1,16 @@
+#!/bin/sh
+# usage: SvmUtil [options]
+#  -datafile <arg>   SVM scaled data file
+#  -predfile <arg>   SVM prediction output file (one line)
+#  -s,--stats        compute prediction stats from datafile and predfile
+#  -t,--transpose    transpose input file into SVM format
+
+GRAPH=$1
+
+DATAFILE="$GRAPH.svm.scale.txt"
+PREDFILE="$GRAPH.svm.pred.txt"
+
+## run the SVM stats computer
+echo "Running SvmUtil --stats on $DATAFILE and $PREDFILE"
+java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmUtil --stats -datafile $DATAFILE -predfile $PREDFILE
+
