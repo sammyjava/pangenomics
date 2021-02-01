@@ -21,10 +21,8 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
-import libsvm.svm;
 import libsvm.svm_node;
 import libsvm.svm_parameter;
-import libsvm.svm_problem;
 
 /**
  * Java port of the libsvm grid.py utility for searching a (C,gamma) grid to find optimal values.
@@ -39,16 +37,20 @@ public class GridSearcher {
     boolean verbose = false;
 
     // grid defaults
-    static final int C_POWER_BEGIN = -5;
-    static final int C_POWER_END = 15;
+    static final int C_POWER_BEGIN = -10;
+    static final int C_POWER_END = 10;
     static final int C_POWER_STEP = 1;
-    static final int G_POWER_BEGIN = -15;
-    static final int G_POWER_END = 3;
+    static final int G_POWER_BEGIN = -20;
+    static final int G_POWER_END = 0;
     static final int G_POWER_STEP = 1;
 
     // grid sparsity
     int CPowerStep = C_POWER_STEP;
     int GPowerStep = G_POWER_STEP;
+
+    // SVM kernel
+    int kernel_type = svm_parameter.RBF;
+
 
     // quantities that only depend on samples
     Vector<Double> vy = new Vector<>();
@@ -142,6 +144,8 @@ public class GridSearcher {
                         svm_parameter param = SvmUtil.getDefaultParam();
                         param.C = C;
                         param.gamma = gamma;
+			param.kernel_type = kernel_type;        // LINEAR, POLY, RBF, SIGMOID, PRECOMPUTED
+			param.svm_type = svm_parameter.C_SVC;   // C_SVC, NU_SVC, ONE_CLASS, EPSILON_SVR, NU_SVR
                         String key = param.C+":"+param.gamma;
                         SvmCrossValidator svc = new SvmCrossValidator(param, nrFold, vy, vx);
                         svc.samples = samples;
@@ -236,8 +240,12 @@ public class GridSearcher {
 	Option nControlsOption = new Option("ncontrols", true, "set number of controls to use in search [0=all]");
 	nControlsOption.setRequired(false);
 	options.addOption(nControlsOption);
+	//
+	Option kernelOption = new Option("kernel", true, "choose the SVM kernel: LINEAR, POLY, RBF, SIGMOID, PRECOMPUTED [RBF]");
+	kernelOption.setRequired(false);
+	options.addOption(kernelOption);
 
-        if (args.length==0) {
+        if (args.length<2) {
             formatter.printHelp("GridSearcher [options]", options);
             System.exit(1);
         }
@@ -272,6 +280,23 @@ public class GridSearcher {
         if (cmd.hasOption("k")) {
             gs.nrFold = Integer.parseInt(cmd.getOptionValue("k"));
         }
+	if (cmd.hasOption("kernel")) {
+	    String kernelString = cmd.getOptionValue("kernel");
+	    if (kernelString.equals("LINEAR")) {
+		gs.kernel_type = svm_parameter.LINEAR;
+	    } else if (kernelString.equals("POLY")) {
+		gs.kernel_type = svm_parameter.POLY;
+	    } else if (kernelString.equals("RBF")) {
+		gs.kernel_type = svm_parameter.RBF;
+	    } else if (kernelString.equals("SIGMOID")) {
+		gs.kernel_type = svm_parameter.SIGMOID;
+	    } else if (kernelString.equals("PRECOMPUTED")) {
+		gs.kernel_type = svm_parameter.PRECOMPUTED;
+	    } else {
+		System.err.println("ERROR: the accepted values for kernel are: LINEAR, POLY, RBF, SIGMOID, or PRECOMPUTED");
+		System.exit(1);
+	    }
+	}
 
         // run the search
         gs.run();

@@ -60,12 +60,9 @@ public class SvmTrainer {
         Vector<svm_node[]> vx = new Vector<svm_node[]>();
         int max_index = 0;
 
-        while (true) {
-            String line = fp.readLine();
-            if (line == null) break;
-            
+	String line = null;
+        while ((line=fp.readLine())!=null) {
             StringTokenizer st = new StringTokenizer(line," \t\n\r\f:");
-            
             vy.addElement(atof(st.nextToken()));
             int m = st.countTokens()/2;
             svm_node[] x = new svm_node[m];
@@ -122,6 +119,59 @@ public class SvmTrainer {
         CommandLineParser parser = new DefaultParser();
         HelpFormatter formatter = new HelpFormatter();
         CommandLine cmd;
+
+	Option dataFileOption = new Option("datafile", true, "input data file in SVM format [required]");
+	dataFileOption.setRequired(true);
+	options.addOption(dataFileOption);
+	//
+	Option modelFileOption = new 
+        //
+        Option CStepOption = new Option("Cstep", true, "step for n in C=2^n [1]");
+        CStepOption.setRequired(false);
+        options.addOption(CStepOption);
+        //
+        Option GStepOption = new Option("gammastep", true, "step for n in gamma=2^n [1]");
+        GStepOption.setRequired(false);
+        options.addOption(GStepOption);
+	//
+        Option nFoldOption = new Option("k", true, "k-fold for cross validation ["+SvmUtil.NRFOLD+"]");
+        nFoldOption.setRequired(false);
+        options.addOption(nFoldOption);
+	//
+        Option vOption = new Option("v", false, "toggle verbose output");
+        vOption.setRequired(false);
+        options.addOption(vOption);
+	//
+	Option nCasesOption = new Option("ncases", true, "set number of cases to use in search [0=all]");
+	nCasesOption.setRequired(false);
+	options.addOption(nCasesOption);
+	//
+	Option nControlsOption = new Option("ncontrols", true, "set number of controls to use in search [0=all]");
+	nControlsOption.setRequired(false);
+	options.addOption(nControlsOption);
+	//
+	Option kernelOption = new Option("kernel", true, "choose the SVM kernel: LINEAR, POLY, RBF, SIGMOID, PRECOMPUTED [RBF]");
+	kernelOption.setRequired(false);
+	options.addOption(kernelOption);
+
+        if (args.length<2) {
+            formatter.printHelp("GridSearcher [options]", options);
+            System.exit(1);
+        }
+	
+        try {
+            cmd = parser.parse(options, args);
+        } catch (ParseException e) {
+            System.err.println(e.getMessage());
+            formatter.printHelp("GridSearcher", options);
+            System.exit(1);
+        }
+
+        String datafile = cmd.getOptionValue("datafile");
+
+
+
+	
         
         Option svmTypeOption = new Option("s", "svm-type", true, "set type of SVM [0]: 0=C-SVC; 1=nu-SVC; 2=one-class SVM; 3=epsilon-SVR; 4=nu-SVR");
         svmTypeOption.setRequired(false);
@@ -180,7 +230,7 @@ public class SvmTrainer {
         options.addOption(verboseOption);
 
         if (args.length==0) {
-            formatter.printHelp("SvmTrainer [options] input-file model-file", options);
+            formatter.printHelp("SvmTrainer", options);
             System.exit(1);
         }
         
@@ -188,7 +238,7 @@ public class SvmTrainer {
             cmd = parser.parse(options, args);
         } catch (ParseException e) {
             System.out.println(e.getMessage());
-            formatter.printHelp("SvmTrainer [options] input-file model-file", options);
+            formatter.printHelp("SvmTrainer", options);
             System.exit(1);
             return;
         }

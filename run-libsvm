@@ -14,24 +14,28 @@ MINSIZE=0
 
 MINSUPPORT=10
 
+KERNEL=LINEAR
+
+## cross-validation
+K=10
+NRUNS=10
+
 ## grid scan
 GRIDOUT="$INPUTPREFIX.svm.grid.txt"
-K=10
-# samples to use in grid search
-NGRIDCASES=10
-NGRIDCONTROLS=10
+NGRIDCASES=200
+NGRIDCONTROLS=200
 C_POWER_STEP=1
 GAMMA_POWER_STEP=1
 
 ## SVM
-NRUNS=10
 NSVMCASES=0
 NSVMCONTROLS=0
+MODELFILE="$INPUTPREFIX.svm.model.txt"
 
 ########################################################
 ## delete output files to force rebuild
-#rm -f $FULLSCALE
-#rm -f $RANGE
+rm -f $FULLSCALE
+rm -f $RANGE
 rm -f $GRIDOUT
 ########################################################
 
@@ -59,28 +63,68 @@ fi
 #  -ncases <arg>      set number of cases to use in search [0=all]
 #  -ncontrols <arg>   set number of controls to use in search [0=all]
 #  -v                 toggle verbose output
-if [ ! -s $GRIDOUT ]
-then
-   starttime=`date`
-   ARGS="-datafile $FULLSCALE -k $K -ncases $NGRIDCASES -ncontrols $NGRIDCONTROLS -Cstep $C_POWER_STEP -gammastep $GAMMA_POWER_STEP"
-   echo "Running GridSearcher with $ARGS"
-   java -server -cp "build/install/fr/lib/*" org.ncgr.svm.GridSearcher -v $ARGS > $GRIDOUT
-   endtime=`date`
-   echo "$starttime - $endtime"
-fi
 
-## set SVM parameters, default or from GridSearcher
+# if [ ! -s $GRIDOUT ]
+# then
+#    starttime=`date`
+#    ARGS="-datafile $FULLSCALE -k $K -ncases $NGRIDCASES -ncontrols $NGRIDCONTROLS -Cstep $C_POWER_STEP -gammastep $GAMMA_POWER_STEP -kernel $KERNEL"
+#    echo "Running GridSearcher with $ARGS"
+#    java -server -cp "build/install/fr/lib/*" org.ncgr.svm.GridSearcher -v $ARGS > $GRIDOUT
+#    endtime=`date`
+#    echo "$starttime - $endtime"
+# fi
+
+## set default SVM parameters, C=1, default gamma
 ARGS="-h 0 -m 10000 -C 1.0 -k $K -ncases $NSVMCASES -ncontrols $NSVMCONTROLS"
-if [ -s $GRIDOUT ]
-then
-    C=`tail -1 $GRIDOUT | awk '{ print $1; }'`
-    gamma=`tail -1 $GRIDOUT | awk '{ print $2; }'`
-    perc=`tail -1 $GRIDOUT | awk '{ print $3; }'`
-    ARGS="-C $C -gamma $gamma -k $K -ncases $NSVMCASES -ncontrols $NSVMCONTROLS"
-    echo "GRID search resulted in: $ARGS"
-fi
 
-## run the cross-validation
-#echo "Running $NRUNS SvmCrossValidator runs on $FULLSCALE with $ARGS"
-#java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmCrossValidator \
-#     $ARGS -nruns $NRUNS -i $FULLSCALE > "$INPUTPREFIX.crossvalidation.txt"
+## get SVM parameters from grid scan
+# if [ -s $GRIDOUT ]
+# then
+#     C=`tail -1 $GRIDOUT | awk '{ print $1; }'`
+#     gamma=`tail -1 $GRIDOUT | awk '{ print $2; }'`
+#     perc=`tail -1 $GRIDOUT | awk '{ print $3; }'`
+#     ARGS="-C $C -gamma $gamma -k $K -ncases $NSVMCASES -ncontrols $NSVMCONTROLS"
+#     echo "GRID search resulted in: $ARGS"
+# fi
+
+## run cross-validation on the determined params to collect stats
+echo "Running $NRUNS SvmCrossValidator runs on $FULLSCALE with $ARGS"
+java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmCrossValidator \
+     $ARGS -nruns $NRUNS -i $FULLSCALE > "$INPUTPREFIX.crossvalidation.txt"
+
+## train the SVM on the given samples
+# usage: SvmTrainer [options] input-file model-file
+#  -b,--probability-estimates <arg>   0/1 toggle whether to train a SVC or
+#                                     SVR model for probability estimates
+#                                     [0]
+#  -c,--cost <arg>                    set the cost parameter C in C-SVC,
+#                                     epsilon-SVR and nu-SVR [1]
+#  -d,--kernel-degree <arg>           set degree in kernel function [3]
+#  -e,--epsilon <arg>                 set tolerance of termination criterion
+#                                     [0.001]
+#  -g,--kernel-gamma <arg>            set gamma in kernel function
+#                                     [1/#features]
+#  -h,--shrinking <arg>               0/1 toggle whether to use the
+#                                     shrinking heuristics [1]
+#  -m,--cachesize <arg>               set cache memory size in MB [100]
+#  -n,--nu <arg>                      set the parameter nu of nu-SVC,
+#                                     one-class SVM, and nu-SVR [0.5]
+#  -p,--epsilon-loss <arg>            set the epsilon value in loss function
+#                                     of epsilon-SVR [0.1]
+#  -r,--kernel-coef0 <arg>            set coef0 in kernel function [0]
+#  -s,--svm-type <arg>                set type of SVM [0]: 0=C-SVC;
+#                                     1=nu-SVC; 2=one-class SVM;
+#                                     3=epsilon-SVR; 4=nu-SVR
+#  -t,--kernel-type <arg>             set type of kernel function [2]:
+#                                     0=linear; 1=polynomial; 2=radial basis
+#                                     function; 3=sigmoid; 4=precomputed
+#                                     kernel
+#  -v,--verbose                       verbose output
+#  -w,--weight <arg>                  set the parameter C of class i to
+#                                     weight*C, for C-SVC [1]
+
+#ARGS="-c 7.81e-3 -g 3.81e-6 -s 0 -t 0 -m 10000"
+#echo "Running SvmTrainer on $FULLSCALE with $ARGS"
+#java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmTrainer \
+#     $ARGS $FULLSCALE $MODELFILE
+
