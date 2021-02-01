@@ -190,10 +190,12 @@ public class GridSearcher {
         }
 	// output
         System.out.println("C\tgamma\tcorrect\taccuracy");
+        System.err.println("C\tgamma\tcorrect\taccuracy");
         for (svm_parameter param : bestCorrectMap.keySet()) {
             int totalCorrect = bestCorrectMap.get(param);
             double accuracy = bestAccuracyMap.get(param);
             System.out.println(df.format(param.C)+"\t"+df.format(param.gamma)+"\t"+totalCorrect+"\t"+pf.format(accuracy));
+            System.err.println(df.format(param.C)+"\t"+df.format(param.gamma)+"\t"+totalCorrect+"\t"+pf.format(accuracy));
         }
     }
 

@@ -245,7 +245,7 @@ public class SvmTrainer {
             String kernelType = cmd.getOptionValue("kernel-type");
             if (kernelType.equals("LINEAR")) {
                 kernelTypeCode = svm_parameter.LINEAR;
-            } else if (kernelType.equals("POLYNOMIAL")) {
+            } else if (kernelType.equals("POLY")) {
                 kernelTypeCode = svm_parameter.POLY;
             } else if (kernelType.equals("RBF")) {
                 kernelTypeCode = svm_parameter.RBF;

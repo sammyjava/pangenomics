@@ -30,16 +30,16 @@
 #  -w,--weight <arg>                  set the parameter C of class i to
 #                                     weight*C, for C-SVC [1]
 
-C=7.81e-3
-gamma=3.81e-6
-
 GRAPH=$1
+kernel=$2
+C=$3
+gamma=$4
 
 DATAFILE="$GRAPH.svm.scale.txt"
 MODELFILE="$GRAPH.svm.model.txt"
 
-ARGS="-v --svm-type C-SVC --kernel-type LINEAR --cost $C -kernel-gamma $gamma"
+ARGS="--svm-type C-SVC --kernel-type $kernel --cost $C -kernel-gamma $gamma"
 
 ## run the SVM trainer
 echo "Running SvmTrainer on $DATAFILE with $ARGS"
-java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmTrainer $ARGS -datafile $DATAFILE -modelfile $MODELFILE
+java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmTrainer -v $ARGS -datafile $DATAFILE -modelfile $MODELFILE

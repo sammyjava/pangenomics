@@ -1,19 +1,67 @@
-#!/bin/sh
-# usage: GridSearcher
-#  -k <arg>       k-fold for cross validation [10]
-#  -log10C <arg>   set range/step of log10(C) [-5.0,15.0,1.0]
-#  -log10gamma <arg>   set range/step of log10(gamma) [-15.0,0.0,1.0]
-#  -v             toggle verbose output
+#!/bin/bash
 
 INPUTPREFIX=$1
+KERNEL=$2
 
-LOG10C=$2
-LOG10GAMMA=$3
-K=$4
-
+SVMFILE="$INPUTPREFIX.svm.txt"
+RANGE="$INPUTPREFIX.svm.range.txt"
 FULLSCALE="$INPUTPREFIX.svm.scale.txt"
 
-## run a single value of C and gamma and k
-ARGS="-log10C $LOG10C -log10gamma $LOG10GAMMA -k $K"
+## SVM file building parameters
+PRIORITYOPTION=3
+MINPRIORITY=1
+MINSIZE=0
+MINSUPPORT=10
 
-java -cp "build/install/fr/lib/*" org.ncgr.svm.GridSearcher -v $ARGS $FULLSCALE
+## grid scan
+GRIDOUT="$INPUTPREFIX.svm.grid.txt"
+K=10
+NGRIDCASES=200
+NGRIDCONTROLS=200
+C_POWER_STEP=1
+GAMMA_POWER_STEP=1
+
+########################################################
+## delete output files to force rebuild
+rm -f $FULLSCALE
+rm -f $RANGE
+rm -f $GRIDOUT
+########################################################
+
+## write the SVM file
+if [ ! -s $SVMFILE ]
+then
+    echo "Writing $SVMFILE with -s $MINSIZE -m $MINSUPPORT -pri $PRIORITYOPTION --minpriority $MINPRIORITY"
+    java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -svm \
+	 -i $INPUTPREFIX -s $MINSIZE -m $MINSUPPORT -pri $PRIORITYOPTION -mpri $MINPRIORITY
+fi
+
+## scale the SVM data
+if [ ! -s $FULLSCALE ]
+then
+    echo "Scaling $SVMFILE"
+    java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmScaler -s $RANGE -d $SVMFILE > $FULLSCALE
+fi
+
+## run GridSearcher on the full scaled data to find optimum SVM parameters
+# usage: GridSearcher [options]
+#  -Cstep <arg>       step for n in C=2^n [1]
+#  -datafile <arg>    input data file in SVM format [required]
+#  -gammastep <arg>   step for n in gamma=2^n [1]
+#  -k <arg>           k-fold for cross validation [10]
+#  -kernel <arg>      choose the SVM kernel: LINEAR, POLY, RBF, SIGMOID,
+#                     PRECOMPUTED [RBF]
+#  -ncases <arg>      set number of cases to use in search [0=all]
+#  -ncontrols <arg>   set number of controls to use in search [0=all]
+#  -v                 toggle verbose output
+
+if [ ! -s $GRIDOUT ]
+then
+   starttime=`date`
+   ARGS="-datafile $FULLSCALE -k $K -ncases $NGRIDCASES -ncontrols $NGRIDCONTROLS -Cstep $C_POWER_STEP -gammastep $GAMMA_POWER_STEP -kernel $KERNEL"
+   echo "Running GridSearcher with $ARGS"
+   java -server -cp "build/install/fr/lib/*" org.ncgr.svm.GridSearcher -v $ARGS > $GRIDOUT
+   endtime=`date`
+   echo "$starttime - $endtime"
+fi
+
