@@ -1,0 +1,11 @@
+#!/bin/sh
+
+GRAPH=$1
+
+RANGEFILE="$GRAPH.svm.range.txt"
+
+SVMFILE="$GRAPH.testing.svm.txt"
+SCALEFILE="$GRAPH.testing.svm.scale.txt"
+
+echo "Scaling $SVMFILE to $SCALEFILE from $RANGEFILE"
+java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmScaler -r $RANGEFILE -d $SVMFILE > $SCALEFILE

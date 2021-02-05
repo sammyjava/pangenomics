@@ -29,7 +29,7 @@ import libsvm.svm_parameter;
  *
  * @author Sam Hokin
  */
-public class GridSearcher {
+public class SvmGridSearcher {
 
     static DecimalFormat df = new DecimalFormat("0.00E0");
     static DecimalFormat pf = new DecimalFormat("00.0%");
@@ -71,7 +71,7 @@ public class GridSearcher {
      * @param nCases the number of randomly-chosen cases to use in the search (0=all)
      * @param nControls the number of randomly-chosen controls to use in the search (0=all)
      */
-    public GridSearcher(String inputFilename, int nCases, int nControls) throws FileNotFoundException, IOException {
+    public SvmGridSearcher(String inputFilename, int nCases, int nControls) throws FileNotFoundException, IOException {
 	// load all the samples
 	this.inputFilename = inputFilename;
 	if (nCases==0 && nControls==0) {
@@ -105,7 +105,7 @@ public class GridSearcher {
         }
         // bail if we've got nothing
         if (maxIndex==0) {
-	    System.err.println("GridSearcher ERROR: maxIndex==0, exiting.");
+	    System.err.println("SvmGridSearcher ERROR: maxIndex==0, exiting.");
 	    System.exit(1);
 	}
 	// bizarre setting of static function
@@ -113,15 +113,17 @@ public class GridSearcher {
     }
 
     /**
-     * Run the search for each C and gamma value
+     * Run the search for each C (and gamma)
      */
     public void run() {
 	if (verbose) {
-	    System.err.println("GridSearcher: "+inputFilename);
-	    System.err.println("GridSearcher: "+samples.size()+" samples");
-            System.err.println("GridSearcher: "+nrFold+"-fold cross-validation");
-	    System.err.println("GridSearcher: C=2^n from n="+C_POWER_BEGIN+" to "+C_POWER_END+" in steps of "+CPowerStep);
-	    System.err.println("GridSearcher: gamma=2^n from n="+G_POWER_BEGIN+" to "+G_POWER_END+" in steps of "+GPowerStep);
+	    System.err.println("SvmGridSearcher: "+inputFilename);
+	    System.err.println("SvmGridSearcher: "+samples.size()+" samples");
+            System.err.println("SvmGridSearcher: "+nrFold+"-fold cross-validation");
+	    System.err.println("SvmGridSearcher: C=2^n from n="+C_POWER_BEGIN+" to "+C_POWER_END+" in steps of "+CPowerStep);
+	    if (kernel_type==svm_parameter.RBF) {
+		System.err.println("SvmGridSearcher: gamma=2^n from n="+G_POWER_BEGIN+" to "+G_POWER_END+" in steps of "+GPowerStep);
+	    }
 	}
 	ConcurrentSkipListSet<Double> CSet = new ConcurrentSkipListSet<>();
         for (int n=C_POWER_BEGIN; n<=C_POWER_END; n+=CPowerStep) {
@@ -138,28 +140,43 @@ public class GridSearcher {
         ////////////////////////////////////////////////////////////////////////////////////////////////
         // C loop
         CSet.parallelStream().forEach(C -> {
-                ////////////////////////////////////////////////////////////////////////////////////////////////
-                // gamma loop
-                gammaSet.parallelStream().forEach(gamma -> {
-                        svm_parameter param = SvmUtil.getDefaultParam();
-                        param.C = C;
-                        param.gamma = gamma;
-			param.kernel_type = kernel_type;        // LINEAR, POLY, RBF, SIGMOID, PRECOMPUTED
-			param.svm_type = svm_parameter.C_SVC;   // C_SVC, NU_SVC, ONE_CLASS, EPSILON_SVR, NU_SVR
-                        String key = param.C+":"+param.gamma;
-                        SvmCrossValidator svc = new SvmCrossValidator(param, nrFold, vy, vx);
-                        svc.samples = samples;
-                        svc.inputFilename = inputFilename;
-                        svc.run();
-                        if (verbose) {
-                            System.err.println("GridSearcher: C="+df.format(param.C)+" gamma="+df.format(param.gamma)+" totalCorrect="+svc.totalCorrect+" accuracy="+pf.format(svc.accuracy));
-                        }
-                        // store the results
-                        paramMap.put(key, param);
-                        totalCorrectMap.put(key, svc.totalCorrect);
-                        accuracyMap.put(key, svc.accuracy);
-                    });
-                ////////////////////////////////////////////////////////////////////////////////////////////////
+		svm_parameter param = SvmUtil.getDefaultParam();
+		param.svm_type = svm_parameter.C_SVC;   // C_SVC, NU_SVC, ONE_CLASS, EPSILON_SVR, NU_SVR
+		param.C = C;
+		param.kernel_type = kernel_type;        // LINEAR, POLY, RBF, SIGMOID, PRECOMPUTED
+		if (kernel_type==svm_parameter.RBF) {
+		    ////////////////////////////////////////////////////////////////////////////////////////////////
+		    // gamma loop
+		    gammaSet.parallelStream().forEach(gamma -> {
+			    param.gamma = gamma;
+			    String key = param.C+":"+param.gamma;
+			    SvmCrossValidator svc = new SvmCrossValidator(param, nrFold, vy, vx);
+			    svc.samples = samples;
+			    svc.inputFilename = inputFilename;
+			    svc.run();
+			    if (verbose) {
+				System.err.println("SvmGridSearcher: C="+df.format(param.C)+" gamma="+df.format(param.gamma)+" totalCorrect="+svc.totalCorrect+" accuracy="+pf.format(svc.accuracy));
+			    }
+			    // store the results
+			    paramMap.put(key, param);
+			    totalCorrectMap.put(key, svc.totalCorrect);
+			    accuracyMap.put(key, svc.accuracy);
+			});
+		    ////////////////////////////////////////////////////////////////////////////////////////////////
+		} else {
+		    String key = String.valueOf(param.C);
+		    SvmCrossValidator svc = new SvmCrossValidator(param, nrFold, vy, vx);
+		    svc.samples = samples;
+		    svc.inputFilename = inputFilename;
+		    svc.run();
+		    if (verbose) {
+			System.err.println("SvmGridSearcher: C="+df.format(param.C)+" totalCorrect="+svc.totalCorrect+" accuracy="+pf.format(svc.accuracy));
+		    }
+		    // store the results
+		    paramMap.put(key, param);
+		    totalCorrectMap.put(key, svc.totalCorrect);
+		    accuracyMap.put(key, svc.accuracy);
+		}
             });              
         ////////////////////////////////////////////////////////////////////////////////////////////////
 	// scan the results for best results
@@ -189,14 +206,24 @@ public class GridSearcher {
             }
         }
 	// output
-        System.out.println("C\tgamma\tcorrect\taccuracy");
-        System.err.println("C\tgamma\tcorrect\taccuracy");
-        for (svm_parameter param : bestCorrectMap.keySet()) {
-            int totalCorrect = bestCorrectMap.get(param);
-            double accuracy = bestAccuracyMap.get(param);
-            System.out.println(df.format(param.C)+"\t"+df.format(param.gamma)+"\t"+totalCorrect+"\t"+pf.format(accuracy));
-            System.err.println(df.format(param.C)+"\t"+df.format(param.gamma)+"\t"+totalCorrect+"\t"+pf.format(accuracy));
-        }
+	if (kernel_type==svm_parameter.RBF) {
+	    System.out.println("C\tgamma\tcorrect\taccuracy");
+	    System.err.println("C\tgamma\tcorrect\taccuracy");
+	} else {
+	    System.out.println("C\tcorrect\taccuracy");
+	    System.err.println("C\tcorrect\taccuracy");
+	}
+	for (svm_parameter param : bestCorrectMap.keySet()) {
+	    int totalCorrect = bestCorrectMap.get(param);
+	    double accuracy = bestAccuracyMap.get(param);
+	    if (kernel_type==svm_parameter.RBF) {
+		System.out.println(df.format(param.C)+"\t"+df.format(param.gamma)+"\t"+totalCorrect+"\t"+pf.format(accuracy));
+		System.err.println(df.format(param.C)+"\t"+df.format(param.gamma)+"\t"+totalCorrect+"\t"+pf.format(accuracy));
+	    } else {
+		System.out.println(df.format(param.C)+"\t"+totalCorrect+"\t"+pf.format(accuracy));
+		System.err.println(df.format(param.C)+"\t"+totalCorrect+"\t"+pf.format(accuracy));
+	    }
+	}
     }
 
     /**
@@ -248,7 +275,7 @@ public class GridSearcher {
 	options.addOption(kernelOption);
 
         if (args.length<2) {
-            formatter.printHelp("GridSearcher [options]", options);
+            formatter.printHelp("SvmGridSearcher [options]", options);
             System.exit(1);
         }
 	
@@ -256,7 +283,7 @@ public class GridSearcher {
             cmd = parser.parse(options, args);
         } catch (ParseException e) {
             System.err.println(e.getMessage());
-            formatter.printHelp("GridSearcher", options);
+            formatter.printHelp("SvmGridSearcher", options);
             System.exit(1);
         }
 
@@ -269,7 +296,7 @@ public class GridSearcher {
 
 
         // initialize
-	GridSearcher gs = new GridSearcher(datafile, nCases, nControls);
+	SvmGridSearcher gs = new SvmGridSearcher(datafile, nCases, nControls);
         if (cmd.hasOption("v")) {
             gs.setVerbose();
         }

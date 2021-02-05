@@ -1,6 +1,8 @@
 package org.ncgr.svm;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -37,18 +39,19 @@ public class SvmScaler {
     double[] featureMin;
     double yMax = +1; // case=+1
     double yMin = -1; // ctrl=-1
-    long numNonzeroes = 0;
-    long newNumNonzeroes = 0;
     int max_index = 0;
 
     // our samples
     List<Sample> samples;
 
+    // optional restore file
+    String restoreFilename;
+
     /**
-     * Construct given a data file.
+     * Construct by reading samples in from an SVM-format file.
      */
-    public SvmScaler(String dataFilename) throws FileNotFoundException, IOException {
-        this.samples = SvmUtil.readSamples(dataFilename);
+    public SvmScaler(String svmFilename) throws FileNotFoundException, IOException {
+        this.samples = SvmUtil.readSamples(svmFilename);
     }
 
     /**
@@ -59,27 +62,50 @@ public class SvmScaler {
     }
 
     /**
-     * Pass 1: find out max index of attributes from the restore file.
+     * Pass 1: find out max index of attributes from the samples or the restore file.
      * Assumption: min index of attributes is 1.
      */
-    void findMaxIndex() {
+    void findMaxIndex() throws FileNotFoundException, IOException {
         max_index = 0;
-        numNonzeroes = 0;
-        // samples data
-        for (Sample sample : samples) {
-            for (int i : sample.values.keySet()) {
-                max_index = Math.max(max_index, i);
-                numNonzeroes++;
-            }
-        }
+	if (restoreFilename==null) {
+	    // samples data
+	    for (Sample sample : samples) {
+		for (int i : sample.values.keySet()) {
+		    max_index = Math.max(max_index, i);
+		}
+	    }
+	} else {
+	    // x
+	    // -1.000000000000000 1.000000000000000
+	    // 0 -1.000000000000000 1.000000000000000
+	    int idx, c;
+	    BufferedReader restoreReader = new BufferedReader(new FileReader(restoreFilename));
+	    // skip some lines
+	    if ((c=restoreReader.read())=='y') {
+		restoreReader.readLine();
+		restoreReader.readLine();
+		restoreReader.readLine();
+	    }
+	    restoreReader.readLine();
+	    restoreReader.readLine();
+	    // read the range lines
+	    String line = null;
+	    while ((line=restoreReader.readLine())!=null) {
+		StringTokenizer st = new StringTokenizer(line);
+		idx = Integer.parseInt(st.nextToken());
+ 		max_index = Math.max(max_index, idx);
+ 	    }
+	    restoreReader.close();
+	}
     }
-
+    
     /**
      * Pass 2: find out min/max value of each feature.
      */
-    void findMinMaxValues() throws IOException {
-        featureMax = new double[max_index];
-        featureMin = new double[max_index];
+    void findMinMaxValues() throws FileNotFoundException, IOException {
+	// get featureMin/featureMax from samples
+        featureMax = new double[max_index+1];
+        featureMin = new double[max_index+1];
         for (int i=0; i<max_index; i++) {
             featureMax[i] = -Double.MAX_VALUE;
             featureMin[i] =  Double.MAX_VALUE;
@@ -92,6 +118,46 @@ public class SvmScaler {
                 featureMin[i] = Math.min(featureMin[i], value);
             }
         }
+	// Pass 2.5: get featureMin/featureMax from restore file.
+	if (restoreFilename!=null) {
+	    int idx, c;
+	    double fmin, fmax;
+	    BufferedReader restoreReader = new BufferedReader(new FileReader(restoreFilename));
+	    c = restoreReader.read();
+	    if (c=='y') {
+		// NOTHING HAPPENS HERE!
+		System.err.println("'y' found, so nothing happens!");
+		System.exit(1);
+		// restoreReader.readLine();
+		// StringTokenizer st = new StringTokenizer(restoreReader.readLine());
+		// double y_lower = Double.parseDouble(st.nextToken());
+		// double y_upper = Double.parseDouble(st.nextToken());
+		// st = new StringTokenizer(restoreReader.readLine());
+		// double y_min = Double.parseDouble(st.nextToken());
+		// double y_max = Double.parseDouble(st.nextToken());
+		// boolean y_scaling = true;
+	    } else if (c=='x') {
+		// DEBUG
+		System.err.println("'x' found so stuff happens.");
+		//
+		restoreReader.readLine();		// pass the '\n' after 'x'
+		StringTokenizer st = new StringTokenizer(restoreReader.readLine());
+		lower = Double.parseDouble(st.nextToken());
+		upper = Double.parseDouble(st.nextToken());
+		String line = null;
+		while ((line=restoreReader.readLine())!=null) {
+		    StringTokenizer st2 = new StringTokenizer(line);
+		    idx = Integer.parseInt(st2.nextToken());
+		    fmin = Double.parseDouble(st2.nextToken());
+		    fmax = Double.parseDouble(st2.nextToken());
+		    if (idx<=max_index) {
+			featureMin[idx] = fmin;
+			featureMax[idx] = fmax;
+		    }
+		}
+	    }
+	    restoreReader.close();
+	}
     }
 
     /**
@@ -110,23 +176,21 @@ public class SvmScaler {
             for (int i=next_index; i<=max_index; i++) output(out, i, 0); // ???
             out.println("");
         }
-        // newNumNonzeroes is incremented in output()
-        if (newNumNonzeroes > numNonzeroes) {
-            System.err.println("WARNING: original #nonzeros " + numNonzeroes);
-            System.err.println("         new      #nonzeros " + newNumNonzeroes);
-            System.err.println("Use -l 0 if many original feature values are zeros");
-        }
     }
-    
-    /**
-     * Run the scaling job from/to files.
-     */
-    void run() throws IOException {
-        // if (restoreFilename!=null) ...
-        findMaxIndex();
-        findMinMaxValues();
-        // scale to stdout
-        scaleToOutput(System.out);
+    void output(PrintStream out, int index, double value) {
+        int i = index - 1;
+        // skip single-valued attribute
+        if (featureMax[i]==featureMin[i]) return;
+        if (value==featureMin[i]) {
+            value = lower;
+        } else if (value==featureMax[i]) {
+            value = upper;
+        } else {
+            value = lower + (upper-lower) *  (value-featureMin[i])/(featureMax[i]-featureMin[i]);
+        }
+        if (value!=0) {
+            out.print("\t"+index+":"+value);
+        }
     }
 
     /**
@@ -160,22 +224,26 @@ public class SvmScaler {
         HelpFormatter formatter = new HelpFormatter();
         CommandLine cmd = null;
 
-	Option dataFileOption = new Option("d", "datafile", true, "SVM data file");
-	dataFileOption.setRequired(true);
-	options.addOption(dataFileOption);
-
-        Option saveFileOption = new Option("s", "savefile", true, "file to save scaling parameters to");
+	Option svmFileOption = new Option("d", "svmfile", true, "Data file in SVM format");
+	svmFileOption.setRequired(true);
+	options.addOption(svmFileOption);
+	//
+        Option saveFileOption = new Option("s", "savefile", true, "file to save scaling parameters to (exclusive from -r)");
         saveFileOption.setRequired(false);
         options.addOption(saveFileOption);
-
+	//
+	Option restoreFileOption = new Option("r", "restorefile", true, "file to read scaling parameters from (exclusive from -s)");
+	restoreFileOption.setRequired(false);
+	options.addOption(restoreFileOption);
+	//
         Option lowerOption = new Option("l", "xlowerlimit", true, "x scaling lower limit [-1]");
         lowerOption.setRequired(false);
         options.addOption(lowerOption);
-
+	//
         Option upperOption = new Option("u", "xupperlimit", true, "x scaling upper limit [+1]");
         upperOption.setRequired(false);
         options.addOption(upperOption);
-
+	//
         Option yScalingOption = new Option("y", "ylimits", true, "y scaling limits yLower,yUpper [no y scaling]");
         yScalingOption.setRequired(false);
         options.addOption(yScalingOption);
@@ -193,17 +261,24 @@ public class SvmScaler {
             System.exit(1);
         }
 
-        String dataFilename = cmd.getOptionValue("datafile");
-
+        // instantiate default instance from data file
+        String svmFilename = cmd.getOptionValue("svmfile");
+	// other files
         String saveFilename = null;
         if (cmd.hasOption("s")) {
             saveFilename = cmd.getOptionValue("s");
         }
+	String restoreFilename = null;
+	if (cmd.hasOption("r")) {
+	    restoreFilename = cmd.getOptionValue("r");
+	}
 
-        // instantiate default instance from data file
-        SvmScaler scaler = new SvmScaler(dataFilename);
-        
-        // update with options
+	// instantiate the SvmScaler and validate
+        SvmScaler scaler = new SvmScaler(svmFilename);
+	scaler.validateFiles(svmFilename, saveFilename, restoreFilename);
+	scaler.restoreFilename = restoreFilename;
+
+        // update scaler with options and validate
         if (cmd.hasOption("l")) {
             scaler.lower = Double.parseDouble(cmd.getOptionValue("l"));
         }
@@ -216,13 +291,13 @@ public class SvmScaler {
             scaler.yUpper = Double.parseDouble(parts[1]);
             scaler.yScaling = true;
         }
-
-        // validate
         scaler.validateParameters();
-    
-        // run scaling
-        scaler.run();
 
+        // run scaling and output
+        scaler.findMaxIndex();
+        scaler.findMinMaxValues();
+        scaler.scaleToOutput(System.out);
+	
         // write save file
         if (saveFilename!=null) {
             scaler.writeSaveFile(saveFilename);
@@ -232,11 +307,15 @@ public class SvmScaler {
     /**
      * Validate files.
      */
-    void validateFiles(String dataFilename, String saveFilename) {
-        if (dataFilename==null) {
+    void validateFiles(String svmFilename, String saveFilename, String restoreFilename) {
+        if (svmFilename==null) {
             System.err.println("You have not provided a data file to scale.");
             System.exit(1);
-        }
+	}
+        if (saveFilename!=null && restoreFilename!=null) {
+	    System.err.println("ERROR: you may not specify both a save file (-s) and a restore file (-r)");
+	    System.exit(1);
+	}
     }
 
     /**
@@ -250,26 +329,6 @@ public class SvmScaler {
         if (yScaling && !(yUpper>yLower)) {
             System.err.println("You have provided inconsistent y-scaling values.");
             System.exit(1);
-        }
-    }
-
-    /**
-     * Dorky.
-     */
-    void output(PrintStream out, int index, double value) {
-        int i = index - 1;
-        // skip single-valued attribute
-        if (featureMax[i]==featureMin[i]) return;
-        if (value==featureMin[i]) {
-            value = lower;
-        } else if (value==featureMax[i]) {
-            value = upper;
-        } else {
-            value = lower + (upper-lower) *  (value-featureMin[i])/(featureMax[i]-featureMin[i]);
-        }
-        if (value!=0) {
-            out.print("\t"+index+":"+value);
-            newNumNonzeroes++;
         }
     }
 }

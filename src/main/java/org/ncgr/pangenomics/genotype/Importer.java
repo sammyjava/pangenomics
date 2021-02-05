@@ -10,7 +10,6 @@ import java.util.Set;
  * Abstract class which defines the class variables for graph importers.
  */
 public abstract class Importer {
-
     // verbosity flag
     public boolean verbose = false;
 
@@ -22,5 +21,4 @@ public abstract class Importer {
     
     // map each Node to the Set of samples that traverse it
     public Map<Node,Set<String>> nodeSamples = new HashMap<>();
-    
 }

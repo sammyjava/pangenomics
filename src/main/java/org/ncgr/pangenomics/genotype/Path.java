@@ -18,7 +18,7 @@ public class Path extends GraphWalk<Node,Edge> implements Comparable {
     public String sequence;          // this path's full genomic sequence (may be null)
 
     /**
-     * Create a path defined by a NodeSet, name, and label. weight=1.0.
+     * Create a path defined by a List of Nodes, name, and label. weight=1.0.
      */
     public Path(Graph<Node,Edge> graph, List<Node> nodes, String name, String label) {
         super(graph, nodes, 1.0);

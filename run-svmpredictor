@@ -9,11 +9,11 @@
 
 GRAPH=$1
 
-DATAFILE="$GRAPH.svm.scale.txt"
+DATAFILE="$GRAPH.testing.svm.scale.txt"
 MODELFILE="$GRAPH.svm.model.txt"
-OUTPUTFILE="$GRAPH.svm.pred.txt"
+OUTPUTFILE="$GRAPH.testing.svm.pred.txt"
 
-## run the SVM trainer
+## run the SVM predictor
 echo "Running SvmPredictor on $DATAFILE and $MODELFILE with output to $OUTPUTFILE"
 java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmPredictor -v -datafile $DATAFILE -modelfile $MODELFILE -outputfile $OUTPUTFILE
 

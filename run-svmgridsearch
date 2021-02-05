@@ -43,8 +43,8 @@ then
     java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmScaler -s $RANGE -d $SVMFILE > $FULLSCALE
 fi
 
-## run GridSearcher on the full scaled data to find optimum SVM parameters
-# usage: GridSearcher [options]
+## run SvmGridSearcher on the full scaled data to find optimum SVM parameters
+# usage: SvmGridSearcher [options]
 #  -Cstep <arg>       step for n in C=2^n [1]
 #  -datafile <arg>    input data file in SVM format [required]
 #  -gammastep <arg>   step for n in gamma=2^n [1]
@@ -59,8 +59,8 @@ if [ ! -s $GRIDOUT ]
 then
    starttime=`date`
    ARGS="-datafile $FULLSCALE -k $K -ncases $NGRIDCASES -ncontrols $NGRIDCONTROLS -Cstep $C_POWER_STEP -gammastep $GAMMA_POWER_STEP -kernel $KERNEL"
-   echo "Running GridSearcher with $ARGS"
-   java -server -cp "build/install/fr/lib/*" org.ncgr.svm.GridSearcher -v $ARGS > $GRIDOUT
+   echo "Running SvmGridSearcher with $ARGS"
+   java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmGridSearcher -v $ARGS > $GRIDOUT
    endtime=`date`
    echo "$starttime - $endtime"
 fi

@@ -812,6 +812,9 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         HelpFormatter formatter = new HelpFormatter();
         CommandLine cmd;
 
+        Option verboseOption = new Option("v", "verbose", false, "verbose output (false)");
+        verboseOption.setRequired(false);
+        options.addOption(verboseOption);
         // REQUIRED parameters
         Option graphOption = new Option("g", "graph", true, "name of graph");
         graphOption.setRequired(true);
@@ -860,10 +863,6 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 	Option printNodePathsFileOption = new Option("nodepaths", "printnodepathsfile", false, "print out node paths file [false]");
 	printNodePathsFileOption.setRequired(false);
 	options.addOption(printNodePathsFileOption);
-        //
-        Option verboseOption = new Option("v", "verbose", false, "verbose output (false)");
-        verboseOption.setRequired(false);
-        options.addOption(verboseOption);
 
         try {
             cmd = parser.parse(options, args);
@@ -899,35 +898,34 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         if (cmd.hasOption("equalizecasescontrols")) graph.equalizeCasesControls = true;
 	if (cmd.hasOption("maxcases")) graph.maxCases = Integer.parseInt(cmd.getOptionValue("maxcases"));
 
-        // populate graph instance vars from parameters
+        // load the graph from a TXT, VCF, or LIST file
         graph.name = cmd.getOptionValue("graph");
-        if (loadVCF) {
+        if (loadTXT) {
+            // TXT load pulls sample labels from paths file
+	    // NOTE: this overrides VCF or LIST loading
+            graph.nodesFile = new File(graph.name+".nodes.txt");
+            graph.pathsFile = new File(graph.name+".paths.txt");
+            graph.loadTXT();
+            graph.tallyLabelCounts();
+	    System.err.println("Graph has "+graph.vertexSet().size()+" nodes and "+graph.paths.size()+" paths: "+graph.labelCounts.get("case")+"/"+graph.labelCounts.get("ctrl")+" cases/controls");
+        } else if (loadVCF) {
             // VCF load needs separate sample labels load
+	    // NOTE: this overrides LIST loading
 	    graph.readSampleLabels(new File(cmd.getOptionValue("labelfile")));
             graph.loadVCF(new File(cmd.getOptionValue("vcffile")));
 	    graph.tallyLabelCounts();
 	    System.err.println("Graph has "+graph.vertexSet().size()+" nodes, "+graph.edgeSet().size()+" edges, and "+graph.paths.size()+
                                " paths: "+graph.labelCounts.get("case")+"/"+graph.labelCounts.get("ctrl")+" cases/controls");
-        }
-	if (loadList) {
+        } else if (loadList) {
             // LIST load needs separate sample labels load
 	    graph.readSampleLabels(new File(cmd.getOptionValue("labelfile")));
 	    graph.loadList(new File(cmd.getOptionValue("listfile")));
 	    graph.tallyLabelCounts();
 	    System.err.println("Graph has "+graph.vertexSet().size()+" nodes, "+graph.edgeSet().size()+" edges, and "+graph.paths.size()+
                                " paths: "+graph.labelCounts.get("case")+"/"+graph.labelCounts.get("ctrl")+" cases/controls");
-	    
 	}
-        if (loadTXT) {
-            // TXT load pulls sample labels from paths file
-            graph.nodesFile = new File(graph.name+".nodes.txt");
-            graph.pathsFile = new File(graph.name+".paths.txt");
-            graph.loadTXT();
-            graph.tallyLabelCounts();
-	    System.err.println("Graph has "+graph.vertexSet().size()+" nodes and "+graph.paths.size()+" paths: "+graph.labelCounts.get("case")+"/"+graph.labelCounts.get("ctrl")+" cases/controls");
-        }
 
-        // build the node-paths map (this can be optional)
+        // build the node-paths map
         graph.buildNodePaths();
 
         // output

@@ -1,0 +1,15 @@
+#!/bin/sh
+# usage: GraphUtils
+#  -g,--graph <arg>         name of graph
+#  -list,--listfile <arg>   load sample(s) from a PLINK list file
+#  -mgf,--mgf <arg>         minimum MGF for inclusion
+#  -prs,--prs               compute polygenic risk scores
+#  -samplepath <arg>        determine the path through the given graph for
+#                           the given sample name from a VCF (-vcf) or LIST
+#                           (-list)
+#  -vcf,--vcffile <arg>     load sample(s) from a VCF file
+
+GRAPH=$1
+LIST=$2
+
+java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.GraphUtils -g $GRAPH -list $LIST -samplefile $GRAPH.testing.txt > $GRAPH.testing.paths.txt 

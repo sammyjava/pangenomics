@@ -7,8 +7,11 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintStream;
 
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Set;
+import java.util.HashSet;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -22,8 +25,6 @@ import org.apache.commons.cli.ParseException;
  * A collection of static methods to do utility stuff on a graph.
  */
 public class GraphUtils {
-
-
 
     /**
      * The main event.
@@ -43,11 +44,23 @@ public class GraphUtils {
         Option mgfOption = new Option("mgf", "mgf", true, "minimum MGF for inclusion");
         mgfOption.setRequired(false);
         options.addOption(mgfOption);
+        // samples in VCF file
+        Option vcfFileOption = new Option("vcf", "vcffile", true, "load sample(s) from a VCF file");
+        vcfFileOption.setRequired(false);
+        options.addOption(vcfFileOption);
+	// samples in LIST file
+	Option listFileOption = new Option("list", "listfile", true, "load sample(s) from a PLINK list file");
+	listFileOption.setRequired(false);
+	options.addOption(listFileOption);
 
         // actions
         Option prsOption = new Option("prs", "prs", false, "compute polygenic risk scores");
         prsOption.setRequired(false);
         options.addOption(prsOption);
+	//
+	Option sampleFileOption = new Option("samplefile", true, "file containing samples+labels to determine paths through the given graph (-g) from a VCF (-vcf) or LIST (-list)");
+	sampleFileOption.setRequired(false);
+	options.addOption(sampleFileOption);
 
         try {
             cmd = parser.parse(options, args);
@@ -70,7 +83,7 @@ public class GraphUtils {
         // populate graph instance vars from parameters
         graph.name = cmd.getOptionValue("graph");
 
-        // TXT load pulls sample labels from paths file
+        // load graph from TXT files
         graph.nodesFile = new File(graph.name+".nodes.txt");
         graph.pathsFile = new File(graph.name+".paths.txt");
         graph.loadTXT();
@@ -78,16 +91,37 @@ public class GraphUtils {
         System.err.println("Graph has "+graph.vertexSet().size()+" nodes and "+graph.paths.size()+" paths: "+graph.labelCounts.get("case")+"/"+graph.labelCounts.get("ctrl")+" cases/controls");
 
         // options
-        boolean prs = cmd.hasOption("prs");
+        boolean computePRS = cmd.hasOption("prs");
+	boolean computeSamplePaths = cmd.hasOption("samplefile");
 
         // actions
-        if (prs) {
+        if (computePRS) {
             double minMGF = 1e-2;
             if (cmd.hasOption("mgf")) {
                 minMGF = Double.parseDouble(cmd.getOptionValue("mgf"));
             }
             computePRS(graph, minMGF);
-        }
+        } else if (computeSamplePaths) {
+	    Map<String,String> samples = new HashMap<>();
+	    BufferedReader reader = new BufferedReader(new FileReader(cmd.getOptionValue("samplefile")));
+	    String line = null;
+	    while ((line=reader.readLine())!=null) {
+		if (line.startsWith("#") || line.startsWith("sample") || line.trim().length()==0) {
+		    continue;
+		}
+		String[] fields = line.split("\t");
+		String sampleName = fields[0];
+		String label = fields[1];
+		samples.put(sampleName, label);
+	    }
+	    if (cmd.hasOption("vcf")) {
+		computePathFromVCF(graph, cmd.getOptionValue("vcf"), samples);
+	    } else if (cmd.hasOption("list")) {
+		computePathFromList(graph, cmd.getOptionValue("list"), samples);
+	    } else {
+		System.err.println("ERROR: you must provide a VCF file (-vcf) or LIST file (-list) that contains the given samples");
+	    }			
+	}
     }
 
     /**
@@ -131,4 +165,26 @@ public class GraphUtils {
         }
     }
 
+    /**
+     * Compute the path through the graph for the given sample in the given VCF file
+     */
+    public static void computePathFromVCF(PangenomicGraph graph, String vcfFilename, Map<String,String> samples) {
+	System.err.println("STUB: computePathFromVCF("+graph.name+","+vcfFilename+","+samples+")");
+    }
+
+    /**
+     * Compute the path through the graph for the given sample in the given LIST file
+     */
+    public static void computePathFromList(PangenomicGraph graph, String listFilename, Map<String,String> samples) throws FileNotFoundException, IOException {
+	// get the desired samples' NodeSets
+	ListImporter importer = new ListImporter();
+	importer.verbose = true;
+	importer.read(new File(listFilename), samples.keySet());
+	// output
+	for (String sampleName : samples.keySet()) {
+	    NodeSet nodeSet = importer.sampleNodeSets.get(sampleName);
+	    Path path = new Path(graph, new LinkedList<Node>(nodeSet), sampleName, samples.get(sampleName));
+	    System.out.println(path.toString());
+	}
+    }
 }

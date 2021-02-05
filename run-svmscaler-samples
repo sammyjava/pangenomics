@@ -1,0 +1,10 @@
+#!/bin/sh
+
+INPUTPREFIX=$1
+
+SVMFILE="$INPUTPREFIX.svm.txt"
+RANGEFILE="$INPUTPREFIX.svm.range.txt"
+SCALEFILE="$INPUTPREFIX.svm.scale.txt"
+
+echo "Scaling $SVMFILE to $SCALEFILE from samples, storing $RANGEFILE"
+java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmScaler -s $RANGEFILE -d $SVMFILE > $SCALEFILE
