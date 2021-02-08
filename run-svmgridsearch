@@ -1,46 +1,25 @@
 #!/bin/bash
 
-INPUTPREFIX=$1
-KERNEL=$2
+KERNEL=$1
+PREFIX=$2
 
-SVMFILE="$INPUTPREFIX.svm.txt"
-RANGE="$INPUTPREFIX.svm.range.txt"
-FULLSCALE="$INPUTPREFIX.svm.scale.txt"
+SVMFILE="$PREFIX.svm.txt"
+RANGEFILE="$PREFIX.svm.range.txt"
+SCALEFILE="$PREFIX.svm.scale.txt"
+GRIDFILE="$PREFIX.svm.grid.txt"
 
-## SVM file building parameters
-PRIORITYOPTION=3
-MINPRIORITY=1
-MINSIZE=0
-MINSUPPORT=10
-
-## grid scan
-GRIDOUT="$INPUTPREFIX.svm.grid.txt"
+## grid scan parameters
 K=10
 NGRIDCASES=200
 NGRIDCONTROLS=200
 C_POWER_STEP=1
 GAMMA_POWER_STEP=1
 
-########################################################
-## delete output files to force rebuild
-rm -f $FULLSCALE
-rm -f $RANGE
-rm -f $GRIDOUT
-########################################################
-
-## write the SVM file
-if [ ! -s $SVMFILE ]
-then
-    echo "Writing $SVMFILE with -s $MINSIZE -m $MINSUPPORT -pri $PRIORITYOPTION --minpriority $MINPRIORITY"
-    java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -svm \
-	 -i $INPUTPREFIX -s $MINSIZE -m $MINSUPPORT -pri $PRIORITYOPTION -mpri $MINPRIORITY
-fi
-
-## scale the SVM data
-if [ ! -s $FULLSCALE ]
+## scale the SVM data if necessary
+if [ ! -s $SCALEFILE ]
 then
     echo "Scaling $SVMFILE"
-    java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmScaler -s $RANGE -d $SVMFILE > $FULLSCALE
+    java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmScaler -s $RANGEFILE -d $SVMFILE > $SCALEFILE
 fi
 
 ## run SvmGridSearcher on the full scaled data to find optimum SVM parameters
@@ -54,14 +33,9 @@ fi
 #  -ncases <arg>      set number of cases to use in search [0=all]
 #  -ncontrols <arg>   set number of controls to use in search [0=all]
 #  -v                 toggle verbose output
-
-if [ ! -s $GRIDOUT ]
-then
-   starttime=`date`
-   ARGS="-datafile $FULLSCALE -k $K -ncases $NGRIDCASES -ncontrols $NGRIDCONTROLS -Cstep $C_POWER_STEP -gammastep $GAMMA_POWER_STEP -kernel $KERNEL"
-   echo "Running SvmGridSearcher with $ARGS"
-   java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmGridSearcher -v $ARGS > $GRIDOUT
-   endtime=`date`
-   echo "$starttime - $endtime"
-fi
-
+starttime=`date`
+ARGS="-datafile $SCALEFILE -k $K -ncases $NGRIDCASES -ncontrols $NGRIDCONTROLS -Cstep $C_POWER_STEP -gammastep $GAMMA_POWER_STEP -kernel $KERNEL"
+echo "Running SvmGridSearcher with $ARGS"
+java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmGridSearcher -v $ARGS > $GRIDFILE
+endtime=`date`
+echo "$starttime - $endtime"

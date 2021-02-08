@@ -12,4 +12,4 @@
 GRAPH=$1
 LIST=$2
 
-java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.GraphUtils -g $GRAPH -list $LIST -samplefile $GRAPH.testing.txt > $GRAPH.testing.paths.txt 
+java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.GraphUtils -g $GRAPH -list $LIST -samplefile $GRAPH.testing.labels.txt > $GRAPH.testing.paths.txt 

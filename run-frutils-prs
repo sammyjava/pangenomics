@@ -5,8 +5,8 @@
 #  -extractbest,--extractbestfrs    extract the best (last) FRs from a file
 #                                   containing many runs, each starting with
 #                                   the heading line
-#  -i,--inputprefix <arg>           prefix of input files (e.g.
-#                                   HLAA-0.1-Inf)
+#  -f,--frsprefix <arg>             prefix of FRs file (e.g. HLAA-0.0-Inf)
+#  -g,--graphprefix <arg>           prefix of graph file (e.g. HLAA)
 #  -m,--minsupport <arg>            minimum number of supporting paths for
 #                                   an FR to be considered interesting
 #  -mp,--maxpvalue <arg>            maximum p-value for an FR to be
@@ -17,11 +17,12 @@
 #                                   or ARFF or TXT output
 #  -nctrl,--numcontrolpaths <arg>   number of control paths to include in
 #                                   SVM or ARFF or TXT output
-#  -p,--postprocess                 postprocess by applying new minsup,
-#                                   minsize to an FR set given by
-#                                   inputprefix
+#  -p,--pathsprefix <arg>           prefix of paths file (e.g. HLAA)
 #  -pathfrs,--pathfrs               print out a pathfrs.txt style file from
 #                                   the FR data given by inputprefix
+#  -post,--postprocess              postprocess by applying new minsup,
+#                                   minsize to an FR set given by
+#                                   inputprefix
 #  -pri,--priorityoption <arg>      option for priority weighting of FRs:
 #                                   0:label=total support or label support
 #                                   [null,case,ctrl], 1:label=(label

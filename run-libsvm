@@ -3,8 +3,8 @@
 INPUTPREFIX=$1
 
 SVMFILE="$INPUTPREFIX.svm.txt"
-RANGE="$INPUTPREFIX.svm.range.txt"
-FULLSCALE="$INPUTPREFIX.svm.scale.txt"
+RANGEFILE="$INPUTPREFIX.svm.range.txt"
+SCALEFILE="$INPUTPREFIX.svm.scale.txt"
 
 ## SVM file building parameters
 PRIORITYOPTION=3
@@ -14,7 +14,7 @@ MINSIZE=0
 
 MINSUPPORT=10
 
-KERNEL=LINEAR
+KERNEL="RBF"
 
 ## cross-validation
 K=10
@@ -34,8 +34,8 @@ MODELFILE="$INPUTPREFIX.svm.model.txt"
 
 ########################################################
 ## delete output files to force rebuild
-rm -f $FULLSCALE
-rm -f $RANGE
+rm -f $SCALEFILE
+rm -f $RANGEFILE
 rm -f $GRIDOUT
 ########################################################
 
@@ -48,10 +48,10 @@ then
 fi
 
 ## scale the SVM data
-if [ ! -s $FULLSCALE ]
+if [ ! -s $SCALEFILE ]
 then
     echo "Scaling $SVMFILE"
-    java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmScaler -s $RANGE -d $SVMFILE > $FULLSCALE
+    java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmScaler -s $RANGEFILE -d $SVMFILE > $SCALEFILE
 fi
 
 ## run GridSearcher on the full scaled data to find optimum SVM parameters
@@ -67,7 +67,7 @@ fi
 # if [ ! -s $GRIDOUT ]
 # then
 #    starttime=`date`
-#    ARGS="-datafile $FULLSCALE -k $K -ncases $NGRIDCASES -ncontrols $NGRIDCONTROLS -Cstep $C_POWER_STEP -gammastep $GAMMA_POWER_STEP -kernel $KERNEL"
+#    ARGS="-datafile $SCALEFILE -k $K -ncases $NGRIDCASES -ncontrols $NGRIDCONTROLS -Cstep $C_POWER_STEP -gammastep $GAMMA_POWER_STEP -kernel $KERNEL"
 #    echo "Running GridSearcher with $ARGS"
 #    java -server -cp "build/install/fr/lib/*" org.ncgr.svm.GridSearcher -v $ARGS > $GRIDOUT
 #    endtime=`date`
@@ -88,9 +88,9 @@ ARGS="-h 0 -m 10000 -C 1.0 -k $K -ncases $NSVMCASES -ncontrols $NSVMCONTROLS"
 # fi
 
 ## run cross-validation on the determined params to collect stats
-echo "Running $NRUNS SvmCrossValidator runs on $FULLSCALE with $ARGS"
+echo "Running $NRUNS SvmCrossValidator runs on $SCALEFILE with $ARGS"
 java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmCrossValidator \
-     $ARGS -nruns $NRUNS -i $FULLSCALE > "$INPUTPREFIX.crossvalidation.txt"
+     $ARGS -nruns $NRUNS -i $SCALEFILE > "$INPUTPREFIX.crossvalidation.txt"
 
 ## train the SVM on the given samples
 # usage: SvmTrainer [options] input-file model-file
@@ -124,7 +124,7 @@ java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmCrossValidator \
 #                                     weight*C, for C-SVC [1]
 
 #ARGS="-c 7.81e-3 -g 3.81e-6 -s 0 -t 0 -m 10000"
-#echo "Running SvmTrainer on $FULLSCALE with $ARGS"
+#echo "Running SvmTrainer on $SCALEFILE with $ARGS"
 #java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmTrainer \
-#     $ARGS $FULLSCALE $MODELFILE
+#     $ARGS $SCALEFILE $MODELFILE
 

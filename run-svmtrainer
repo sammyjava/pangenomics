@@ -30,15 +30,17 @@
 #  -w,--weight <arg>                  set the parameter C of class i to
 #                                     weight*C, for C-SVC [1]
 
-GRAPH=$1
-kernel=$2
-C=$3
-gamma=$4
+PREFIX=$1
+C=$2
+gamma=$3
 
-DATAFILE="$GRAPH.svm.scale.txt"
-MODELFILE="$GRAPH.svm.model.txt"
+DATAFILE="$PREFIX.svm.scale.txt"
+MODELFILE="$PREFIX.svm.model.txt"
 
-ARGS="--svm-type C-SVC --kernel-type $kernel --cost $C -kernel-gamma $gamma"
+svmtype="C-SVC"
+kernel="RBF"
+
+ARGS="--svm-type=$svmtype --kernel-type=$kernel --cost=$C --kernel-gamma=$gamma"
 
 ## run the SVM trainer
 echo "Running SvmTrainer on $DATAFILE with $ARGS"

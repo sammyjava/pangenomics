@@ -9,9 +9,10 @@
 
 PREFIX=$1
 
-DATAFILE="$PREFIX.svm.scale.txt"
 MODELFILE="$PREFIX.svm.model.txt"
-OUTPUTFILE="$PREFIX.svm.pred.txt"
+
+DATAFILE="$PREFIX.testing.svm.scale.txt"
+OUTPUTFILE="$PREFIX.testing.svm.pred.txt"
 
 ## run the SVM predictor
 echo "Running SvmPredictor on $DATAFILE and $MODELFILE with output to $OUTPUTFILE"

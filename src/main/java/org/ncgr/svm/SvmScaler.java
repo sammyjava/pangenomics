@@ -137,9 +137,6 @@ public class SvmScaler {
 		// double y_max = Double.parseDouble(st.nextToken());
 		// boolean y_scaling = true;
 	    } else if (c=='x') {
-		// DEBUG
-		System.err.println("'x' found so stuff happens.");
-		//
 		restoreReader.readLine();		// pass the '\n' after 'x'
 		StringTokenizer st = new StringTokenizer(restoreReader.readLine());
 		lower = Double.parseDouble(st.nextToken());

@@ -5,10 +5,10 @@
 #  -s,--stats        compute prediction stats from datafile and predfile
 #  -t,--transpose    transpose input file into SVM format
 
-GRAPH=$1
+PREFIX=$1
 
-DATAFILE="$GRAPH.svm.scale.txt"
-PREDFILE="$GRAPH.svm.pred.txt"
+DATAFILE="$PREFIX.svm.scale.txt"
+PREDFILE="$PREFIX.svm.pred.txt"
 
 ## run the SVM stats computer
 echo "Running SvmUtil --stats on $DATAFILE and $PREDFILE"

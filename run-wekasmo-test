@@ -1,0 +1,29 @@
+#!/bin/bash
+# usage: WekaSMO
+#  -a,--arfffile <arg>         ARFF input file (required)
+#  -C,--complexity <arg>       SMO complexity constant C
+#  -cv,--crossvalidate         run cross-validation
+#  -g,--gamma <arg>            RBF kernel gamma parameter
+#  -gs,--gridsearch            run a grid search over parameters
+#  -k,--kfold <arg>            cross-validation k-fold (required)
+#  -L,--tolerance <arg>        tolerance parameter [1.0e-3]
+#  -M,--fitcalibrationmodels   fit calibration models to SVM outputs
+#  -N,--normalization <arg>    0=normalize, 1=standardize, 2=neither [0]
+#  -ng,--ngridsearch <arg>     set number of cases+controls (equal) to use
+#                              in grid search [0=all]
+#  -P,--epsilon <arg>          epsilon for round-off error [1.0e-12]
+#  -test,--test                run training and testing on datasets with given SMO and
+#                              kernel parameters
+#  -v,--verbose                verbosity toggle (false)
+
+TRAINPREFIX=$1
+TESTPREFIX=$2
+C=$3
+gamma=$4
+
+TRAINFILE=$TRAINPREFIX.arff
+TESTFILE=$TESTPREFIX.arff
+
+echo "Running WekaSMO training on $TRAINFILE and testing on $TESTFILE with C=$C and gamma=$gamma"
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --test --arfffile=$TRAINFILE --testfile=$TESTFILE --complexity=$C --gamma=$gamma
+

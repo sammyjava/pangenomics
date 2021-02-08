@@ -748,7 +748,7 @@ public class FRFinder {
      * This can be used as input to a classification routine.
      */
     void printPathFRs(String outputPrefix) throws IOException {
-        PrintStream out = new PrintStream(FRUtils.getPathFRsFilename(outputPrefix));
+        PrintStream out = new PrintStream(FRUtils.getPathFRsFilename(null, outputPrefix));
         // columns are paths
         boolean first = true;
         for (Path path : paths) {

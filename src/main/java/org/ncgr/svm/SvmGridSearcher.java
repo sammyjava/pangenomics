@@ -8,7 +8,8 @@ import java.text.DecimalFormat;
 import java.util.List;
 import java.util.LinkedList;
 import java.util.Map;
-import java.util.HashMap;
+import java.util.Map.Entry;
+import java.util.LinkedHashMap;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ConcurrentSkipListSet;
@@ -37,10 +38,10 @@ public class SvmGridSearcher {
     boolean verbose = false;
 
     // grid defaults
-    static final int C_POWER_BEGIN = -10;
-    static final int C_POWER_END = 10;
+    static final int C_POWER_BEGIN = -5;
+    static final int C_POWER_END = 15;
     static final int C_POWER_STEP = 1;
-    static final int G_POWER_BEGIN = -20;
+    static final int G_POWER_BEGIN = -25;
     static final int G_POWER_END = 0;
     static final int G_POWER_STEP = 1;
 
@@ -48,9 +49,9 @@ public class SvmGridSearcher {
     int CPowerStep = C_POWER_STEP;
     int GPowerStep = G_POWER_STEP;
 
-    // SVM kernel
+    // SVM kernel default
+    String kernelString = "RBF";
     int kernel_type = svm_parameter.RBF;
-
 
     // quantities that only depend on samples
     Vector<Double> vy = new Vector<>();
@@ -120,9 +121,10 @@ public class SvmGridSearcher {
 	    System.err.println("SvmGridSearcher: "+inputFilename);
 	    System.err.println("SvmGridSearcher: "+samples.size()+" samples");
             System.err.println("SvmGridSearcher: "+nrFold+"-fold cross-validation");
-	    System.err.println("SvmGridSearcher: C=2^n from n="+C_POWER_BEGIN+" to "+C_POWER_END+" in steps of "+CPowerStep);
+	    System.err.println("SvmGridSearcher: "+kernelString+" kernel");
+	    System.err.println("SvmGridSearcher: C=2^n from "+Math.pow(2.0,C_POWER_BEGIN)+" to "+Math.pow(2.0,C_POWER_END)+" with n-step="+CPowerStep);
 	    if (kernel_type==svm_parameter.RBF) {
-		System.err.println("SvmGridSearcher: gamma=2^n from n="+G_POWER_BEGIN+" to "+G_POWER_END+" in steps of "+GPowerStep);
+		System.err.println("SvmGridSearcher: gamma=2^n from "+Math.pow(2.0,G_POWER_BEGIN)+" to "+Math.pow(2.0,G_POWER_END)+" with n-step="+GPowerStep);
 	    }
 	}
 	ConcurrentSkipListSet<Double> CSet = new ConcurrentSkipListSet<>();
@@ -133,23 +135,21 @@ public class SvmGridSearcher {
 	for (int n=G_POWER_BEGIN; n<=G_POWER_END; n+=GPowerStep) {
             gammaSet.add(Math.pow(2.0, n));
 	}
-	// these maps are keyed by a string representing C and gamma
-	ConcurrentSkipListMap<String,svm_parameter> paramMap = new ConcurrentSkipListMap<>();
-	ConcurrentSkipListMap<String,Integer> totalCorrectMap = new ConcurrentSkipListMap<>();
-	ConcurrentSkipListMap<String,Double> accuracyMap = new ConcurrentSkipListMap<>();
+	// these maps are keyed by the svm_parameter
+	ConcurrentSkipListMap<svm_parameter,Integer> totalCorrectMap = new ConcurrentSkipListMap<>();
+	ConcurrentSkipListMap<svm_parameter,Double> accuracyMap = new ConcurrentSkipListMap<>();
         ////////////////////////////////////////////////////////////////////////////////////////////////
         // C loop
         CSet.parallelStream().forEach(C -> {
-		svm_parameter param = SvmUtil.getDefaultParam();
-		param.svm_type = svm_parameter.C_SVC;   // C_SVC, NU_SVC, ONE_CLASS, EPSILON_SVR, NU_SVR
-		param.C = C;
-		param.kernel_type = kernel_type;        // LINEAR, POLY, RBF, SIGMOID, PRECOMPUTED
 		if (kernel_type==svm_parameter.RBF) {
 		    ////////////////////////////////////////////////////////////////////////////////////////////////
 		    // gamma loop
 		    gammaSet.parallelStream().forEach(gamma -> {
+			    svm_parameter param = SvmUtil.getDefaultParam();
+			    param.svm_type = svm_parameter.C_SVC;   // C_SVC, NU_SVC, ONE_CLASS, EPSILON_SVR, NU_SVR
+			    param.C = C;
+			    param.kernel_type = kernel_type;        // LINEAR, POLY, RBF, SIGMOID, PRECOMPUTED
 			    param.gamma = gamma;
-			    String key = param.C+":"+param.gamma;
 			    SvmCrossValidator svc = new SvmCrossValidator(param, nrFold, vy, vx);
 			    svc.samples = samples;
 			    svc.inputFilename = inputFilename;
@@ -158,13 +158,15 @@ public class SvmGridSearcher {
 				System.err.println("SvmGridSearcher: C="+df.format(param.C)+" gamma="+df.format(param.gamma)+" totalCorrect="+svc.totalCorrect+" accuracy="+pf.format(svc.accuracy));
 			    }
 			    // store the results
-			    paramMap.put(key, param);
-			    totalCorrectMap.put(key, svc.totalCorrect);
-			    accuracyMap.put(key, svc.accuracy);
+			    totalCorrectMap.put(param, svc.totalCorrect);
+			    accuracyMap.put(param, svc.accuracy);
 			});
 		    ////////////////////////////////////////////////////////////////////////////////////////////////
 		} else {
-		    String key = String.valueOf(param.C);
+		    svm_parameter param = SvmUtil.getDefaultParam();
+		    param.svm_type = svm_parameter.C_SVC;   // C_SVC, NU_SVC, ONE_CLASS, EPSILON_SVR, NU_SVR
+		    param.C = C;
+		    param.kernel_type = kernel_type;        // LINEAR, POLY, RBF, SIGMOID, PRECOMPUTED
 		    SvmCrossValidator svc = new SvmCrossValidator(param, nrFold, vy, vx);
 		    svc.samples = samples;
 		    svc.inputFilename = inputFilename;
@@ -173,38 +175,23 @@ public class SvmGridSearcher {
 			System.err.println("SvmGridSearcher: C="+df.format(param.C)+" totalCorrect="+svc.totalCorrect+" accuracy="+pf.format(svc.accuracy));
 		    }
 		    // store the results
-		    paramMap.put(key, param);
-		    totalCorrectMap.put(key, svc.totalCorrect);
-		    accuracyMap.put(key, svc.accuracy);
+		    totalCorrectMap.put(param, svc.totalCorrect);
+		    accuracyMap.put(param, svc.accuracy);
 		}
-            });              
+            });            
         ////////////////////////////////////////////////////////////////////////////////////////////////
-	// scan the results for best results
-        svm_parameter bestParam = null;
-	int bestTotalCorrect = 0;
-	double bestAccuracy = 0.0;
-	for (String key : paramMap.keySet()) {
-	    svm_parameter param = paramMap.get(key);
-	    int totalCorrect = totalCorrectMap.get(key);
-	    double accuracy = accuracyMap.get(key);
-	    if (totalCorrect>bestTotalCorrect) {
-		bestParam = param;
-		bestTotalCorrect = totalCorrect;
-		bestAccuracy = accuracy;
-	    }
+	// sort the results by total correct
+        List<Entry<svm_parameter,Integer>> totalCorrectList = new LinkedList<>(totalCorrectMap.entrySet());
+        totalCorrectList.sort(Entry.comparingByValue());
+        Map<svm_parameter,Integer> sortedCorrectMap = new LinkedHashMap<>();
+	Map<svm_parameter,Double> sortedAccuracyMap = new LinkedHashMap<>();
+	for (Entry<svm_parameter,Integer> entry : totalCorrectList) {
+	    svm_parameter param = entry.getKey();
+	    int totalCorrect = entry.getValue();
+	    double accuracy = accuracyMap.get(param);
+            sortedCorrectMap.put(param, totalCorrect);
+	    sortedAccuracyMap.put(param, accuracy);
 	}
-        // now get all parameters that match the best results
-        Map<svm_parameter,Integer> bestCorrectMap = new HashMap<>();
-        Map<svm_parameter,Double> bestAccuracyMap = new HashMap<>();
-        for (String key : paramMap.keySet()) {
-	    svm_parameter param = paramMap.get(key);
-	    int totalCorrect = totalCorrectMap.get(key);
-	    double accuracy = accuracyMap.get(key);
-            if (totalCorrect==bestTotalCorrect) {
-                bestCorrectMap.put(param, totalCorrect);
-                bestAccuracyMap.put(param, accuracy);
-            }
-        }
 	// output
 	if (kernel_type==svm_parameter.RBF) {
 	    System.out.println("C\tgamma\tcorrect\taccuracy");
@@ -213,9 +200,9 @@ public class SvmGridSearcher {
 	    System.out.println("C\tcorrect\taccuracy");
 	    System.err.println("C\tcorrect\taccuracy");
 	}
-	for (svm_parameter param : bestCorrectMap.keySet()) {
-	    int totalCorrect = bestCorrectMap.get(param);
-	    double accuracy = bestAccuracyMap.get(param);
+	for (svm_parameter param : sortedCorrectMap.keySet()) {
+	    int totalCorrect = sortedCorrectMap.get(param);
+	    double accuracy = sortedAccuracyMap.get(param);
 	    if (kernel_type==svm_parameter.RBF) {
 		System.out.println(df.format(param.C)+"\t"+df.format(param.gamma)+"\t"+totalCorrect+"\t"+pf.format(accuracy));
 		System.err.println(df.format(param.C)+"\t"+df.format(param.gamma)+"\t"+totalCorrect+"\t"+pf.format(accuracy));
@@ -231,6 +218,27 @@ public class SvmGridSearcher {
      */
     public void setVerbose() {
         verbose = true;
+    }
+
+    /**
+     * Set the kernel based on the string representation; exit(1) if incorrect string.
+     */
+    public void setKernel(String kernelString) {
+	if (kernelString.equals("LINEAR")) {
+	    kernel_type = svm_parameter.LINEAR;
+	} else if (kernelString.equals("POLY")) {
+	    kernel_type = svm_parameter.POLY;
+	} else if (kernelString.equals("RBF")) {
+	    kernel_type = svm_parameter.RBF;
+	} else if (kernelString.equals("SIGMOID")) {
+	    kernel_type = svm_parameter.SIGMOID;
+	} else if (kernelString.equals("PRECOMPUTED")) {
+	    kernel_type = svm_parameter.PRECOMPUTED;
+	} else {
+	    System.err.println("ERROR: the accepted values for kernel are: LINEAR, POLY, RBF, SIGMOID, or PRECOMPUTED");
+	    System.exit(1);
+	}
+	this.kernelString = kernelString;
     }
 
     /**
@@ -310,21 +318,7 @@ public class SvmGridSearcher {
             gs.nrFold = Integer.parseInt(cmd.getOptionValue("k"));
         }
 	if (cmd.hasOption("kernel")) {
-	    String kernelString = cmd.getOptionValue("kernel");
-	    if (kernelString.equals("LINEAR")) {
-		gs.kernel_type = svm_parameter.LINEAR;
-	    } else if (kernelString.equals("POLY")) {
-		gs.kernel_type = svm_parameter.POLY;
-	    } else if (kernelString.equals("RBF")) {
-		gs.kernel_type = svm_parameter.RBF;
-	    } else if (kernelString.equals("SIGMOID")) {
-		gs.kernel_type = svm_parameter.SIGMOID;
-	    } else if (kernelString.equals("PRECOMPUTED")) {
-		gs.kernel_type = svm_parameter.PRECOMPUTED;
-	    } else {
-		System.err.println("ERROR: the accepted values for kernel are: LINEAR, POLY, RBF, SIGMOID, or PRECOMPUTED");
-		System.exit(1);
-	    }
+	    gs.setKernel(cmd.getOptionValue("kernel"));
 	}
 
         // run the search
