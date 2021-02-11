@@ -24,7 +24,8 @@ import org.apache.commons.cli.ParseException;
 import com.mxgraph.layout.hierarchical.mxHierarchicalLayout;
 
 /**
- * Static class which shows a PangenomicGraph with nodes colored according to case/control degree in a JFrame.
+ * Static class which shows a PangenomicGraph with nodes colored according to case/control degree in a JFrame, 
+ * along with paths.
  */
 public class GraphViewer {
     private static final long serialVersionUID = 2202072534703043194L;
@@ -42,9 +43,13 @@ public class GraphViewer {
         HelpFormatter formatter = new HelpFormatter();
         CommandLine cmd;
 
-        Option graphOption = new Option("g", "graph", true, "name of graph");
+        Option graphOption = new Option("g", "graph", true, "name of graph (provides nodes)");
         graphOption.setRequired(true);
         options.addOption(graphOption);
+        //
+        Option pathsOption = new Option("p", "paths", true, "name of paths to draw (file=<name>.paths.txt)");
+        pathsOption.setRequired(true);
+        options.addOption(pathsOption);
         //
         Option decorateEdgesOption = new Option("d", "decorateedges", false, "decorate edges according to the number of paths [false]");
         decorateEdgesOption.setRequired(false);
@@ -63,10 +68,16 @@ public class GraphViewer {
             return;
         }
 
-        String graphName = cmd.getOptionValue("g");
-        boolean decorateEdges = cmd.hasOption("d");
+        // required parameters
+        String graphName = cmd.getOptionValue("graph");
+        String pathsName = cmd.getOptionValue("paths");
+        
+        // optional parameters
+        boolean decorateEdges = cmd.hasOption("decorateedges");
         double mOptionValue = DEFAULT_MINOR_NODE_FRAC;
-        if (cmd.hasOption("m")) mOptionValue = Double.parseDouble(cmd.getOptionValue("m"));
+        if (cmd.hasOption("minornodefrac")) {
+            mOptionValue = Double.parseDouble(cmd.getOptionValue("minornodefrac"));
+        }
         final double minorNodeFrac = mOptionValue;
 
         // schedule a job for the event dispatch thread: creating and showing this application's GUI.
@@ -75,7 +86,7 @@ public class GraphViewer {
                     // turn off metal's use of bold fonts
                     UIManager.put("swing.boldMetal", Boolean.FALSE);
                     try {
-                        createAndShowGUI(graphName, decorateEdges, minorNodeFrac);
+                        createAndShowGUI(graphName, pathsName, decorateEdges, minorNodeFrac);
                     } catch (Exception e) {
                         System.err.println(e);
                         System.exit(1);
@@ -89,18 +100,13 @@ public class GraphViewer {
      * @param graphName the name of the graph, from which the nodes and paths files will be formed
      * @param decorateEdges decorate edges to indicate the number of paths that traverse them
      */
-    private static void createAndShowGUI(String graphName, boolean decorateEdges, double minorNodeFrac) throws IOException {
-        String nodesFilename = graphName+".nodes.txt";
-        String pathsFilename = graphName+".paths.txt";
-        File nodesFile = new File(nodesFilename);
-        File pathsFile = new File(pathsFilename);
-        
+    private static void createAndShowGUI(String graphName, String pathsName, boolean decorateEdges, double minorNodeFrac) throws IOException {
         // get the graph
         PangenomicGraph graph = new PangenomicGraph();
         graph.verbose = true;
         graph.name = graphName;
-        graph.nodesFile = new File(graph.name+".nodes.txt");
-        graph.pathsFile = new File(graph.name+".paths.txt");
+        graph.nodesFile = new File(graphName+".nodes.txt");
+        graph.pathsFile = new File(pathsName+".paths.txt");
         graph.loadTXT();
         graph.tallyLabelCounts();
         graph.buildNodePaths();
