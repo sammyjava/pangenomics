@@ -8,4 +8,4 @@ SVMFILE="$PREFIX.testing.svm.txt"
 SCALEFILE="$PREFIX.testing.svm.scale.txt"
 
 echo "Scaling $SVMFILE to $SCALEFILE from $RANGEFILE"
-java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmScaler -r $RANGEFILE -d $SVMFILE > $SCALEFILE
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.libsvm.Scaler -r $RANGEFILE -d $SVMFILE > $SCALEFILE

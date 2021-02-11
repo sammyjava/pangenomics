@@ -42,14 +42,15 @@ GRAPHPREFIX=$1
 PATHSPREFIX=$2
 FRSPREFIX=$3
 
-## SVM file building parameters
+
+## ARFF file building parameters
 NUMCASEPATHS=0
 NUMCTRLPATHS=0
 MINSIZE=0
-MINSUPPORT=10
-MINPRIORITY=1
+MINSUPPORT=0
+MINPRIORITY=0
 
-## write the SVM file
-echo "Writing SVM file with -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -s $MINSIZE -m $MINSUPPORT -minp $MINPRIORITY"
-java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -svm \
+## write the ARFF file
+echo "Writing ARFF file with -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -s $MINSIZE -m $MINSUPPORT -minp $MINPRIORITY"
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff \
      -g $GRAPHPREFIX -p $PATHSPREFIX -f $FRSPREFIX -ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -s $MINSIZE -m $MINSUPPORT -pri 3 -minp $MINPRIORITY

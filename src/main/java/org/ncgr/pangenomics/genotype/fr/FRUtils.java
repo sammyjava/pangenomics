@@ -411,7 +411,7 @@ public class FRUtils {
         out.println("@ATTRIBUTE ID STRING");
         // attributes: each FR is labeled FRn
         int c = 0;
-        for (FrequentedRegion fr : frequentedRegions) {
+        for (FrequentedRegion fr : prunedFRs) {
             c++;
             String frLabel = "FR"+c;
             out.println("@ATTRIBUTE "+frLabel+" NUMERIC");

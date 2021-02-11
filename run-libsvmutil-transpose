@@ -1,0 +1,8 @@
+#!/bin/sh
+# usage: Util [options]
+#  -i,--inputfile <arg>   input file
+#  -t,--transpose         transpose input file into SVM format
+
+PREFIX=$1
+
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.libsvm.Util -t -i $PREFIX.features.txt > $PREFIX.svm.txt

@@ -820,19 +820,23 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         graphOption.setRequired(true);
         options.addOption(graphOption);
         // if vcf then labelfile is required
-        Option vcfFileOption = new Option("vcf", "vcffile", true, "load graph from <graph>.vcf.gz");
+        Option vcfFileOption = new Option("vcf", "vcffile", true, "load graph from a VCF file (requires labelfile)");
         vcfFileOption.setRequired(false);
         options.addOption(vcfFileOption);
 	// if list then labelfile is required
-	Option listFileOption = new Option("list", "listfile", true, "load graph from a PLINK list file");
+	Option listFileOption = new Option("list", "listfile", true, "load graph from a PLINK list file (requires labelfile)");
 	listFileOption.setRequired(false);
 	options.addOption(listFileOption);
-        // txt does not require labelfile
-        Option txtFileOption = new Option("txt", "txtfile", true, "root name of a pair of TXT files containing nodes and paths (e.g. FOO means FOO.nodes.txt and FOO.paths.txt)");
-        txtFileOption.setRequired(false);
-        options.addOption(txtFileOption);
+	//
+	Option nodesFileOption = new Option("nodes", "nodesfile", true, "load graph nodes from a nodes file (<name>.nodes.txt)");
+	nodesFileOption.setRequired(false);
+	options.addOption(nodesFileOption);
+        // paths.txt does not require labelfile
+        Option pathsFileOption = new Option("paths", "pathsfile", true, "load paths from a paths file (<name>.paths.txt)");
+        pathsFileOption.setRequired(false);
+        options.addOption(pathsFileOption);
 	// 
-        Option labelFileOption = new Option("l", "labelfile", true, "tab-delimited file containing one sample<tab>label per line");
+        Option labelFileOption = new Option("l", "labelfile", true, "tab-delimited file containing one sample<tab>label pair per line");
         labelFileOption.setRequired(false);
         options.addOption(labelFileOption);
         // drop no-call nodes and paths
@@ -881,10 +885,10 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         // validation
         boolean loadVCF = cmd.hasOption("vcffile");
 	boolean loadList = cmd.hasOption("listfile");
-        boolean loadTXT = cmd.hasOption("txtfile");
+        boolean loadTXT = cmd.hasOption("nodesfile") && cmd.hasOption("pathsfile");
         if (!loadVCF && !loadList && !loadTXT) {
-            System.err.println("ERROR: You must specify loading from a VCF with --vcffile [filename], a LIST file with --listfile, or a pair of TXT files with --txtfile.");
-            System.exit(1);
+	    System.err.println("ERROR: You must specify loading from a VCF with --vcffile [filename], a LIST file with --listfile, or a pair of TXT files with --nodesfile and --pathsfile.");
+	    System.exit(1);
         }
 	if ((loadVCF || loadList) && !cmd.hasOption("labelfile")) {
 	    System.err.println("ERROR: You must specify a label file with --labelfile if you are loading a graph from a VCF or LIST file.");
@@ -903,8 +907,8 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         if (loadTXT) {
             // TXT load pulls sample labels from paths file
 	    // NOTE: this overrides VCF or LIST loading
-            graph.nodesFile = new File(graph.name+".nodes.txt");
-            graph.pathsFile = new File(graph.name+".paths.txt");
+            graph.nodesFile = new File(cmd.getOptionValue("nodesfile")+".nodes.txt");
+            graph.pathsFile = new File(cmd.getOptionValue("pathsfile")+".paths.txt");
             graph.loadTXT();
             graph.tallyLabelCounts();
 	    System.err.println("Graph has "+graph.vertexSet().size()+" nodes and "+graph.paths.size()+" paths: "+graph.labelCounts.get("case")+"/"+graph.labelCounts.get("ctrl")+" cases/controls");
@@ -929,10 +933,12 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         graph.buildNodePaths();
 
         // output
-	if (!cmd.hasOption("txtfile")) {
+	if (!cmd.hasOption("nodesfile")) {
 	    if (graph.verbose) System.err.println("Writing nodes file...");
 	    PrintStream nodesOut = new PrintStream(graph.name+".nodes.txt");
 	    graph.printNodes(nodesOut);
+	}
+	if (!cmd.hasOption("pathsfile")) {
 	    if (graph.verbose) System.err.println("Writing paths file...");
 	    PrintStream pathsOut = new PrintStream(graph.name+".paths.txt");
 	    graph.printPaths(pathsOut);
@@ -957,8 +963,10 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 	}
 	
 	if (cmd.hasOption("printsvmfile")) {
-	    if (graph.verbose) System.err.println("Writing path SVM file...");
-	    PrintStream out = new PrintStream(graph.name+".svm.txt");
+	    String svmFilename = graph.name+".svm.txt";
+	    if (cmd.hasOption("pathsfile")) svmFilename = cmd.getOptionValue("pathsfile")+".svm.txt";
+	    if (graph.verbose) System.err.println("Writing path SVM file "+svmFilename+"...");
+	    PrintStream out = new PrintStream(svmFilename);
 	    graph.printSvmData(out);
 	}
     }

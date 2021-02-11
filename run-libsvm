@@ -43,7 +43,7 @@ rm -f $GRIDOUT
 if [ ! -s $SVMFILE ]
 then
     echo "Writing $SVMFILE with -s $MINSIZE -m $MINSUPPORT -pri $PRIORITYOPTION --minpriority $MINPRIORITY"
-    java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -svm \
+    java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -svm \
 	 -i $INPUTPREFIX -s $MINSIZE -m $MINSUPPORT -pri $PRIORITYOPTION -mpri $MINPRIORITY
 fi
 
@@ -51,7 +51,7 @@ fi
 if [ ! -s $SCALEFILE ]
 then
     echo "Scaling $SVMFILE"
-    java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmScaler -s $RANGEFILE -d $SVMFILE > $SCALEFILE
+    java -server -cp "build/install/pangenomics/lib/*" org.ncgr.libsvm.Scaler -s $RANGEFILE -d $SVMFILE > $SCALEFILE
 fi
 
 ## run GridSearcher on the full scaled data to find optimum SVM parameters
@@ -69,7 +69,7 @@ fi
 #    starttime=`date`
 #    ARGS="-datafile $SCALEFILE -k $K -ncases $NGRIDCASES -ncontrols $NGRIDCONTROLS -Cstep $C_POWER_STEP -gammastep $GAMMA_POWER_STEP -kernel $KERNEL"
 #    echo "Running GridSearcher with $ARGS"
-#    java -server -cp "build/install/fr/lib/*" org.ncgr.svm.GridSearcher -v $ARGS > $GRIDOUT
+#    java -server -cp "build/install/pangenomics/lib/*" org.ncgr.libsvm.GridSearcher -v $ARGS > $GRIDOUT
 #    endtime=`date`
 #    echo "$starttime - $endtime"
 # fi
@@ -77,7 +77,7 @@ fi
 ## set default SVM parameters, C=1, default gamma
 ARGS="-h 0 -m 10000 -C 1.0 -k $K -ncases $NSVMCASES -ncontrols $NSVMCONTROLS"
 
-## get SVM parameters from grid scan
+## get SVM parameters pangenomicsom grid scan
 # if [ -s $GRIDOUT ]
 # then
 #     C=`tail -1 $GRIDOUT | awk '{ print $1; }'`
@@ -88,12 +88,12 @@ ARGS="-h 0 -m 10000 -C 1.0 -k $K -ncases $NSVMCASES -ncontrols $NSVMCONTROLS"
 # fi
 
 ## run cross-validation on the determined params to collect stats
-echo "Running $NRUNS SvmCrossValidator runs on $SCALEFILE with $ARGS"
-java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmCrossValidator \
+echo "Running $NRUNS CrossValidator runs on $SCALEFILE with $ARGS"
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.libsvm.CrossValidator \
      $ARGS -nruns $NRUNS -i $SCALEFILE > "$INPUTPREFIX.crossvalidation.txt"
 
 ## train the SVM on the given samples
-# usage: SvmTrainer [options] input-file model-file
+# usage: Trainer [options] input-file model-file
 #  -b,--probability-estimates <arg>   0/1 toggle whether to train a SVC or
 #                                     SVR model for probability estimates
 #                                     [0]
@@ -124,7 +124,7 @@ java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmCrossValidator \
 #                                     weight*C, for C-SVC [1]
 
 #ARGS="-c 7.81e-3 -g 3.81e-6 -s 0 -t 0 -m 10000"
-#echo "Running SvmTrainer on $SCALEFILE with $ARGS"
-#java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmTrainer \
+#echo "Running Trainer on $SCALEFILE with $ARGS"
+#java -server -cp "build/install/pangenomics/lib/*" org.ncgr.libsvm.Trainer \
 #     $ARGS $SCALEFILE $MODELFILE
 

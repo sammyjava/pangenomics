@@ -1,5 +1,5 @@
 #!/bin/sh
-# usage: SvmCrossValidator [options]
+# usage: CrossValidator [options]
 #  -C,--cost <arg>                       cost parameter C in C-SVC,
 #                                        epsilon-SVR and nu-SVR [1]
 #  -coef0,--kernel-coef0 <arg>           coef0 parameter in kernel function
@@ -43,5 +43,5 @@ gamma=$3
 SCALE=$INPUTPREFIX.scale.txt
 ARGS="-k 10 -C $C -gamma $gamma"
 
-echo "SvmCrossValidator $ARGS"
-java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmCrossValidator $ARGS -i $SCALE > "$INPUTPREFIX.crossvalidation.txt"
+echo "CrossValidator $ARGS"
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.libsvm.CrossValidator $ARGS -i $SCALE > "$INPUTPREFIX.crossvalidation.txt"

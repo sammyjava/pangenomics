@@ -1,8 +1,0 @@
-#!/bin/sh
-# usage: SvmUtil [options]
-#  -i,--inputfile <arg>   input file
-#  -t,--transpose         transpose input file into SVM format
-
-PREFIX=$1
-
-java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmUtil -t -i $PREFIX.features.txt > $PREFIX.svm.txt

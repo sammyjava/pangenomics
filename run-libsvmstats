@@ -1,5 +1,5 @@
 #!/bin/sh
-# usage: SvmUtil [options]
+# usage: Util [options]
 #  -datafile <arg>   SVM scaled data file
 #  -predfile <arg>   SVM prediction output file (one line)
 #  -s,--stats        compute prediction stats from datafile and predfile
@@ -11,6 +11,5 @@ DATAFILE="$PREFIX.svm.scale.txt"
 PREDFILE="$PREFIX.svm.pred.txt"
 
 ## run the SVM stats computer
-echo "Running SvmUtil --stats on $DATAFILE and $PREDFILE"
-java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmUtil --stats -datafile $DATAFILE -predfile $PREDFILE
-
+echo "Running Util --stats on $DATAFILE and $PREDFILE"
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.libsvm.Util --stats -datafile $DATAFILE -predfile $PREDFILE

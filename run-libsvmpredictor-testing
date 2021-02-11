@@ -1,5 +1,5 @@
 #!/bin/sh
-# usage: SvmPredictor [options]
+# usage: Predictor [options]
 # -b,--predict-probability   toggle prediction of probability estimates
 #                            [false]
 # -datafile <arg>            input data file in SVM format [required]
@@ -9,11 +9,12 @@
 
 PREFIX=$1
 
-DATAFILE="$PREFIX.svm.scale.txt"
 MODELFILE="$PREFIX.svm.model.txt"
-OUTPUTFILE="$PREFIX.svm.pred.txt"
+
+DATAFILE="$PREFIX.testing.svm.scale.txt"
+OUTPUTFILE="$PREFIX.testing.svm.pred.txt"
 
 ## run the SVM predictor
-echo "Running SvmPredictor on $DATAFILE and $MODELFILE with output to $OUTPUTFILE"
-java -server -cp "build/install/fr/lib/*" org.ncgr.svm.SvmPredictor -v -datafile $DATAFILE -modelfile $MODELFILE -outputfile $OUTPUTFILE
+echo "Running Predictor on $DATAFILE and $MODELFILE with output to $OUTPUTFILE"
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.libsvm.Predictor -v -datafile $DATAFILE -modelfile $MODELFILE -outputfile $OUTPUTFILE
 

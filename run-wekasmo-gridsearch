@@ -1,20 +1,26 @@
 #!/bin/bash
 # usage: WekaSMO
-#  -a,--arfffile <arg>         ARFF input file (required)
+#  -a,--arfffile <arg>         input data file in ARFF format (required)
 #  -C,--complexity <arg>       SMO complexity constant C
 #  -cv,--crossvalidate         run cross-validation
+#  -exp,--exponent <arg>       Poly kernel exponent parameter
 #  -g,--gamma <arg>            RBF kernel gamma parameter
 #  -gs,--gridsearch            run a grid search over parameters
 #  -k,--kfold <arg>            cross-validation k-fold (required)
+#  -kernel,--kernel <arg>      kernel function: RBF or Poly (required)
 #  -L,--tolerance <arg>        tolerance parameter [1.0e-3]
 #  -M,--fitcalibrationmodels   fit calibration models to SVM outputs
 #  -N,--normalization <arg>    0=normalize, 1=standardize, 2=neither [0]
 #  -ng,--ngridsearch <arg>     set number of cases+controls (equal) to use
 #                              in grid search [0=all]
 #  -P,--epsilon <arg>          epsilon for round-off error [1.0e-12]
+#  -test,--test                run training/testing on datasets with given
+#                              SMO and kernel parameters
+#  -tf,--testfile <arg>        test data file in ARFF format
 
-PREFIX=$1
-NGRIDSEARCH=$2
+KERNEL=$1
+PREFIX=$2
+NGRIDSEARCH=$3
 
 ARFFFILE=$PREFIX.arff
 
@@ -25,5 +31,5 @@ KFOLD=10
 if [ -s $ARFFFILE ]
 then
     echo "Running WekaSMO grid search on $ARFFFILE"
-    java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --gridsearch --arfffile=$ARFFFILE --kfold=$KFOLD --ngridsearch=$NGRIDSEARCH
+    java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --gridsearch --kernel=$KERNEL --arfffile=$ARFFFILE --kfold=$KFOLD --ngridsearch=$NGRIDSEARCH
 fi

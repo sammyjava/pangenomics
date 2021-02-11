@@ -1,4 +1,4 @@
-package org.ncgr.svm;
+package org.ncgr.libsvm;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -26,7 +26,7 @@ import org.apache.commons.cli.ParseException;
 /**
  * Utility to scale data to a given interval like [-1,1].
  */
-public class SvmScaler {
+public class Scaler {
     
     // defaults
     double lower = -1.0;
@@ -50,14 +50,14 @@ public class SvmScaler {
     /**
      * Construct by reading samples in from an SVM-format file.
      */
-    public SvmScaler(String svmFilename) throws FileNotFoundException, IOException {
-        this.samples = SvmUtil.readSamples(svmFilename);
+    public Scaler(String svmFilename) throws FileNotFoundException, IOException {
+        this.samples = Util.readSamples(svmFilename);
     }
 
     /**
      * Construct given a List of samples.
      */
-    public SvmScaler(List<Sample> samples) {
+    public Scaler(List<Sample> samples) {
         this.samples = samples;
     }
 
@@ -246,7 +246,7 @@ public class SvmScaler {
         options.addOption(yScalingOption);
 
         if (args.length==0) {
-            formatter.printHelp("SvmScaler [options]", options);
+            formatter.printHelp("Scaler [options]", options);
             System.exit(1);
         }
         
@@ -254,7 +254,7 @@ public class SvmScaler {
             cmd = parser.parse(options, args);
         } catch (ParseException e) {
             System.err.println(e.getMessage());
-            formatter.printHelp("SvmScaler [options]", options);
+            formatter.printHelp("Scaler [options]", options);
             System.exit(1);
         }
 
@@ -270,8 +270,8 @@ public class SvmScaler {
 	    restoreFilename = cmd.getOptionValue("r");
 	}
 
-	// instantiate the SvmScaler and validate
-        SvmScaler scaler = new SvmScaler(svmFilename);
+	// instantiate the Scaler and validate
+        Scaler scaler = new Scaler(svmFilename);
 	scaler.validateFiles(svmFilename, saveFilename, restoreFilename);
 	scaler.restoreFilename = restoreFilename;
 

@@ -1,4 +1,4 @@
-package org.ncgr.svm;
+package org.ncgr.libsvm;
 
 import java.io.BufferedReader;
 import java.io.BufferedOutputStream;
@@ -24,7 +24,7 @@ import libsvm.svm_node;
 import libsvm.svm_parameter;
 import libsvm.svm_problem;
 
-public class SvmTrainer {
+public class Trainer {
     
     svm_parameter param;
     svm_problem prob;
@@ -33,7 +33,7 @@ public class SvmTrainer {
     /**
      * Instantiate with given param values.
      */
-    public SvmTrainer(svm_parameter param) {
+    public Trainer(svm_parameter param) {
         this.param = param;
     }
     
@@ -199,7 +199,7 @@ public class SvmTrainer {
             cmd = parser.parse(options, args);
         } catch (ParseException e) {
             System.err.println(e.getMessage());
-            formatter.printHelp("SvmTrainer", options);
+            formatter.printHelp("Trainer", options);
             System.exit(1);
         }
 
@@ -319,13 +319,13 @@ public class SvmTrainer {
 
         // this is weird, setting a static function in svm
         if (verbose) {
-            SvmUtil.setVerbose();
+            Util.setVerbose();
         } else {
-            SvmUtil.setQuiet();
+            Util.setQuiet();
         }
 
         // instantiate with this param object
-        SvmTrainer st = new SvmTrainer(param);
+        Trainer st = new Trainer(param);
 
         // load the problem
         st.readProblem(datafilename);

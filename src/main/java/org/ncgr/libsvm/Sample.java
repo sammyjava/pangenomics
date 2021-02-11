@@ -1,4 +1,4 @@
-package org.ncgr.svm;
+package org.ncgr.libsvm;
 
 import java.util.TreeMap;
 

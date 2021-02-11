@@ -3,10 +3,9 @@
 #  -a,--arfffile <arg>         input data file in ARFF format (required)
 #  -C,--complexity <arg>       SMO complexity constant C
 #  -cv,--crossvalidate         run cross-validation
-#  -exp,--exponent <arg>       Poly kernel exponent parameter
-#  -g,--gamma <arg>            RBF kernel gamma parameter
 #  -gs,--gridsearch            run a grid search over parameters
 #  -k,--kfold <arg>            cross-validation k-fold (required)
+#  -kp,--kernelparam <arb>     kernel parameter RBF:gamma, Poly:exponent
 #  -kernel,--kernel <arg>      kernel function: RBF or Poly (required)
 #  -L,--tolerance <arg>        tolerance parameter [1.0e-3]
 #  -M,--fitcalibrationmodels   fit calibration models to SVM outputs
@@ -19,16 +18,14 @@
 #  -tf,--testfile <arg>        test data file in ARFF format
 
 KERNEL=$1
-PREFIX=$2
-C=$3
-gamma=$4
+TRAINPREFIX=$2
+TESTPREFIX=$3
+C=$4
+KERNELPARAM=$5
 
-KFOLD=10
+TRAINFILE=$TRAINPREFIX.arff
+TESTFILE=$TESTPREFIX.arff
 
-ARFFFILE=$PREFIX.arff
+echo "Running WekaSMO training on $TRAINFILE and testing on $TESTFILE with C=$C and kernelparam=$KERNELPARAM"
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --test --kernel=$KERNEL --arfffile=$TRAINFILE --testfile=$TESTFILE --complexity=$C --kernelparam=$KERNELPARAM
 
-if [ -s $ARFFFILE ]
-then
-    echo "Running WekaSMO cross-validation on $ARFFFILE with kvold=$KFOLD C=$C gamma=$gamma"
-    java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --crossvalidate --kernel=$KERNEL --arfffile=$ARFFFILE --kfold=$KFOLD --complexity=$C --gamma=$gamma
-fi

@@ -1,4 +1,4 @@
-package org.ncgr.svm;
+package org.ncgr.libsvm;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -27,7 +27,7 @@ import libsvm.svm_print_interface;
 /**
  * Some utility static methods.
  */
-public class SvmUtil {
+public class Util {
     static DecimalFormat pf = new DecimalFormat("0.0%");
     static DecimalFormat df = new DecimalFormat("0.000");
 
@@ -264,14 +264,14 @@ public class SvmUtil {
         options.addOption(statsOption);
 
         if (args.length==0) {
-            formatter.printHelp("SvmUtil [options]", options);
+            formatter.printHelp("Util [options]", options);
             System.exit(1);
         }
         try {
             cmd = parser.parse(options, args);
         } catch (ParseException e) {
             System.err.println(e.getMessage());
-            formatter.printHelp("SvmUtil [options]", options);
+            formatter.printHelp("Util [options]", options);
             System.exit(1);
         }
 	

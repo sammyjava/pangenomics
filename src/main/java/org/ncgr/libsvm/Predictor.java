@@ -1,4 +1,4 @@
-package org.ncgr.svm;
+package org.ncgr.libsvm;
 
 import java.io.BufferedReader;
 import java.io.BufferedOutputStream;
@@ -26,7 +26,7 @@ import libsvm.svm_model;
 import libsvm.svm_parameter;
 import libsvm.svm_print_interface;
 
-public class SvmPredictor {
+public class Predictor {
 
     int svm_type;
     int nr_class;
@@ -58,7 +58,7 @@ public class SvmPredictor {
     /**
      * Construct given file names and the predictProbability flag
      */
-    public SvmPredictor(String inputFilename, String modelFilename, String outputFilename, boolean predictProbability) throws FileNotFoundException, IOException {
+    public Predictor(String inputFilename, String modelFilename, String outputFilename, boolean predictProbability) throws FileNotFoundException, IOException {
         this.inputFilename = inputFilename;
         this.modelFilename = modelFilename;
         this.outputFilename = outputFilename;
@@ -191,7 +191,7 @@ public class SvmPredictor {
         options.addOption(verboseOption);
 
         if (args.length==0) {
-            formatter.printHelp("SvmPredictor [options]", options);
+            formatter.printHelp("Predictor [options]", options);
             System.exit(1);
         }
         
@@ -199,7 +199,7 @@ public class SvmPredictor {
             cmd = parser.parse(options, args);
         } catch (ParseException e) {
             System.out.println(e.getMessage());
-            formatter.printHelp("SvmPredictor [options]", options);
+            formatter.printHelp("Predictor [options]", options);
             System.exit(1);
             return;
         }
@@ -209,9 +209,9 @@ public class SvmPredictor {
         
         // odd way to toggle printing with a static var
         if (cmd.hasOption("v")) {
-            SvmUtil.setVerbose();
+            Util.setVerbose();
         } else {
-            SvmUtil.setVerbose();
+            Util.setVerbose();
         }
 
         // file names
@@ -220,7 +220,7 @@ public class SvmPredictor {
         String outputfilename = cmd.getOptionValue("outputfile");
 
         // create the predictor
-        SvmPredictor sp = new SvmPredictor(datafilename, modelfilename, outputfilename, predictProbability);
+        Predictor sp = new Predictor(datafilename, modelfilename, outputfilename, predictProbability);
         
         // run it
         sp.run();
