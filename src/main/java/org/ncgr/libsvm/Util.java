@@ -25,7 +25,7 @@ import libsvm.svm_parameter;
 import libsvm.svm_print_interface;
 
 /**
- * Some utility static methods.
+ * Some utility static methods for LIBSVM data.
  */
 public class Util {
     static DecimalFormat pf = new DecimalFormat("0.0%");
@@ -129,7 +129,7 @@ public class Util {
     }
 
     /**
-     * Transpose a feature matrix into SVM format
+     * Transpose a feature matrix with path columns into SVM format with path rows
      */
     public static void transposeFeatures(String filename) throws IOException {
         BufferedReader reader = new BufferedReader(new FileReader(filename));
@@ -236,6 +236,58 @@ public class Util {
     }
 
     /**
+     * Convert an SVM text file to a ELKI-compatible CSV format (output to stdout).
+     * SVM  sample label i1:val1 i2:val2 i3:val3 ... iN:valN
+     * ELKI val1 val2 val3 val4 val5 .... valN nonDoubleLabel
+     */
+    public static void convertSVMToElki(String svmfilename) throws FileNotFoundException, IOException {
+        String line;
+        BufferedReader reader = new BufferedReader(new FileReader(svmfilename));
+        while ((line=reader.readLine())!=null) {
+            if (line.startsWith("#")) continue;
+            String[] fields = line.split("\t");
+            String sample = fields[0]; // we don't output the sample id
+            String label = fields[1];
+            for (int i=2; i<fields.length; i++) {
+                String[] parts = fields[i].split(":");
+                System.out.print(parts[1]+" ");
+            }
+            System.out.println(label);
+        }
+    }
+
+    /**
+     * Convert an "NCGR" SVM text file to a "true" SVM text file (output to stdout).
+     *      0        1           2       3       4       ... N+1
+     * NCGR sampleId stringLabel i1:val1 i2:val2 i3:val3 ... iN:valN
+     * true intLabel i1:val1 i2:val2 i3:val3 ... iN:valN
+     */
+    public static void convertToTrueSVM(String svmfilename) throws FileNotFoundException, IOException {
+        String line;
+        BufferedReader reader = new BufferedReader(new FileReader(svmfilename));
+        while ((line=reader.readLine())!=null) {
+            if (line.startsWith("#")) continue;
+            String[] fields = line.split("\t");
+            String sampleId = fields[0]; // we don't output the sample id
+            String stringLabel = fields[1];
+            int intLabel = 0;
+            if (stringLabel.equals("case")) {
+                intLabel = 1;
+            } else if (stringLabel.equals("ctrl")) {
+                intLabel = 0;
+            } else {
+                System.err.println("ERROR: input SVM file labels must be 'case' or 'ctrl'");
+                System.exit(1);
+            }
+            System.out.print(intLabel);
+            for (int i=2; i<fields.length; i++) {
+                System.out.print(" "+fields[i]);
+            }
+            System.out.println("");
+        }
+    }
+
+    /**
      * Main method for some utilities
      */
     public static void main(String[] args) throws IOException {
@@ -245,7 +297,7 @@ public class Util {
         CommandLine cmd = null;
 	//
 	Option datafileOption = new Option("datafile", true, "SVM scaled data file");
-	datafileOption.setRequired(true);
+	datafileOption.setRequired(false);
 	options.addOption(datafileOption);
         //
         Option predfileOption = new Option("predfile", true, "SVM prediction output file (one line)");
@@ -259,6 +311,14 @@ public class Util {
         Option statsOption = new Option("s", "stats", false, "compute prediction stats from datafile and predfile");
         statsOption.setRequired(false);
         options.addOption(statsOption);
+        //
+        Option elkiOption = new Option("e", "elki", true, "convert the given file from SVM format to ELKI CSV format");
+        elkiOption.setRequired(false);
+        options.addOption(elkiOption);
+        //
+        Option trueSVMOption = new Option("truesvm", "truesvm", true, "convert the given file from NCGR SVM format to true SVM format");
+        trueSVMOption.setRequired(false);
+        options.addOption(trueSVMOption);
 
         if (args.length==0) {
             formatter.printHelp("Util [options]", options);
@@ -272,15 +332,32 @@ public class Util {
             System.exit(1);
         }
 	
-	String datafilename = cmd.getOptionValue("datafile");
-
+        // --transpose
 	if (cmd.hasOption("transpose")) {
-	    transposeFeatures(datafilename);
+            if (!cmd.hasOption("datafile")) {
+                System.err.println("ERROR: --transpose requires --datafile");
+                System.exit(1);
+            }
+	    transposeFeatures(cmd.getOptionValue("datafile"));
 	}
 
+        // --stats
         if (cmd.hasOption("stats")) {
-            String predfilename = cmd.getOptionValue("predfile");
-            computeStats(datafilename, predfilename);
+            if (!cmd.hasOption("datafile") || !cmd.hasOption("predfile")) {
+                System.err.println("ERROR: --stats requires --datafile and --predfile");
+                System.exit(1);
+            }
+            computeStats(cmd.getOptionValue("datafile"), cmd.getOptionValue("predfile"));
+        }
+
+        // --elki
+        if (cmd.hasOption("elki")) {
+            convertSVMToElki(cmd.getOptionValue("elki"));
+        }
+
+        // --truesvm
+        if (cmd.hasOption("truesvm")) {
+            convertToTrueSVM(cmd.getOptionValue("truesvm"));
         }
     }
 }

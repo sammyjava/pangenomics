@@ -138,10 +138,22 @@ public class VCFImporter extends Importer {
     }
 
     /**
-     * Return the minor allele frequency from a VariantContext, defined as the fraction of HET+HOMVAR calls.
+     * Return the minor allele frequency from a VariantContext, defined as the fraction of non-majority alleles / all alleles.
+     * NOTE: this handles the common case where the REF allele is NOT the majority.
      */
     public static double getMAF(VariantContext vc) {
-	return (double)(vc.getHetCount()+vc.getHomVarCount()) / (double)vc.getCalledChrCount();
+        List<Allele> alleles = vc.getAlleles();
+        int highestCount = 0;
+        int secondHighestCount = 0;
+        for (Allele a : alleles) {
+            int count = vc.getCalledChrCount(a);
+            if (count>highestCount) {
+                highestCount = count;
+            } else if (count>secondHighestCount) {
+                secondHighestCount = count;
+            }
+        }
+	return (double)secondHighestCount / (double)vc.getCalledChrCount();
     }
 
     /**

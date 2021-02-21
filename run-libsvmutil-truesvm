@@ -1,0 +1,15 @@
+#!/bin/sh
+# usage: Util [options]
+#  -datafile <arg>            SVM scaled data file
+#  -e,--elki <arg>            convert the given file from SVM format to ELKI
+#                             CSV format
+#  -predfile <arg>            SVM prediction output file (one line)
+#  -s,--stats                 compute prediction stats from datafile and
+#                             predfile
+#  -t,--transpose             transpose input file into SVM format
+#  -truesvm,--truesvm <arg>   convert the given file from NCGR SVM format to
+#                             true SVM format
+
+PREFIX=$1
+
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.libsvm.Util --truesvm $PREFIX.svm.scale.txt > $PREFIX.true.svm.txt
