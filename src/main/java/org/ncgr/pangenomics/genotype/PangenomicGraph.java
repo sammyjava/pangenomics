@@ -64,8 +64,8 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
     // computed once to save time
     public FisherExact fisherExact;
 
-    // drop no-call nodes and paths traversing them
-    public boolean dropNoCallPaths = false;
+    // drop no-call nodes 
+    public boolean dropNoCallNodes = false;
 
     // make balanced graph, equal cases and controls
     public boolean equalizeCasesControls = false;
@@ -83,14 +83,14 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
     /**
      * Build this graph from the provided Nodes and and maps. sampleLabels must already be populated.
      */
-    public void buildGraph(List<Node> nodes, Map<String,NodeSet> sampleNodeSets, Map<Node,Set<String>> nodeSamples) {
+    public void buildGraph(Map<Long,Node> nodes, Map<String,NodeSet> sampleNodeSets, Map<Node,TreeSet<String>> nodeSamples) {
 	// validation
 	if (sampleLabels.size()==0) {
 	    System.err.println("ERROR in PangenomicGraph.buildGraph: sampleLabels has not been populated.");
 	    System.exit(1);
 	}
 	if (nodes.size()==0) {
-	    System.err.println("ERROR in PangenomicGraph.buildGraph: nodes list is empty.");
+	    System.err.println("ERROR in PangenomicGraph.buildGraph: nodes map is empty.");
 	    System.exit(1);
 	}
 	if (sampleNodeSets.size()==0) {
@@ -113,26 +113,25 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 	    System.err.println("Removed "+removeCount+" samples that were not in sampleNodeSets.");
 	    System.err.println(sampleLabels.size()+" samples remain.");
 	}
-        // optionally drop no-call nodes and all paths that traverse them
-        if (dropNoCallPaths) {
+        // optionally drop no-call nodes
+        if (dropNoCallNodes) {
             Set<Node> nodesToDrop = new HashSet<>();
-            Set<String> samplesToDrop = new HashSet<>();
-            for (Node n : nodes) {
+            for (Node n : nodes.values()) {
                 if (n.isNoCall()) {
                     nodesToDrop.add(n);
-		    Set<String> sampleNames = nodeSamples.get(n);
-                    samplesToDrop.addAll(sampleNames);
                 }
             }
             for (Node n : nodesToDrop) {
-                nodes.remove(n);
+                nodes.remove(n.id);
                 nodeSamples.remove(n);
+		
             }
-	    for (String sampleName : samplesToDrop) {
-		sampleNodeSets.remove(sampleName);
-		sampleLabels.remove(sampleName);
+	    for (NodeSet ns : sampleNodeSets.values()) {
+		for (Node n : nodesToDrop) {
+		    ns.remove(n);
+		}
 	    }
-            System.err.println("Removed "+nodesToDrop.size()+" no-call nodes and "+samplesToDrop.size()+" samples containing no-call nodes.");
+            System.err.println("Removed "+nodesToDrop.size()+" no-call nodes.");
         }
 	// optionally limit maximum cases
 	if (maxCases>0) {
@@ -175,7 +174,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
                 if (sampleNames.size()==0) nodesToDrop.add(n);
             }
 	    for (Node n : nodesToDrop) {
-		nodes.remove(n);
+		nodes.remove(n.id);
 		nodeSamples.remove(n);
 	    }
             System.err.println("Removed "+samplesToDrop.size()+" samples and "+nodesToDrop.size()+" orphaned nodes to set number of cases = "+maxCases+".");
@@ -224,14 +223,14 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
                 if (sampleNames.size()==0) nodesToDrop.add(n);
             }
 	    for (Node n : nodesToDrop) {
-		nodes.remove(n);
+		nodes.remove(n.id);
 		nodeSamples.remove(n);
 	    }
             System.err.println("Removed "+samplesToDrop.size()+" samples and "+nodesToDrop.size()+" orphaned nodes to equalize cases and controls.");
         }
         // add the nodes as graph vertices
         if (verbose) System.err.println("Adding nodes to graph vertices...");
-        for (Node n : nodes) {
+        for (Node n : nodes.values()) {
             addVertex(n);
 	    nodeIdMap.put(n.id, n);
         }
@@ -269,12 +268,12 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
     /**
      * Build this graph from the provided Nodes and Paths.
      */
-    public void buildGraph(List<Node> nodes, Set<Path> paths) {
+    public void buildGraph(Map<Long,Node> nodes, Set<Path> paths) {
         this.paths = paths;
         pathNameMap = new HashMap<>();
         // add the nodes as graph vertices
         if (verbose) System.err.println("Adding nodes to graph vertices...");
-        for (Node n : nodes) {
+        for (Node n : nodes.values()) {
             addVertex(n);
         }
         // build the path-labeled graph edges
@@ -359,8 +358,8 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         }
         // now load the paths
 	for (Path path : paths) {
-	    List<Node> nodes = path.getNodes();
-	    for (Node n : nodes) {
+	    List<Node> pathNodes = path.getNodes();
+	    for (Node n : pathNodes) {
 		nodePaths.get(n).add(path);
 	    }
 	}
@@ -470,7 +469,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
      * Construct a NodeSet from a string representation, e.g. [1350,1352,1353,1465,1467,1468,1469].
      */
     public NodeSet getNodeSet(String str) {
-        NodeSet nodes = new NodeSet();
+        NodeSet nodeSet = new NodeSet();
         List<Node> allNodes = getNodes();
         Map<Long,Node> allNodeMap = new HashMap<>();
         for (Node n : allNodes) allNodeMap.put(n.id, n);
@@ -479,7 +478,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
             if (s.length()>0) {
                 long id = Long.parseLong(s);
                 if (allNodeMap.containsKey(id)) {
-                    nodes.add(allNodeMap.get(id));
+                    nodeSet.add(allNodeMap.get(id));
                 } else {
                     // bail, we're asked for a node that is not in the graph
 		    System.err.println("ERROR: Graph does not contain node "+id);
@@ -487,7 +486,7 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 		}
             }
         }
-        return nodes;
+        return nodeSet;
     }
 
     /**
@@ -768,23 +767,24 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 
     /**
      * Load the graph from a VCF file.
+     * NOTE: sampleLabels must already be populated.
      */
-    public void loadVCF(File vcfFile) throws IOException {
-        VCFImporter vcfImporter = new VCFImporter();
-	vcfImporter.verbose = true;
-        vcfImporter.read(vcfFile, true); // ignore phasing
-        buildGraph(vcfImporter.nodes, vcfImporter.sampleNodeSets, vcfImporter.nodeSamples);
+    public void loadVCF(File vcfFile, double minMAF, double maxMAF) throws IOException {
+        VCFImporter importer = new VCFImporter();
+	importer.verbose = true;
+        importer.read(vcfFile, sampleLabels.keySet(), minMAF, maxMAF);
+        buildGraph(importer.nodes, importer.sampleNodeSets, importer.nodeSamples);
     }
 
     /**
      * Load the graph from a PLINK list output file for the samples listed in sampleLabels.
      */
     public void loadList(File listFile) throws IOException {
-        ListImporter listImporter = new ListImporter();
-	listImporter.verbose = true;
+        ListImporter importer = new ListImporter();
+	importer.verbose = true;
 	if (verbose) System.err.println("Loading LIST data for "+sampleLabels.size()+" samples.");
-        listImporter.read(listFile, sampleLabels.keySet());
-        buildGraph(listImporter.nodes, listImporter.sampleNodeSets, listImporter.nodeSamples);
+        importer.read(listFile, sampleLabels.keySet());
+        buildGraph(importer.nodes, importer.sampleNodeSets, importer.nodeSamples);
     }
 
     /**
@@ -820,19 +820,19 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         graphOption.setRequired(true);
         options.addOption(graphOption);
         // if vcf then labelfile is required
-        Option vcfFileOption = new Option("vcf", "vcffile", true, "load graph from a VCF file (requires labelfile)");
+        Option vcfFileOption = new Option("vcf", "vcffile", true, "build graph from a VCF file (requires labelfile)");
         vcfFileOption.setRequired(false);
         options.addOption(vcfFileOption);
 	// if list then labelfile is required
-	Option listFileOption = new Option("list", "listfile", true, "load graph from a PLINK list file (requires labelfile)");
+	Option listFileOption = new Option("list", "listfile", true, "build graph from a PLINK list file (requires labelfile)");
 	listFileOption.setRequired(false);
 	options.addOption(listFileOption);
 	//
-	Option nodesFileOption = new Option("nodes", "nodesfile", true, "load graph nodes from a nodes file (<name>.nodes.txt)");
+	Option nodesFileOption = new Option("nodes", "nodesfile", true, "read graph nodes from a nodes file (<name>.nodes.txt)");
 	nodesFileOption.setRequired(false);
 	options.addOption(nodesFileOption);
         // paths.txt does not require labelfile
-        Option pathsFileOption = new Option("paths", "pathsfile", true, "load paths from a paths file (<name>.paths.txt)");
+        Option pathsFileOption = new Option("paths", "pathsfile", true, "read graph paths from a paths file (<name>.paths.txt)");
         pathsFileOption.setRequired(false);
         options.addOption(pathsFileOption);
 	// 
@@ -840,9 +840,9 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         labelFileOption.setRequired(false);
         options.addOption(labelFileOption);
         // drop no-call nodes and paths
-        Option dropNoCallPathsOption = new Option("dncp", "dropnocallpaths", false, "drop no-call nodes and paths that traverse them [false]");
-        dropNoCallPathsOption.setRequired(false);
-        options.addOption(dropNoCallPathsOption);
+        Option dropNoCallNodesOption = new Option("dncn", "dropnocallnodes", false, "drop no-call nodes [false]");
+        dropNoCallNodesOption.setRequired(false);
+        options.addOption(dropNoCallNodesOption);
         // reduce cases or controls so they are equal in number
         Option equalizeCasesControlsOption = new Option("ecc", "equalizecasescontrols", false, "reduce cases or controls to make equal in number [false]");
         equalizeCasesControlsOption.setRequired(false);
@@ -867,7 +867,15 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 	Option printNodePathsFileOption = new Option("nodepaths", "printnodepathsfile", false, "print out node paths file [false]");
 	printNodePathsFileOption.setRequired(false);
 	options.addOption(printNodePathsFileOption);
-
+	//
+	Option minMAFOption = new Option("minmaf", "minmaf", true, "minimum MAF of loci to be included from LIST or VCF file [0.0]");
+	minMAFOption.setRequired(false);
+	options.addOption(minMAFOption);
+	//
+	Option maxMAFOption = new Option("maxmaf", "maxmaf", true, "maximum MAF of loci to be included from LIST or VCF file [1.0]");
+	maxMAFOption.setRequired(false);
+	options.addOption(maxMAFOption);
+	
         try {
             cmd = parser.parse(options, args);
         } catch (ParseException e) {
@@ -897,9 +905,9 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 
         // our PangenomicGraph
         PangenomicGraph graph = new PangenomicGraph();
-        if (cmd.hasOption("verbose")) graph.verbose = true;
-        if (cmd.hasOption("dropnocallpaths")) graph.dropNoCallPaths = true;
-        if (cmd.hasOption("equalizecasescontrols")) graph.equalizeCasesControls = true;
+        graph.verbose = cmd.hasOption("verbose");
+        graph.dropNoCallNodes = cmd.hasOption("dropnocallnodes");
+        graph.equalizeCasesControls = cmd.hasOption("equalizecasescontrols");
 	if (cmd.hasOption("maxcases")) graph.maxCases = Integer.parseInt(cmd.getOptionValue("maxcases"));
 
         // load the graph from a TXT, VCF, or LIST file
@@ -914,19 +922,26 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 	    System.err.println("Graph has "+graph.vertexSet().size()+" nodes and "+graph.paths.size()+" paths: "+graph.labelCounts.get("case")+"/"+graph.labelCounts.get("ctrl")+" cases/controls");
         } else if (loadVCF) {
             // VCF load needs separate sample labels load
-	    // NOTE: this overrides LIST loading
+	    double minMAF = 0.0;
+	    double maxMAF = 1.0;
+	    if (cmd.hasOption("minmaf")) minMAF = Double.parseDouble(cmd.getOptionValue("minmaf"));
+	    if (cmd.hasOption("maxmaf")) maxMAF = Double.parseDouble(cmd.getOptionValue("maxmaf"));
 	    graph.readSampleLabels(new File(cmd.getOptionValue("labelfile")));
-            graph.loadVCF(new File(cmd.getOptionValue("vcffile")));
+            graph.loadVCF(new File(cmd.getOptionValue("vcffile")), minMAF, maxMAF);
 	    graph.tallyLabelCounts();
-	    System.err.println("Graph has "+graph.vertexSet().size()+" nodes, "+graph.edgeSet().size()+" edges, and "+graph.paths.size()+
-                               " paths: "+graph.labelCounts.get("case")+"/"+graph.labelCounts.get("ctrl")+" cases/controls");
+	    System.err.println("Graph has "+
+			       graph.vertexSet().size()+" nodes, "+
+			       graph.edgeSet().size()+" edges, and "+
+			       graph.paths.size()+" paths: "+graph.labelCounts.get("case")+"/"+graph.labelCounts.get("ctrl")+" cases/controls");
         } else if (loadList) {
             // LIST load needs separate sample labels load
 	    graph.readSampleLabels(new File(cmd.getOptionValue("labelfile")));
 	    graph.loadList(new File(cmd.getOptionValue("listfile")));
 	    graph.tallyLabelCounts();
-	    System.err.println("Graph has "+graph.vertexSet().size()+" nodes, "+graph.edgeSet().size()+" edges, and "+graph.paths.size()+
-                               " paths: "+graph.labelCounts.get("case")+"/"+graph.labelCounts.get("ctrl")+" cases/controls");
+	    System.err.println("Graph has "+
+			       graph.vertexSet().size()+" nodes, "+
+			       graph.edgeSet().size()+" edges, and "+
+			       graph.paths.size()+" paths: "+graph.labelCounts.get("case")+"/"+graph.labelCounts.get("ctrl")+" cases/controls");
 	}
 
         // build the node-paths map

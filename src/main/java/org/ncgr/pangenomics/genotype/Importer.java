@@ -1,24 +1,20 @@
 package org.ncgr.pangenomics.genotype;
 
-import java.util.List;
-import java.util.LinkedList;
 import java.util.Map;
-import java.util.HashMap;
-import java.util.Set;
+import java.util.LinkedHashMap;
+import java.util.TreeSet;
 
 /**
  * Abstract class which defines the class variables for graph importers.
  */
 public abstract class Importer {
-    // verbosity flag
-    public boolean verbose = false;
 
-    // the Nodes we import
-    public List<Node> nodes = new LinkedList<>();
+    // the Nodes we import, keyed by id
+    public Map<Long,Node> nodes = new LinkedHashMap<>();
 
     // map each sample to the NodeSet it traverses
-    public Map<String,NodeSet> sampleNodeSets = new HashMap<>();
+    public Map<String,NodeSet> sampleNodeSets = new LinkedHashMap<>();
     
     // map each Node to the Set of samples that traverse it
-    public Map<Node,Set<String>> nodeSamples = new HashMap<>();
+    public Map<Node,TreeSet<String>> nodeSamples = new LinkedHashMap<>();
 }

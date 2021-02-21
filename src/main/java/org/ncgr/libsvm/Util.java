@@ -31,9 +31,6 @@ public class Util {
     static DecimalFormat pf = new DecimalFormat("0.0%");
     static DecimalFormat df = new DecimalFormat("0.000");
 
-    // cross-validation k-fold default value
-    public static int NRFOLD = 10;
-
     // null output
     static svm_print_interface svm_print_null = new svm_print_interface() { public void print(String s) {} };
 
@@ -231,11 +228,11 @@ public class Util {
             }
             System.out.println(sample.name+"\t"+sample.label+"\t"+prediction+"\t"+status);
         }
-        System.out.println("tot\tTPR\tFPR");
-        System.out.println(pf.format((double)(correctCount)/(double)samples.size())
-                           +"\t"+df.format((double)tpCount/caseCount)
-                           +"\t"+df.format((double)fpCount/ctrlCount));
-        //
+        System.out.println("TP\tTN\tCorr\tTPR\tFPR");
+        System.out.println(tpCount+"\t"+tnCount+"\t"+
+			   pf.format((double)(correctCount)/(double)samples.size())+"\t"+
+                           df.format((double)tpCount/caseCount)+"\t"+
+                           df.format((double)fpCount/ctrlCount));
     }
 
     /**

@@ -29,11 +29,13 @@ import libsvm.svm_problem;
 public class CrossValidator {
     static DecimalFormat pf = new DecimalFormat("0.0%");
     static DecimalFormat df = new DecimalFormat("0.000");
+
+    static final int NRFOLD = 10;
     
     svm_parameter param;
     svm_problem prob;
-    int nrFold = Util.NRFOLD;
-
+    int nrFold;
+    
     // regression results
     public double totalError = 0.0;
     public double meanSquaredError = 0.0;
@@ -348,7 +350,7 @@ public class CrossValidator {
         weightOption.setRequired(false);
         options.addOption(weightOption);
         //
-        Option nrFoldOption = new Option("k", "nrfold", true, "k value for k-fold cross-validation ["+Util.NRFOLD+"]");
+        Option nrFoldOption = new Option("k", "nrfold", true, "k value for k-fold cross-validation ["+NRFOLD+"]");
         nrFoldOption.setRequired(false);
         options.addOption(nrFoldOption);
         //
@@ -418,7 +420,7 @@ public class CrossValidator {
             param.probability = Integer.parseInt(cmd.getOptionValue("probability-estimates"));
         }
 	
-        int nrFold = Util.NRFOLD;
+        int nrFold = NRFOLD;
         if (cmd.hasOption("nrfold")) {
             nrFold = Integer.parseInt(cmd.getOptionValue("nrfold"));
         }

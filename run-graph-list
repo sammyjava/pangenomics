@@ -34,5 +34,5 @@ GRAPH=HLA_PHEWAS_$1
 LABELSFILE=$GRAPH.labels.txt
 
 ## run all cases/controls in labels file
-java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.PangenomicGraph -list $GRAPHDIR/$LISTFILE \
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.PangenomicGraph -list $GRAPHDIR/$LISTFILE \
      -v -ecc -pca -arff -svm -g $GRAPHDIR/$GRAPH -l $GRAPHDIR/$LABELSFILE $4 $5 $6

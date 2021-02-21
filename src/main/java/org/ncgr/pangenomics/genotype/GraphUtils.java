@@ -52,6 +52,14 @@ public class GraphUtils {
 	Option listFileOption = new Option("list", "listfile", true, "load sample(s) from a PLINK list file");
 	listFileOption.setRequired(false);
 	options.addOption(listFileOption);
+	//
+	Option minMAFOption = new Option("minmaf", "minmaf", true, "minimum MAF of loci to be included from LIST or VCF file [0.0]");
+	minMAFOption.setRequired(false);
+	options.addOption(minMAFOption);
+	//
+	Option maxMAFOption = new Option("maxmaf", "maxmaf", true, "maximum MAF of loci to be included from LIST or VCF file [1.0]");
+	maxMAFOption.setRequired(false);
+	options.addOption(maxMAFOption);
 
         // actions
         Option prsOption = new Option("prs", "prs", false, "compute polygenic risk scores");
@@ -115,7 +123,11 @@ public class GraphUtils {
 		samples.put(sampleName, label);
 	    }
 	    if (cmd.hasOption("vcf")) {
-		computePathFromVCF(graph, cmd.getOptionValue("vcf"), samples);
+		double minMAF = 0.0;
+		double maxMAF = 1.0;
+		if (cmd.hasOption("minmaf")) minMAF = Double.parseDouble(cmd.getOptionValue("minmaf"));
+		if (cmd.hasOption("maxmaf")) maxMAF = Double.parseDouble(cmd.getOptionValue("maxmaf"));
+		computePathsFromVCF(graph, cmd.getOptionValue("vcf"), samples, minMAF, maxMAF);
 	    } else if (cmd.hasOption("list")) {
 		computePathFromList(graph, cmd.getOptionValue("list"), samples);
 	    } else {
@@ -166,23 +178,55 @@ public class GraphUtils {
     }
 
     /**
-     * Compute the path through the graph for the given sample in the given VCF file
+     * Compute the path through the graph for the given samples in the given VCF file
      */
-    public static void computePathFromVCF(PangenomicGraph graph, String vcfFilename, Map<String,String> samples) {
-	System.err.println("STUB: computePathFromVCF("+graph.name+","+vcfFilename+","+samples+")");
+    public static void computePathsFromVCF(PangenomicGraph graph, String vcfFilename, Map<String,String> samples, double minMAF, double maxMAF) throws FileNotFoundException, IOException {
+        VCFImporter importer = new VCFImporter();
+	importer.verbose = true;
+        importer.read(new File(vcfFilename), samples.keySet(), minMAF, maxMAF);
+	// make sure the imported nodes match the graph's nodes for the same id (this will not be true if MAF is different)
+	checkImportedNodes(graph, importer.nodes);
+	// output
+	outputPaths(graph, samples, importer.sampleNodeSets);
     }
 
     /**
-     * Compute the path through the graph for the given sample in the given LIST file
+     * Compute the path through the graph for the given samples in the given LIST file
      */
     public static void computePathFromList(PangenomicGraph graph, String listFilename, Map<String,String> samples) throws FileNotFoundException, IOException {
 	// get the desired samples' NodeSets
 	ListImporter importer = new ListImporter();
 	importer.verbose = true;
 	importer.read(new File(listFilename), samples.keySet());
+	// make sure the imported nodes match the graph's nodes for the same id (this will not be true if MAF is different)
+	checkImportedNodes(graph, importer.nodes);
 	// output
-	for (String sampleName : samples.keySet()) {
-	    NodeSet nodeSet = importer.sampleNodeSets.get(sampleName);
+	outputPaths(graph, samples, importer.sampleNodeSets);
+    }
+
+    /**
+     * Check that the imported nodes and graph nodes are identical
+     */
+    public static void checkImportedNodes(PangenomicGraph graph, Map<Long,Node> importedNodes) {
+	for (long id : importedNodes.keySet()) {
+	    Node importedNode = importedNodes.get(id);
+	    Node graphNode = graph.getNode(id);
+	    if (graphNode==null) {
+		System.err.println("ERROR: imported node "+importedNode+" is not present in the graph.");
+		System.exit(1);
+	    } else if (!importedNode.equals(graphNode)) {
+		System.err.println("ERROR: imported node "+importedNode+" does not equal the corresponding graph node "+graphNode);
+		System.exit(1);
+	    }
+	}
+    }
+
+    /**
+     * Output the paths
+     */
+    public static void outputPaths(PangenomicGraph graph, Map<String,String> samples, Map<String,NodeSet> sampleNodeSets) {
+    	for (String sampleName : sampleNodeSets.keySet()) {
+	    NodeSet nodeSet = sampleNodeSets.get(sampleName);
 	    Path path = new Path(graph, new LinkedList<Node>(nodeSet), sampleName, samples.get(sampleName));
 	    System.out.println(path.toString());
 	}

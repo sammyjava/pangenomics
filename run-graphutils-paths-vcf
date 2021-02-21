@@ -1,0 +1,23 @@
+#!/bin/sh
+# usage: GraphUtils
+#  -g,--graph <arg>         name of graph
+#  -list,--listfile <arg>   load sample(s) from a PLINK list file
+#  -maxmaf,--maxmaf <arg>   maximum MAF of loci to be included from LIST or
+#                           VCF file [1.0]
+#  -mgf,--mgf <arg>         minimum MGF for inclusion
+#  -minmaf,--minmaf <arg>   minimum MAF of loci to be included from LIST or
+#                           VCF file [0.0]
+#  -prs,--prs               compute polygenic risk scores
+#  -samplefile <arg>        file containing samples+labels to determine
+#                           paths through the given graph (-g) from a VCF
+#                           (-vcf) or LIST (-list)
+#  -vcf,--vcffile <arg>     load sample(s) from a VCF file
+
+GRAPHPREFIX=$1
+VCFFILE=$2
+LABELSPREFIX=$3
+MINMAF=$4
+
+## compute paths from a VCF file
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.GraphUtils \
+     -g $GRAPHPREFIX -vcf $VCFFILE -samplefile $LABELSPREFIX.labels.txt -minmaf $MINMAF > $GRAPHPREFIX.$LABELSPREFIX.paths.txt

@@ -90,20 +90,24 @@ public class Node implements Comparable, Serializable {
     }
 
     /**
-     * Return the id as a string.
+     * Return a string summary of this node.
      */
     @Override
     public String toString() {
-	return String.valueOf(id);
+	return "["+id+"] "+contig+":"+start+"-"+end+" "+rs+" "+genotype+" "+gf;
     }
 
     /**
-     * Nodes are equal if they have the same id.
+     * Nodes are equal if they have the same id, contig, start, end, and genotype.
      */
     @Override
     public boolean equals(Object o) {
 	Node that = (Node) o;
-        return this.id==that.id;
+        return this.id==that.id &&
+	    this.contig.equals(that.contig) &&
+	    this.start==that.start &&
+	    this.end==that.end &&
+	    this.genotype.equals(that.genotype);
     }
 
     /**

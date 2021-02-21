@@ -14,7 +14,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Set;
-import java.util.HashSet;
+import java.util.TreeSet;
 
 /**
  * Importer for PLINK --list output files.
@@ -23,6 +23,8 @@ import java.util.HashSet;
  */
 public class ListImporter extends Importer {
 
+    boolean verbose;
+    
     /**
      * Read the nodes and samples in from a List file, for the samples listed in desiredSamples.
      * Each locus has four lines: HOM, HET, REF, and NC with each sample listed TWICE!
@@ -34,67 +36,59 @@ public class ListImporter extends Importer {
      */
     public void read(File listFile, Set<String> desiredSamples) throws FileNotFoundException, IOException {
         if (verbose) System.err.println("Reading nodes and samples from PLINK LIST file "+listFile.getName());
-	// spin through the List records storing the loaded desiredSamples and nodes in local maps
+	// force alpha sample ordering
+	TreeSet<String> orderedSamples = new TreeSet<>(desiredSamples);
+	// spin through the List records storing the loaded orderedSamples and nodes in local maps
 	long nodeId = 0;
 	Map<String,Node> nodesMap = new HashMap<>();
 	String line = null;
 	BufferedReader listReader = new BufferedReader(new FileReader(listFile));
 	while ((line=listReader.readLine())!=null) {
-	    if (verbose) System.err.print(".");
 	    String[] fields = line.split("\\t");
 	    if (fields.length==3) continue; // empty no-call line
 	    String contig = fields[0];
-	    String rs = fields[1];
+	    String id = fields[1];
 	    String genotype = fields[2]; // includes "00" if any samples
-	    String nodeString = rs+"_"+genotype;
+	    String nodeString = id+"_"+genotype;
 	    // handle multiple lines with same node
-	    Node n;
-	    if (nodesMap.containsKey(nodeString)) {
-		n = nodesMap.get(nodeString);
-	    } else {
+	    Node n = nodesMap.get(nodeString);
+	    if (n==null) {
 		// add a new node
 		nodeId++;
-		n = new Node(nodeId, rs, contig, 0, 0, genotype, 0.0); // GF will be updated later
-		nodes.add(n);
+		n = new Node(nodeId, id, contig, 0, 0, genotype, 0.0); // GF will be updated later
+		nodes.put(nodeId, n);
 		nodesMap.put(nodeString, n);
 	    }
-	    // read the samples for this node that are in the supplied samples list, using a Set for uniqueness
-	    Set<String> lineSamples = new HashSet<>();
+	    // read the samples for this line that are in orderedSamples
+	    TreeSet<String> lineSamples = new TreeSet<>();
 	    for (int i=3; i<fields.length; i++) {
-		if (desiredSamples.contains(fields[i])) {
+		if (orderedSamples.contains(fields[i])) {
 		    lineSamples.add(fields[i]);
 		}
 	    }
 	    // spin through these samples, incrementing the maps
 	    for (String sampleName : lineSamples) {
 		// nodes per sample
-		NodeSet sampleNodes;
-		if (sampleNodeSets.containsKey(sampleName)) {
-		    sampleNodes = sampleNodeSets.get(sampleName);
-		} else {
+		NodeSet sampleNodes = sampleNodeSets.get(sampleName);
+		if (sampleNodes==null) {
+		    // new sample
 		    sampleNodes = new NodeSet();
 		}
 		sampleNodes.add(n);
 		sampleNodeSets.put(sampleName, sampleNodes);
 		// samples per node
-		Set<String> samples;
-		if (nodeSamples.containsKey(n)) {
-		    samples = nodeSamples.get(n);
-		} else {
-		    samples = new HashSet<>();
-		}
+		TreeSet<String> samples = nodeSamples.get(n);
+		if (samples==null) samples = new TreeSet<>();
 		samples.add(sampleName);
 		nodeSamples.put(n, samples);
 	    }
 	}
-        if (verbose) System.err.println("");
 	// update the nodes with their genotype (not allele) frequencies
 	for (Node n : nodeSamples.keySet()) {
             Set<String> samples = nodeSamples.get(n);
             n.gf = (double)samples.size() / (double)sampleNodeSets.size();
         }
 	if (verbose) {
-	    System.err.println("");
 	    System.err.println("ListImporter read "+sampleNodeSets.size()+" samples and "+nodes.size()+" nodes.");
 	}
     }

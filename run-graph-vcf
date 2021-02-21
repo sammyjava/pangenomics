@@ -2,27 +2,35 @@
 # usage: PangenomicGraph
 #  -arff,--printarfffile             print out an ARFF file of path node
 #                                    participation [false]
-#  -dncp,--dropnocallpaths           drop no-call nodes and paths that
-#                                    traverse them [false]
+#  -dncn,--dropnocallnodes           drop no-call nodes [false]
 #  -ecc,--equalizecasescontrols      reduce cases or controls to make equal
 #                                    in number [false]
 #  -g,--graph <arg>                  name of graph
 #  -l,--labelfile <arg>              tab-delimited file containing one
-#                                    sample<tab>label per line
+#                                    sample<tab>label pair per line
 #  -list,--listfile <arg>            load graph from a PLINK list file
+#                                    (requires labelfile)
+#  -maxc,--maxcases <arg>            maxiumum number of cases in the graph
+#  -maxmaf,--maxmaf <arg>            maximum MAF of loci to be included from
+#                                    LIST or VCF file [1.0]
+#  -minmaf,--minmaf <arg>            minimum MAF of loci to be included from
+#                                    LIST or VCF file [0.0]
 #  -nodepaths,--printnodepathsfile   print out node paths file [false]
+#  -nodes,--nodesfile <arg>          load graph nodes from a nodes file
+#                                    (<name>.nodes.txt)
+#  -paths,--pathsfile <arg>          load paths from a paths file
+#                                    (<name>.paths.txt)
 #  -pca,--printpcafile               print out path pca file [false]
 #  -svm,--printsvmfile               print out a LIBSVM-compatible file of
 #                                    path node participation [false]
-#  -txt,--txtfile <arg>              root name of a pair of TXT files
-#                                    containing nodes and paths (e.g. FOO
-#                                    means FOO.nodes.txt and FOO.paths.txt)
 #  -v,--verbose                      verbose output (false)
-#  -vcf,--vcffile <arg>              load graph from <graph>.vcf.gz
+#  -vcf,--vcffile <arg>              load graph from a VCF file (requires
+#                                    labelfile)
 
 GRAPH=$1
 LABELSFILE=$2
 VCFFILE=$3
+MINMAF=$4
 
-java -server org.ncgr.pangenomics.genotype.PangenomicGraph -vcf $VCFFILE \
-     -v -ecc -pca -arff -svm -g $GRAPH -l $LABELSFILE $4 $5 $6
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.PangenomicGraph -g $GRAPH -vcf $VCFFILE \
+     -v -dncn -ecc -pca -arff -svm -l $LABELSFILE -minmaf $MINMAF

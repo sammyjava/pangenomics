@@ -15,7 +15,7 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Set;
-import java.util.HashSet;
+import java.util.TreeSet;
 
 /**
  * Importer for TXT files [graph].nodes.txt and [graph].paths.txt containing Nodes and Paths.
@@ -23,6 +23,8 @@ import java.util.HashSet;
  * @author Sam Hokin
  */
 public class TXTImporter extends Importer {
+
+    boolean verbose;
 
     // map each sample name to its label
     public Map<String,String> sampleLabels = new HashMap<>();
@@ -44,7 +46,6 @@ public class TXTImporter extends Importer {
     public void read(File nodesFile, File pathsFile) throws IOException {
         // read the nodes, storing in a map for path building
         if (verbose) System.err.println("Reading nodes from "+nodesFile.getName()+"...");
-	Map<Long,Node> nodesMap = new HashMap<>();
         String line = null;
         BufferedReader nodesReader = new BufferedReader(new FileReader(nodesFile));
         while ((line=nodesReader.readLine())!=null) {
@@ -58,10 +59,10 @@ public class TXTImporter extends Importer {
             double gf = Double.parseDouble(parts[6]);
             if (rs.equals(".")) rs = null;
             Node n = new Node(id, rs, contig, start, end, genotype, gf);
-            nodesMap.put(n.id, n);
+            nodes.put(n.id, n);
         }
         nodesReader.close();
-        if (verbose) System.err.println("...read "+nodesMap.size()+" nodes.");
+        if (verbose) System.err.println("...read "+nodes.size()+" nodes.");
         // read the paths file with lines like
 	// 0      1    2
 	// 123ABC case [2,3,6,7,8,9,12,15,24]
@@ -77,26 +78,25 @@ public class TXTImporter extends Importer {
 	    NodeSet inputNodeSet = new NodeSet(fields[2]);
 	    NodeSet outputNodeSet = new NodeSet();
 	    for (Node n : inputNodeSet) {
-		if (nodesMap.containsKey(n.id)) {
-		    outputNodeSet.add(nodesMap.get(n.id)); // id is key
+		if (nodes.containsKey(n.id)) {
+		    outputNodeSet.add(nodes.get(n.id)); // id is key
 		} else {
 		    System.err.println("ERROR: node "+n.id+" in paths file is not present in nodes file.");
 		}
 	    }
 	    sampleNodeSets.put(name, outputNodeSet);
 	    for (Node n : outputNodeSet) {
-		Set<String> samples;
+		TreeSet<String> samples;
 		if (nodeSamples.containsKey(n)) {
 		    samples = nodeSamples.get(n);
 		} else {
-		    samples = new HashSet<>();
+		    samples = new TreeSet<>();
 		}
 		samples.add(name);
 		nodeSamples.put(n, samples);
 	    }
 	}
 	// wrap up
-	this.nodes = new LinkedList<Node>(nodesMap.values());
 	if (verbose) System.err.println("TXTImporter read "+sampleNodeSets.size()+" sample paths and "+nodes.size()+" nodes.");
     }
 }
