@@ -13,26 +13,25 @@ import org.jgrapht.graph.GraphWalk;
  * @author Sam Hokin
  */
 public class Path extends GraphWalk<Node,Edge> implements Comparable {
-    public String name;              // the name identifying this path, a sample or individual
-    public String label;             // an optional label, like "+1", "-1", "case", "control", "M", "F"
-    public String sequence;          // this path's full genomic sequence (may be null)
+
+    // the Sample associated with this Path
+    private Sample sample;
 
     /**
-     * Create a path defined by a List of Nodes, name, and label. weight=1.0.
+     * Create a path defined by a List of Nodes and a Sample. weight=1.0.
      */
-    public Path(Graph<Node,Edge> graph, List<Node> nodes, String name, String label) {
+    public Path(Graph<Node,Edge> graph, List<Node> nodes, Sample sample) {
         super(graph, nodes, 1.0);
-        this.name = name;
-        this.label = label;
+        this.sample = sample;
     }
 
     /**
-     * Return true if the two paths have the same name.
+     * Return true if the two paths have the same sample.
      */
     @Override
     public boolean equals(Object o) {
         Path that = (Path) o;
-        return this.name.equals(that.name);
+        return this.sample.equals(that.sample);
     }
 
     /**
@@ -40,29 +39,50 @@ public class Path extends GraphWalk<Node,Edge> implements Comparable {
      */
     @Override
     public int hashCode() {
-	return this.name.hashCode();
+	return this.sample.name.hashCode();
     }
 
     /**
-     * Compare based on name.
+     * Compare based on sample.
      */
     public int compareTo(Object o) {
         Path that = (Path) o;
-        return this.name.compareTo(that.name);
+        return this.sample.compareTo(that.sample);
+    }
+
+    /**
+     * Return the sample.
+     */
+    public Sample getSample() {
+	return sample;
+    }
+     
+    /**
+     * Return the sample.name
+     */
+    public String getName() {
+	return sample.name;
+    }
+    
+    /**
+     * Return the sample.label
+     */
+    public String getLabel() {
+	return sample.label;
     }
 
     /**
      * Return true if this path belongs to a "case" sample.
      */
     public boolean isCase() {
-        return label.toLowerCase().equals("case");
+	return sample.isCase();
     }
 
     /**
      * Return true if this path belongs to a "control" sample.
      */
     public boolean isControl() {
-        return label.toLowerCase().equals("ctrl") || label.toLowerCase().equals("control");
+	return sample.isControl();
     }
 
     /**
@@ -85,7 +105,7 @@ public class Path extends GraphWalk<Node,Edge> implements Comparable {
     @Override
     public String toString() {
         NodeSet ns = new NodeSet(getNodes());
-    	return name+"\t"+label+"\t"+ns.toString();
+    	return sample.toString()+"\t"+ns.toString();
     }
 
     /**
@@ -116,7 +136,7 @@ public class Path extends GraphWalk<Node,Edge> implements Comparable {
                 }
             }
         }
-        return new Path(this.graph, subnodes, name, label);
+        return new Path(this.graph, subnodes, sample);
     }
 
     /**
@@ -140,11 +160,11 @@ public class Path extends GraphWalk<Node,Edge> implements Comparable {
     }
 
     /**
-     * Return true if this path traverses the given node.
+     * Return true if this path traverses the given node (identified by id).
      * @param node the node
      * @return true if this path traverses the node
      */
-    public boolean contains(Node node) {
+    public boolean traverses(Node node) {
 	return getNodes().contains(node);
     }
 }

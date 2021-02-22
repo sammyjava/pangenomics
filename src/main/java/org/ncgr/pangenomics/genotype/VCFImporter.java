@@ -7,7 +7,9 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.HashMap;
+import java.util.TreeMap;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -26,58 +28,104 @@ public class VCFImporter extends Importer {
 
     public boolean verbose = false;
 
-    /**
-     * Read the nodes and paths from a VCF file for ALL of its samples with the given MAF restrictions.
-     */
-    public void read(File file, double minMAF, double maxMAF) throws FileNotFoundException, IOException {
-	if (verbose) System.err.println("Reading nodes and all samples from "+file.getName()+" with "+minMAF+"<=MAF<="+maxMAF);
-        // create the VCF file reader
-	VCFFileReader reader = new VCFFileReader(file);
-	// load the VCF sample names
-	VCFHeader vcfHeader = reader.getFileHeader();
-	// get all samples
-	Set<String> samples = new TreeSet<String>(vcfHeader.getGenotypeSamples());
-	read(reader, samples, minMAF, maxMAF);
+    File vcfFile;
+
+    // we locally identify nodes in the VCF by Node.getKey()
+    HashMap<String,Node> nodesMap = new HashMap<>();
+
+    // construct with a VCF file
+    public VCFImporter(File vcfFile) {
+	this.vcfFile = vcfFile;
     }
 
     /**
-     * Read the nodes and paths for the given samples in from a VCF file with the given MAF restrictions.
-     *
-     * 1 877558 rs4372192 C T 71.55 PASS AC=1;AF=4.04e-05;AN=24736;BaseQRankSum=-1.369;CCC=24750;... GT:AD:DP:GQ:PL 0/0:7,0:7:21:0,21,281 0/0:7,0:7:21:0,21,218 ...
-     *
-     * NOTE: non-calls (./.) are ignored.
+     * Read nodes from a VCF file without any restrictions.
      */
-    public void read(File file, Set<String> samples, double minMAF, double maxMAF) throws FileNotFoundException, IOException {
-        if (verbose) System.err.println("Reading nodes and "+samples.size()+" samples from "+file.getName()+" with "+minMAF+"<=MAF<="+maxMAF);
-        // create the VCF file reader
-	VCFFileReader reader = new VCFFileReader(file);
-	read(reader, samples, minMAF, maxMAF);
+    @Override
+    public void readNodes() throws IOException {
+	readNodes(0.0, 1.0);
     }
-    
+
     /**
-     * Read the nodes and paths in from a VCFFileReader for the desired samples and the given MAF restrictions.
-     *
-     * 1 877558 rs4372192 C T 71.55 PASS AC=1;AF=4.04e-05;AN=24736;BaseQRankSum=-1.369;CCC=24750;... GT:AD:DP:GQ:PL 0/0:7,0:7:21:0,21,281 0/0:7,0:7:21:0,21,218 ...
-     *
-     * NOTE: non-calls (./.) are ignored.
+     * Read nodes from a VCF file for ALL of its samples with the given MAF restrictions.
      */
-    void read(VCFFileReader reader, Set<String> desiredSamples, double minMAF, double maxMAF) {
-	// check that all desired samples are actually in the VCF
+    @Override
+    public void readNodes(double minMAF, double maxMAF) throws IOException {
+        // create the VCF file reader
+	VCFFileReader reader = new VCFFileReader(vcfFile);
+	readNodes(reader, minMAF, maxMAF);
+	reader.close();
+       	if (verbose) System.err.println("Read "+nodes.size()+" nodes from "+vcfFile.getName());
+    }
+
+    /**
+     * Read paths from a VCF file for the samples given in the labels file and the desired nodes.
+     * NOTE: readNodes must be called first to populate nodesMap!
+     */
+    @Override
+    public void readPaths(File labelsFile, TreeMap<Long,Node> desiredNodes) throws IOException {
+	if (nodesMap.size()==0) {
+	    System.err.println("ERROR: you must call VCFImporter.readNodes before you call readPaths.");
+	    System.exit(1);
+	}
+        // create the VCF file reader and header
+	VCFFileReader reader = new VCFFileReader(vcfFile);
 	VCFHeader header = reader.getFileHeader();
-	List<String> genotypeSamples = header.getGenotypeSamples();
-	for (String sampleName : desiredSamples) {
-	    if (!genotypeSamples.contains(sampleName)) {
-		System.err.println("ERROR: VCF file does not contain desired sample "+sampleName);
+	// get all samples from the header
+	Set<String> headerSampleNames = new TreeSet<String>(header.getGenotypeSamples());
+	// get the desired samples from the labelsFile
+	TreeSet<Sample> samples = Sample.readSamples(labelsFile);
+	// check that the VCF contains our desired samples
+	for (Sample sample : samples) {
+	    if (!headerSampleNames.contains(sample.name)) {
+		System.err.println("ERROR: file "+vcfFile.getName()+" does not contain sample "+sample);
 		System.exit(1);
 	    }
 	}
-	// force alpha sample ordering
-	TreeSet<String> orderedSamples = new TreeSet<>(desiredSamples);
-	// spin through the VCF records storing the nodes and samples in maps
+	// now read in the paths
+	readPaths(reader, samples, desiredNodes);
+	reader.close();
+       	if (verbose) System.err.println("Read "+sampleNodeSets.size()+" sample paths from "+vcfFile.getName()+" and "+labelsFile.getName());
+    }
+
+    /**
+     * Read paths from a VCF file for the given samples and ALL nodes.
+     */
+    public void readPaths(TreeSet<Sample> samples) {
+ 	if (nodesMap.size()==0) {
+	    System.err.println("ERROR: you must call VCFImporter.readNodes before you call readPaths.");
+	    System.exit(1);
+	}
+        // create the VCF file reader and header
+	VCFFileReader reader = new VCFFileReader(vcfFile);
+	VCFHeader header = reader.getFileHeader();
+	// get all samples from the header
+	Set<String> headerSampleNames = new TreeSet<String>(header.getGenotypeSamples());
+	// check that the VCF contains our desired samples
+	for (Sample sample : samples) {
+	    if (!headerSampleNames.contains(sample.name)) {
+		System.err.println("ERROR: file "+vcfFile.getName()+" does not contain sample "+sample);
+		System.exit(1);
+	    }
+	}
+	// now read in the paths
+	readPaths(reader, samples);
+	reader.close();
+       	if (verbose) System.err.println("Read "+sampleNodeSets.size()+" sample paths from "+vcfFile.getName());
+    }
+
+    /**
+     * Read the nodes TreeMap<Long,Node> nodes from a VCFFileReader with the given MAF restrictions.
+     *
+     * 1 877558 rs4372192 C T 71.55 PASS AC=1;AF=4.04e-05;AN=24736;BaseQRankSum=-1.369;CCC=24750;... GT:AD:DP:GQ:PL 0/0:7,0:7:21:0,21,281 0/0:7,0:7:21:0,21,218 ...
+     *
+     * NOTE: non-calls (./.) are ignored.
+     */
+    protected void readNodes(VCFFileReader reader, double minMAF, double maxMAF) {
+	// spin through the VCF records storing the qualified nodes
 	int minMAFCount = 0;
 	int maxMAFCount = 0;
         long nodeId = 0;
-        HashMap<String,Node> nodesMap = new HashMap<>(); // key nodes by locus+genotype
 	for (VariantContext vc : reader) {
 	    // check this VariantContext's minor allele frequency, bail if outside range
 	    double maf = getMAF(vc);
@@ -88,53 +136,108 @@ public class VCFImporter extends Importer {
 		maxMAFCount++;
 		continue;
 	    }
-	    // create Nodes for ALL of the distinct fully-called genotypes of this VariantContext
-	    // NOTE: getGenotypes() is an ordered collection, so resulting Nodes should be numbered consistently
+	    // create a node for each called genotype, getting the genotype frequency as well
+	    TreeMap<String,Integer> genotypes = new TreeMap<>();
+	    int totalCount = 0;
 	    for (Genotype g : vc.getGenotypes()) {
-		if (g.isCalled() && !g.isMixed()) {
-		    String genotypeString = getGenotypeString(g);
-		    String nodeKey = getNodeKey(vc, g);
-		    if (!nodesMap.containsKey(nodeKey)) {
-			nodeId++;
-			Node n = new Node(nodeId, vc.getID(), vc.getContig(), vc.getStart(), vc.getEnd(), genotypeString, 0.0); // GF will be updated later
-			nodes.put(nodeId, n);
-			nodesMap.put(nodeKey, n);
-		    }
-                }
-	    }
-	    // add to sample paths for the desired samples and this VariantContext
-	    for (String sampleName : orderedSamples) {
-		// get the Node
-		Genotype g = vc.getGenotype(sampleName);
-		// bail if this is not a called genotype
-		if (!g.isCalled()) continue;
-		// add this Node to this sample's NodeSet
-		Node n = nodesMap.get(getNodeKey(vc,g));
-		NodeSet sampleNodes = sampleNodeSets.get(sampleName);
-		if (sampleNodes==null) {
-		    sampleNodes = new NodeSet(); // first time
-		    sampleNodeSets.put(sampleName, sampleNodes);
+		if (g.isNoCall() || g.isMixed()) continue; // only keep fully called
+		String gstring = g.getGenotypeString();
+		if (genotypes.containsKey(gstring)) {
+		    int count = genotypes.get(gstring) + 1;
+		    genotypes.put(gstring, count);
+		} else {
+		    genotypes.put(gstring, 1);
 		}
-                sampleNodes.add(n);
-		// add to this Node's TreeSet of sample names
-                TreeSet<String> samples = nodeSamples.get(n);
-		if (samples==null) {
-		    samples = new TreeSet<>();
-		    nodeSamples.put(n, samples);
-		}
-                samples.add(sampleName);
+		totalCount++;
 	    }
-        }
-        // update all of nodes with their genotype (not allele) frequencies WITHIN THE DESIRED SAMPLES
-        for (Node n : nodeSamples.keySet()) {
-            TreeSet<String> samples = nodeSamples.get(n);
-            n.gf = (double)samples.size() / (double)orderedSamples.size();
-        }
+	    for (String gstring : genotypes.keySet()) {
+		
+		nodeId++;
+		double gf = (double) genotypes.get(gstring) / (double) totalCount;
+		String key = getNodeKey(vc, gstring);
+		Node n = new Node(nodeId, vc.getID(), vc.getContig(), vc.getStart(), vc.getEnd(), gstring, gf);
+		nodesMap.put(key, n);
+		nodes.put(nodeId, n);
+	    }
+	}
 	if (verbose) {
-	    System.err.println("VCFImporter read "+nodes.size()+" nodes and "+sampleNodeSets.size()+" samples.");
 	    System.err.println(minMAFCount+" loci were removed with MAF<"+minMAF);
 	    System.err.println(maxMAFCount+" loci were removed with MAF>"+maxMAF);
 	}
+    }
+
+    /**
+     * Read the sample paths from a VCFFileReader for the given samples and ALL nodes.
+     */
+    protected void readPaths(VCFFileReader reader, TreeSet<Sample> samples) {
+	for (VariantContext vc : reader) {
+	    // spin through each sample to add to its NodeSet
+	    for (Sample sample : samples) {
+		// get the Node
+		Genotype g = vc.getGenotype(sample.name);
+		// bail if this is not a called genotype
+		if (!g.isCalled()) continue;
+		// add this Node to this sample's NodeSet
+		String key = getNodeKey(vc, g);
+		Node n = nodesMap.get(key);
+		// bail if nodesMap doesn't contain this genotype
+		if (n==null) {
+		    System.err.println("ERROR: nodesMap does not contain genotype "+key);
+		    System.exit(1);
+		}
+		NodeSet sampleNodes = sampleNodeSets.get(sample);
+		if (sampleNodes==null) {
+		    sampleNodes = new NodeSet(); // first time
+		    sampleNodeSets.put(sample, sampleNodes);
+		}
+		sampleNodes.add(n);
+		// add to this Node's TreeSet of samples
+		TreeSet<Sample> sampleSet = nodeSamples.get(n);
+		if (sampleSet==null) {
+		    sampleSet = new TreeSet<>();
+		    nodeSamples.put(n, sampleSet);
+		}
+		sampleSet.add(sample);
+	    }
+        }
+    }
+
+    /**
+     * Read the sample paths from a VCFFileReader for the given samples and desired nodes.
+     */
+    protected void readPaths(VCFFileReader reader, TreeSet<Sample> samples, TreeMap<Long,Node> desiredNodes) {
+	// create a mapping to desired node by key
+	Map<String,Node> desiredNodesByKey = new HashMap<>();
+	for (Node n : desiredNodes.values()) {
+	    desiredNodesByKey.put(n.getKey(), n);
+	}
+	for (VariantContext vc : reader) {
+	    // spin through each sample to add to its NodeSet
+	    for (Sample sample : samples) {
+		// get the Node
+		Genotype g = vc.getGenotype(sample.name);
+		// bail if this is not a called genotype
+		if (!g.isCalled()) continue;
+		// add this Node to this sample's NodeSet if it's in desiredNodes
+		String key = getNodeKey(vc, g);
+		if (desiredNodesByKey.containsKey(key)) {
+		    Node n = nodesMap.get(key);
+		    NodeSet sampleNodes = sampleNodeSets.get(sample);
+		    if (sampleNodes==null) {
+			sampleNodes = new NodeSet(); // first time
+			sampleNodeSets.put(sample, sampleNodes);
+		    }
+		    sampleNodes.add(n);
+		    // add to this Node's TreeSet of samples
+		    TreeSet<Sample> sampleSet = nodeSamples.get(n);
+		    if (sampleSet==null) {
+			sampleSet = new TreeSet<>();
+			nodeSamples.put(n, sampleSet);
+		    }
+		    sampleSet.add(sample);
+		}
+	    }
+        }
     }
 
     /**
@@ -142,32 +245,22 @@ public class VCFImporter extends Importer {
      * NOTE: this handles the common case where the REF allele is NOT the majority.
      */
     public static double getMAF(VariantContext vc) {
-        List<Allele> alleles = vc.getAlleles();
-        int highestCount = 0;
-        int secondHighestCount = 0;
-        for (Allele a : alleles) {
-            int count = vc.getCalledChrCount(a);
-            if (count>highestCount) {
-                highestCount = count;
-            } else if (count>secondHighestCount) {
-                secondHighestCount = count;
-            }
+	int majorityCount = 0;
+	Allele majorityAllele = null;
+        for (Allele a : vc.getAlleles()) {
+	    int count = vc.getCalledChrCount(a);
+	    if (count>majorityCount) {
+		majorityCount = count;
+		majorityAllele = a;
+	    }
         }
-	return (double)secondHighestCount / (double)vc.getCalledChrCount();
-    }
-
-    /**
-     * Return a string uniquely representing a Genotype of the form AA/AT/TT
-     */
-    public static String getGenotypeString(Genotype g) {
-	List<Allele> alleles = g.getAlleles();
-	// ignore phase
-	Collections.sort(alleles);
-	String genotypeString = alleles.get(0).toString().replace("<","").replace(">",""); // these mess up HTML
-	for (int i=1; i<alleles.size(); i++) {
-	    genotypeString += "/"+alleles.get(i).toString().replace("<","").replace(">","");
+	int minorityCount = 0;
+	for (Allele a : vc.getAlleles()) {
+	    if (!a.equals(majorityAllele)) {
+		minorityCount += vc.getCalledChrCount(a);
+	    }
 	}
-	return genotypeString;
+	return (double)minorityCount / (double)vc.getCalledChrCount();
     }
 
     /**
@@ -175,6 +268,14 @@ public class VCFImporter extends Importer {
      * 6:23456-23457[AA/AT]
      */
     public static String getNodeKey(VariantContext vc, Genotype g) {
-	return vc.getContig()+":"+vc.getStart()+"-"+vc.getEnd()+"["+getGenotypeString(g)+"]";
+	return Node.getKey(vc.getContig(), vc.getStart(), vc.getEnd(), vc.getID(), g.getGenotypeString());
+    }
+
+    /**
+     * Return a string uniquely representing a VariantContext and Genotype, suitable for keying a map of nodes.
+     * 6:23456-23457[AA/AT]
+     */
+    public static String getNodeKey(VariantContext vc, String gstring) {
+	return Node.getKey(vc.getContig(), vc.getStart(), vc.getEnd(), vc.getID(), gstring);
     }
 }

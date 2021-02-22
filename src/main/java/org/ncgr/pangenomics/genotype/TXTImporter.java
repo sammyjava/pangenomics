@@ -14,11 +14,15 @@ import java.util.List;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.TreeMap;
 import java.util.Set;
 import java.util.TreeSet;
 
 /**
  * Importer for TXT files [graph].nodes.txt and [graph].paths.txt containing Nodes and Paths.
+ *
+ *    abstract void readNodes(double minMAF, double maxMAF) throws IOException;
+ *    abstract void readPaths(File labelsFile, TreeMap<Long,Node> desiredNodes) throws IOException;
  *
  * @author Sam Hokin
  */
@@ -26,77 +30,103 @@ public class TXTImporter extends Importer {
 
     boolean verbose;
 
-    // map each sample name to its label
-    public Map<String,String> sampleLabels = new HashMap<>();
+    File nodesFile;
+    File pathsFile;
+
+    // construct from a nodes.txt file and paths.txt file
+    public TXTImporter(File nodesFile, File pathsFile) {
+	this.nodesFile = nodesFile;
+	this.pathsFile = pathsFile;
+    }
+    
+    /**
+     * Import all nodes from a nodes.txt file without constraints.
+     */
+    @Override
+    public void readNodes() throws IOException {
+	readNodes(0.0, 1.0);
+    }
 
     /**
-     * Import instance values from a nodes text file and a paths text file.
-     *
-     * node line:
-     * id     rs      contig  start   end     genotype  
-     * 12764  rs12345 2       3228938 3229006 CCCACCCCTGCCCTGTCTGGGGCTGAAGTACAGTGCCACCCCTGCCCTGTCTGGGGCTGAAGGACAGTG/C
-     *
-     * path line:
-     * name     label   nodes
-     * 642913	case	[1,8,17,21,24,25,28,33,35,37,...]
-     *
-     * @param nodesFile the nodes File (typically [graph].nodes.txt)
-     * @param pathsFile the paths File (typically [graph].paths.txt)
+     * Import nodes from a nodes.txt file with MAF constraints.
      */
-    public void read(File nodesFile, File pathsFile) throws IOException {
-        // read the nodes, storing in a map for path building
-        if (verbose) System.err.println("Reading nodes from "+nodesFile.getName()+"...");
+    @Override
+    public void readNodes(double minMAF, double maxMAF) throws IOException {
         String line = null;
-        BufferedReader nodesReader = new BufferedReader(new FileReader(nodesFile));
-        while ((line=nodesReader.readLine())!=null) {
-            String[] parts = line.split("\t");
-            long id = Long.parseLong(parts[0]);
-            String rs = parts[1];
-            String contig = parts[2];
-            int start = Integer.parseInt(parts[3]);
-            int end = Integer.parseInt(parts[4]);
-            String genotype = parts[5];
-            double gf = Double.parseDouble(parts[6]);
-            if (rs.equals(".")) rs = null;
-            Node n = new Node(id, rs, contig, start, end, genotype, gf);
+        BufferedReader reader = new BufferedReader(new FileReader(nodesFile));
+        while ((line=reader.readLine())!=null) {
+	    if (line.startsWith("#")) continue;
+	    Node n = new Node(line);
             nodes.put(n.id, n);
         }
-        nodesReader.close();
-        if (verbose) System.err.println("...read "+nodes.size()+" nodes.");
-        // read the paths file with lines like
-	// 0      1    2
-	// 123ABC case [2,3,6,7,8,9,12,15,24]
-        if (verbose) System.err.println("Reading paths from "+pathsFile.getName()+"...");
-        BufferedReader pathsReader = new BufferedReader(new FileReader(pathsFile));
-        List<String> lines = new LinkedList<String>();
-        while ((line=pathsReader.readLine())!=null) {
-	    String[] fields = line.split("\t");
-	    String name = fields[0];
-	    String label = fields[1];
-	    sampleLabels.put(name, label);
-	    // input NodeSet contains different Nodes from above, so grab the ones above by id identity
-	    NodeSet inputNodeSet = new NodeSet(fields[2]);
-	    NodeSet outputNodeSet = new NodeSet();
-	    for (Node n : inputNodeSet) {
-		if (nodes.containsKey(n.id)) {
-		    outputNodeSet.add(nodes.get(n.id)); // id is key
-		} else {
-		    System.err.println("ERROR: node "+n.id+" in paths file is not present in nodes file.");
+        reader.close();
+        if (verbose) System.err.println("Read "+nodes.size()+" nodes from "+nodesFile.getName());
+    }
+
+    /**
+     * Import paths from the pathsFile and a labels file to restrict the samples.
+     */
+    @Override
+    public void readPaths(File labelsFile, TreeMap<Long,Node> desiredNodes) throws IOException {
+	if (nodes.size()==0) {
+	    System.err.println("TXTImporter: readNodes() must be called before readPaths().");
+	    System.exit(1);
+	}
+	// read in the samples
+	TreeSet<Sample> desiredSamples = Sample.readSamples(labelsFile);
+	// read in the paths for the desired samples
+	String line = null;
+        BufferedReader reader = new BufferedReader(new FileReader(pathsFile));
+        while ((line=reader.readLine())!=null) {
+	    Sample sample = new Sample(line);
+	    if (desiredSamples.contains(sample)) {
+		NodeSet nodeSet = new NodeSet(line);
+		sampleNodeSets.put(sample, nodeSet);
+		// add to the nodeSamples
+		for (Node n : nodeSet) {
+		    TreeSet<Sample> samples = nodeSamples.get(n);
+		    if (samples==null) samples = new TreeSet<>(); // first sample
+		    samples.add(sample);
+		    nodeSamples.put(n, samples); // update
 		}
 	    }
-	    sampleNodeSets.put(name, outputNodeSet);
-	    for (Node n : outputNodeSet) {
-		TreeSet<String> samples;
-		if (nodeSamples.containsKey(n)) {
-		    samples = nodeSamples.get(n);
-		} else {
-		    samples = new TreeSet<>();
-		}
-		samples.add(name);
-		nodeSamples.put(n, samples);
+	}
+	// show message if not all desired samples were read
+	if (sampleNodeSets.size()!=desiredSamples.size()) {
+	    System.err.println("WARNING: "+labelsFile.getName()+" contains "+desiredSamples.size()+" samples, "+
+			       "while only "+sampleNodeSets.size()+" were loaded from "+pathsFile.getName());
+	}
+	// wrap up
+	if (verbose) System.err.println("Read "+sampleNodeSets.size()+" sample paths from "+labelsFile.getName()+" and "+pathsFile.getName());
+    }
+
+    /**
+     * Import paths from a paths.txt file, which means populating sampleNodeSets and nodeSamples.
+     * NOTE: readNodes must be called first to populate nodes map!
+     * name     label   nodeset
+     * 642913	case	[1,8,17,21,24,25,28,33,35,37,...]
+     */
+    public void readPaths(TreeMap<Long,Node> desiredNodes) throws IOException {
+	if (nodes.size()==0) {
+	    System.err.println("TXTImporter: readNodes() must be called before readPaths().");
+	    System.exit(1);
+	}
+	// read in the paths
+	String line = null;
+        BufferedReader reader = new BufferedReader(new FileReader(pathsFile));
+        while ((line=reader.readLine())!=null) {
+	    Sample sample = new Sample(line);
+	    NodeSet nodeSet = new NodeSet(line);
+	    sampleNodeSets.put(sample, nodeSet);
+	    // add to the nodeSamples
+	    for (Node n : nodeSet) {
+		TreeSet<Sample> samples = nodeSamples.get(n);
+		if (samples==null) samples = new TreeSet<>(); // first sample
+		samples.add(sample);
+		nodeSamples.put(n, samples); // update
 	    }
 	}
 	// wrap up
-	if (verbose) System.err.println("TXTImporter read "+sampleNodeSets.size()+" sample paths and "+nodes.size()+" nodes.");
+	if (verbose) System.err.println("Read "+sampleNodeSets.size()+" sample paths from "+pathsFile.getName());
     }
 }

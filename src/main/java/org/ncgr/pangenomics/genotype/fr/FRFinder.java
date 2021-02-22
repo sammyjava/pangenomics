@@ -108,10 +108,10 @@ public class FRFinder {
      */
     public FRFinder(PangenomicGraph graph) {
         this.graph = graph;
+	this.graphName = graph.name;
         this.paths = graph.paths;
         initializeParameters();
     }
-
 
     /**
      * Initialize the default parameters.
@@ -757,7 +757,7 @@ public class FRFinder {
             } else {
                 out.print("\t");
             }
-            out.print(path.name+"."+path.label);
+            out.print(path.getName()+"."+path.getLabel());
         }
         out.println("");
         // rows are FRs
@@ -1068,13 +1068,9 @@ public class FRFinder {
 	    }
 	}
 	// load graph from a pair of TXT files
-	String graphName = cmd.getOptionValue("graph");
-	PangenomicGraph pg = new PangenomicGraph();
-	pg.name = graphName;
-	pg.nodesFile = new File(graphName+".nodes.txt");
-	pg.pathsFile = new File(graphName+".paths.txt");
-	if (cmd.hasOption("verbose")) pg.verbose = true;
-	pg.loadTXT();
+	PangenomicGraph pg = new PangenomicGraph(cmd.getOptionValue("graph"));
+	pg.verbose = cmd.hasOption("verbose");
+	pg.loadPathsFromTXT(pg.getNodesFile(), pg.getPathsFile());
 	// remove paths that contain an excluded path node, if there are any
 	String excludedPathNodeString = "[]";
 	if (cmd.hasOption("excludedpathnodes")) {
@@ -1102,10 +1098,10 @@ public class FRFinder {
 	NodeSet includedPathNodes = pg.getNodeSet(includedPathNodeString);
 	int formerPathCount = pg.paths.size();
 	if (includedPathNodes.size()>0) {
-	    Set<Path> pathsToKeep = new HashSet<>();
+	    TreeSet<Path> pathsToKeep = new TreeSet<>();
 	    for (Path path : pg.paths) {
 		for (Node node : includedPathNodes) {
-		    if (path.contains(node)) {
+		    if (path.traverses(node)) {
 			pathsToKeep.add(path);
 			break;
 		    }
@@ -1122,7 +1118,6 @@ public class FRFinder {
 	System.out.println("# Graph has "+pg.labelCounts.get("case")+" case paths and "+pg.labelCounts.get("ctrl")+" ctrl paths.");
 	// instantiate the FRFinder with this PangenomicGraph
 	FRFinder frf = new FRFinder(pg);
-	frf.setGraphName(graphName);
 	// set optional FRFinder parameters
 	if (cmd.hasOption("priorityoption")) frf.setPriorityOption(cmd.getOptionValue("priorityoption"));
 	if (cmd.hasOption("minsupport")) frf.setMinSupport(Integer.parseInt(cmd.getOptionValue("minsupport")));

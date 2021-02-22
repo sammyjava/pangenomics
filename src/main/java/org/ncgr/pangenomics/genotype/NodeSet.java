@@ -44,10 +44,11 @@ public class NodeSet extends TreeSet<Node> implements Comparable {
      * Construct given a string representation but no underlying graph.
      */
     public NodeSet(String str) {
-        List<String> nodeStrings = Arrays.asList(str.replace("[","").replace("]","").split(","));
-        for (String s : nodeStrings) {
-            long id = Long.parseLong(s);
-            this.add(new Node(id));
+	String afterOpenBracket = str.split("\\[")[1];
+	String nodesWithCommas = afterOpenBracket.split("\\]")[0];
+        List<String> nodeIds = Arrays.asList(nodesWithCommas.split(","));
+        for (String s : nodeIds) {
+            this.add(new Node(Long.parseLong(s)));
         }
     }
 

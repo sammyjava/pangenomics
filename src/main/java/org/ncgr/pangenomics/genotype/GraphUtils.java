@@ -7,11 +7,17 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintStream;
 
+import java.util.List;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.TreeMap;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.TreeSet;
+
+import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.ConcurrentSkipListMap;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -70,6 +76,24 @@ public class GraphUtils {
 	sampleFileOption.setRequired(false);
 	options.addOption(sampleFileOption);
 
+	// output
+	Option printPcaFileOption = new Option("pca", "printpcafile", false, "print out path pca file");
+	printPcaFileOption.setRequired(false);
+	options.addOption(printPcaFileOption);
+	//
+	Option printArffFileOption = new Option("arff", "printarfffile", false, "print out an ARFF file of path node participation");
+	printArffFileOption.setRequired(false);
+	options.addOption(printArffFileOption);
+	//
+	Option printSvmFileOption = new Option("svm", "printsvmfile", false, "print out a LIBSVM-compatible file of path node participation");
+	printSvmFileOption.setRequired(false);
+	options.addOption(printSvmFileOption);
+	//
+	Option printNodePathsFileOption = new Option("nodepaths", "printnodepathsfile", false, "print out node paths file [false]");
+	printNodePathsFileOption.setRequired(false);
+	options.addOption(printNodePathsFileOption);
+
+
         try {
             cmd = parser.parse(options, args);
         } catch (ParseException e) {
@@ -86,21 +110,49 @@ public class GraphUtils {
         }
 
         // our PangenomicGraph
-        PangenomicGraph graph = new PangenomicGraph();
-
-        // populate graph instance vars from parameters
-        graph.name = cmd.getOptionValue("graph");
+        PangenomicGraph graph = new PangenomicGraph(cmd.getOptionValue("graph"));
+	graph.verbose = true;
 
         // load graph from TXT files
-        graph.nodesFile = new File(graph.name+".nodes.txt");
-        graph.pathsFile = new File(graph.name+".paths.txt");
-        graph.loadTXT();
+	graph.loadPathsFromTXT(graph.getNodesFile(), graph.getPathsFile());
         graph.tallyLabelCounts();
-        System.err.println("Graph has "+graph.vertexSet().size()+" nodes and "+graph.paths.size()+" paths: "+graph.labelCounts.get("case")+"/"+graph.labelCounts.get("ctrl")+" cases/controls");
+        System.err.println(graph.name+" has "+graph.vertexSet().size()+" nodes and "+graph.paths.size()+" paths: "+graph.labelCounts.get("case")+"/"+graph.labelCounts.get("ctrl")+" cases/controls");
 
         // options
         boolean computePRS = cmd.hasOption("prs");
 	boolean computeSamplePaths = cmd.hasOption("samplefile");
+
+	if (cmd.hasOption("printnodepathsfile")) {
+	    String nodePathsFilename = graph.name+".nodepaths.txt";
+	    // if (cmd.hasOption("pathsfile")) nodePathsFilename = cmd.getOptionValue("pathsfile")+".nodepaths.txt";
+	    if (graph.verbose) System.err.println("Writing node paths file "+nodePathsFilename);
+	    printNodePaths(graph, new PrintStream(nodePathsFilename));
+	}
+
+	if (cmd.hasOption("printpcafile")) {
+	    String pcaFilename = graph.name+".pathpca.txt";
+	    // if (cmd.hasOption("pathsfile")) pcaFilename = cmd.getOptionValue("pathsfile")+".pathpca.txt";
+	    if (graph.verbose) System.err.println("Writing path PCA file "+pcaFilename);
+	    printPcaData(graph, new PrintStream(pcaFilename));
+	}
+
+	if (cmd.hasOption("printarfffile")) {
+	    String arffFilename = graph.name+".arff";
+	    // if (cmd.hasOption("pathsfile")) arffFilename = cmd.getOptionValue("pathsfile")+".arff";
+	    if (graph.verbose) System.err.println("Writing path ARFF file "+arffFilename);
+	    printArffData(graph, new PrintStream(arffFilename));
+	}
+	
+	if (cmd.hasOption("printsvmfile")) {
+	    String svmFilename = graph.name+".svm.txt";
+	    // if (cmd.hasOption("pathsfile")) svmFilename = cmd.getOptionValue("pathsfile")+".svm.txt";
+	    if (graph.verbose) System.err.println("Writing path SVM file "+svmFilename);
+	    printSvmData(graph, new PrintStream(svmFilename));
+	}
+
+	// GraphUtils???
+        // build the node-paths map
+        // graph.buildNodePaths();
 
         // actions
         if (computePRS) {
@@ -110,18 +162,7 @@ public class GraphUtils {
             }
             computePRS(graph, minMGF);
         } else if (computeSamplePaths) {
-	    Map<String,String> samples = new HashMap<>();
-	    BufferedReader reader = new BufferedReader(new FileReader(cmd.getOptionValue("samplefile")));
-	    String line = null;
-	    while ((line=reader.readLine())!=null) {
-		if (line.startsWith("#") || line.startsWith("sample") || line.trim().length()==0) {
-		    continue;
-		}
-		String[] fields = line.split("\t");
-		String sampleName = fields[0];
-		String label = fields[1];
-		samples.put(sampleName, label);
-	    }
+	    TreeSet<Sample> samples = Sample.readSamples(new File(cmd.getOptionValue("samplefile")));
 	    if (cmd.hasOption("vcf")) {
 		double minMAF = 0.0;
 		double maxMAF = 1.0;
@@ -129,7 +170,7 @@ public class GraphUtils {
 		if (cmd.hasOption("maxmaf")) maxMAF = Double.parseDouble(cmd.getOptionValue("maxmaf"));
 		computePathsFromVCF(graph, cmd.getOptionValue("vcf"), samples, minMAF, maxMAF);
 	    } else if (cmd.hasOption("list")) {
-		computePathFromList(graph, cmd.getOptionValue("list"), samples);
+		computePathsFromList(graph, cmd.getOptionValue("list"), samples);
 	    } else {
 		System.err.println("ERROR: you must provide a VCF file (-vcf) or LIST file (-list) that contains the given samples");
 	    }			
@@ -140,8 +181,6 @@ public class GraphUtils {
      * Compute the polygenic risk scores from a graph, tossing nodes with gf<minMGF.
      */
     public static void computePRS(PangenomicGraph graph, double minMGF) {
-        // need node paths
-        graph.buildNodePaths();
         // calculate map of log odds ratio
         Map<Node,Double> nodeOddsRatios = new HashMap<>();
         for (Node n : graph.getNodes()) {
@@ -173,35 +212,36 @@ public class GraphUtils {
         // output
         System.out.println("sample\tlabel\tlogPRS");
         for (Path p : pathPRS.keySet()) {
-            System.out.println(p.name+"\t"+p.label+"\t"+pathPRS.get(p));
+            System.out.println(p.getName()+"\t"+p.getLabel()+"\t"+pathPRS.get(p));
         }
     }
 
     /**
-     * Compute the path through the graph for the given samples in the given VCF file
+     * Compute the paths through the graph for the given samples in the given VCF file
      */
-    public static void computePathsFromVCF(PangenomicGraph graph, String vcfFilename, Map<String,String> samples, double minMAF, double maxMAF) throws FileNotFoundException, IOException {
-        VCFImporter importer = new VCFImporter();
+    public static void computePathsFromVCF(PangenomicGraph graph, String vcfFilename, TreeSet<Sample> samples, double minMAF, double maxMAF) throws FileNotFoundException, IOException {
+        VCFImporter importer = new VCFImporter(new File(vcfFilename));
 	importer.verbose = true;
-        importer.read(new File(vcfFilename), samples.keySet(), minMAF, maxMAF);
+        importer.readNodes(minMAF, maxMAF);
+	importer.readPaths(samples);
 	// make sure the imported nodes match the graph's nodes for the same id (this will not be true if MAF is different)
 	checkImportedNodes(graph, importer.nodes);
 	// output
-	outputPaths(graph, samples, importer.sampleNodeSets);
+	outputPaths(graph, importer.sampleNodeSets);
     }
 
     /**
-     * Compute the path through the graph for the given samples in the given LIST file
+     * Compute the paths through the graph for the given samples in the given LIST file
      */
-    public static void computePathFromList(PangenomicGraph graph, String listFilename, Map<String,String> samples) throws FileNotFoundException, IOException {
-	// get the desired samples' NodeSets
-	ListImporter importer = new ListImporter();
-	importer.verbose = true;
-	importer.read(new File(listFilename), samples.keySet());
-	// make sure the imported nodes match the graph's nodes for the same id (this will not be true if MAF is different)
-	checkImportedNodes(graph, importer.nodes);
-	// output
-	outputPaths(graph, samples, importer.sampleNodeSets);
+    public static void computePathsFromList(PangenomicGraph graph, String listFilename, TreeSet<Sample> samples) throws FileNotFoundException, IOException {
+	// ListImporter importer = new ListImporter(new File(listFilename));
+	// importer.verbose = true;
+	// importer.readNodes();
+	// importer.readPaths(samples);
+	// // make sure the imported nodes match the graph's nodes for the same id (this will not be true if MAF is different)
+	// checkImportedNodes(graph, importer.nodes);
+	// // output
+	// outputPaths(graph, importer.sampleNodeSets);
     }
 
     /**
@@ -224,11 +264,153 @@ public class GraphUtils {
     /**
      * Output the paths
      */
-    public static void outputPaths(PangenomicGraph graph, Map<String,String> samples, Map<String,NodeSet> sampleNodeSets) {
-    	for (String sampleName : sampleNodeSets.keySet()) {
-	    NodeSet nodeSet = sampleNodeSets.get(sampleName);
-	    Path path = new Path(graph, new LinkedList<Node>(nodeSet), sampleName, samples.get(sampleName));
+    public static void outputPaths(PangenomicGraph graph, TreeMap<Sample,NodeSet> sampleNodeSets) {
+    	for (Sample sample : sampleNodeSets.keySet()) {
+	    NodeSet nodeSet = sampleNodeSets.get(sample);
+	    Path path = new Path(graph, new LinkedList<Node>(nodeSet), sample);
 	    System.out.println(path.toString());
 	}
+    }
+
+    /**
+     * Print ARFF of node participation by path, for Weka analysis.
+     * NOTE: no-call nodes are dropped.
+     *
+     * @RELATION iris
+     *
+     * @ATTRIBUTE ID           STRING
+     * @ATTRIBUTE sepallength  NUMERIC
+     * @ATTRIBUTE sepalwidth   NUMERIC
+     * @ATTRIBUTE petallength  NUMERIC
+     * @ATTRIBUTE petalwidth   NUMERIC
+     * @ATTRIBUTE class        {Iris-setosa,Iris-versicolor,Iris-virginica}
+     *
+     * @DATA
+     * 5.1,3.5,1.4,0.2,Iris-setosa
+     * 4.9,3.0,1.4,0.2,Iris-virginica
+     * 4.7,3.2,1.3,0.2,Iris-versicolor
+     * 4.6,3.1,1.5,0.2,Iris-setosa
+     * 5.0,3.6,1.4,0.2,Iris-viginica
+     */
+    public static void printArffData(PangenomicGraph graph, PrintStream out) {
+	out.println("@RELATION "+graph.name);
+        out.println("");
+	out.println("@ATTRIBUTE ID STRING"); // path ID
+	// attributes: each node is labeled Nn where n is the node ID
+	for (Node node : graph.getNodes()) {
+	    if (!node.isNoCall()) {
+		out.println("@ATTRIBUTE N"+node.id+" NUMERIC");
+	    }
+        }
+        // add the path label class attribute
+        out.println("@ATTRIBUTE class {ctrl,case}");
+        out.println("");
+        // data
+        out.println("@DATA");
+	///////////////////////////////////////////////////////////////////////////////////////
+	ConcurrentSkipListSet<Path> concurrentPaths = new ConcurrentSkipListSet<>(graph.paths);
+	ConcurrentSkipListSet<String> arffData = new ConcurrentSkipListSet<>();
+	concurrentPaths.parallelStream().forEach(path -> {
+		String arff = path.getName();
+		for (Node node : graph.getNodes()) {
+		    if (path.traverses(node)) {
+			arff += ",1";
+		    } else {
+			arff += ",0";
+		    }
+		}
+		arff += ","+path.getLabel();
+		arffData.add(arff);
+	    });
+	///////////////////////////////////////////////////////////////////////////////////////
+	for (String arff : arffData) {
+	    out.println(arff);
+	}
+        out.close();
+    }
+
+    /**
+     * Print the labeled path node participation for LIBSVM analysis.
+     * NOTE: no-call nodes are dropped.
+     *
+     * path1 case 1:1 2:1 3:1 4:0 ... (tab separated, don't skip any indexes)
+     * path2 ctrl 1:0 2:0 3:0 4:1 ...
+     *
+     * This is similar, but not identical to, the SVMlight format.
+     */
+    public static void printSvmData(PangenomicGraph graph, PrintStream out) {
+	///////////////////////////////////////////////////////////////////////////////////////
+	ConcurrentSkipListSet<Path> concurrentPaths = new ConcurrentSkipListSet<>(graph.paths);
+	ConcurrentSkipListSet<String> svmData = new ConcurrentSkipListSet<>();
+	concurrentPaths.parallelStream().forEach(path -> {
+		String svm = path.getName()+"\t"+path.getLabel();
+		int n = 0;
+		for (Node node : graph.getNodes()) {
+		    n++;
+		    if (path.traverses(node)) {
+			svm += "\t"+n+":+1";
+		    } else {
+			svm += "\t"+n+":-1";
+		    }
+		}
+		svmData.add(svm);
+	    });
+	///////////////////////////////////////////////////////////////////////////////////////
+	for (String svm : svmData) {
+	    out.println(svm);
+	}
+        out.close();
+    }
+
+    /**
+     * Print node participation by path, appropriate for PCA analysis.
+     */
+    public static void printPcaData(PangenomicGraph graph, PrintStream out) throws FileNotFoundException, IOException {
+        StringBuilder headerBuilder = new StringBuilder();
+        // header is paths
+	List<Path> pathList = new LinkedList<>(graph.paths);
+	headerBuilder.append(pathList.get(0).getName());
+	for (int i=1; i<pathList.size(); i++) {
+	    headerBuilder.append("\t"+pathList.get(i).getName());
+	}
+        out.println(headerBuilder.toString());
+	////////////////////////////////////////////////////////////////////////////////////////////
+	// rows are nodes and counts of path support of each node
+	ConcurrentSkipListSet<Node> concurrentNodes = new ConcurrentSkipListSet<>(graph.getNodes());	
+	ConcurrentSkipListMap<Node,String> pcaData = new ConcurrentSkipListMap<>();
+	concurrentNodes.parallelStream().forEach(node -> {
+		StringBuilder lineBuilder = new StringBuilder();
+		lineBuilder.append("N"+node.id);
+		// spin through every path, printing 0/1 if path doesn't/does traverse this node
+		for (Path path : graph.paths) {
+		    if (path.traverses(node)) {
+			lineBuilder.append("\t1");
+		    } else {
+			lineBuilder.append("\t0");
+		    }
+		}
+		pcaData.put(node, lineBuilder.toString());
+	    });
+	////////////////////////////////////////////////////////////////////////////////////////////
+	for (String line : pcaData.values()) {
+	    out.println(line);
+	}
+    }
+
+    /**
+     * Print out the node paths along with counts.
+     */
+    public static void printNodePaths(PangenomicGraph graph, PrintStream out) throws FileNotFoundException, IOException {
+        for (Node node : graph.getNodePaths().keySet()) {
+	    List<Path> pathList = graph.getNodePaths().get(node);
+	    if (pathList.size()>0) {
+		StringBuilder builder = new StringBuilder();
+		builder.append(node.id);
+		for (Path path : pathList) {
+		    builder.append("\t"+path.getName());
+		}
+		out.println(builder.toString());
+	    }
+        }
     }
 }

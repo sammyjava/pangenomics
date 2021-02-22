@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.TreeSet;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -325,8 +326,8 @@ class FrequentedRegion implements Comparable {
         int count = 0;
         List<String> countedPaths = new LinkedList<>();
         for (Path subpath : subpaths) {
-            if (!countedPaths.contains(subpath.name) && subpath.label!=null && subpath.label.equals(label)) {
-                countedPaths.add(subpath.name);
+            if (!countedPaths.contains(subpath.getName()) && subpath.getLabel()!=null && subpath.getLabel().equals(label)) {
+                countedPaths.add(subpath.getName());
                 count++;
             }
         }
@@ -339,7 +340,7 @@ class FrequentedRegion implements Comparable {
     public int getSubpathSupport(String label) {
         int count = 0;
         for (Path subpath : subpaths) {
-            if (subpath.label!=null && subpath.label.equals(label)) {
+            if (subpath.getLabel()!=null && subpath.getLabel().equals(label)) {
                 count++;
             }
         }
@@ -494,7 +495,7 @@ class FrequentedRegion implements Comparable {
 	    System.exit(1);
 	} else {
             for (Path sp : subpaths) {
-                if (sp.name.equals(path.name)) count++;
+                if (sp.getName().equals(path.getName())) count++;
             }
         }
         return count;
@@ -517,7 +518,7 @@ class FrequentedRegion implements Comparable {
     public int labelCount(String label) {
         int count = 0;
         for (Path sp : subpaths) {
-            if (sp.label.equals(label)) count++;
+            if (sp.getLabel().equals(label)) count++;
         }
         return count;
     }
@@ -672,11 +673,8 @@ class FrequentedRegion implements Comparable {
         if (priorityOptionKey==1 && priorityOptionLabel==null) priorityOptionLabel = "case";
 
         // import the PangenomicGraph from a pair of TXT files
-	String graphName = cmd.getOptionValue("graph");
-        PangenomicGraph pg = new PangenomicGraph();
-        pg.nodesFile = new File(graphName+".nodes.txt");
-        pg.pathsFile = new File(graphName+".paths.txt");
-        pg.loadTXT();
+        PangenomicGraph pg = new PangenomicGraph(cmd.getOptionValue("graph"));
+	pg.loadPathsFromTXT(pg.getNodesFile(), pg.getPathsFile());
 	// remove paths that contain an excluded node, if given
 	String excludedPathNodeString = "[]";
 	if (cmd.hasOption("excludedpathnodes")) {
@@ -687,7 +685,7 @@ class FrequentedRegion implements Comparable {
 	    Set<Path> pathsToRemove = new HashSet<>();
 	    for (Path path : pg.paths) {
 		for (Node node : excludedPathNodes) {
-		    if (path.contains(node)) {
+		    if (path.traverses(node)) {
 			pathsToRemove.add(path);
 			break;
 		    }
@@ -704,10 +702,10 @@ class FrequentedRegion implements Comparable {
 	NodeSet includedPathNodes = pg.getNodeSet(includedPathNodeString);
 	int formerPathCount = pg.paths.size();
 	if (includedPathNodes.size()>0) {
-	    Set<Path> pathsToKeep = new HashSet<>();
+	    TreeSet<Path> pathsToKeep = new TreeSet<>();
 	    for (Path path : pg.paths) {
 		for (Node node : includedPathNodes) {
-		    if (path.contains(node)) {
+		    if (path.traverses(node)) {
 			pathsToKeep.add(path);
 			break;
 		    }

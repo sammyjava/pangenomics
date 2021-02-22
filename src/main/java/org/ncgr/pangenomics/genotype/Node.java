@@ -28,12 +28,31 @@ public class Node implements Comparable, Serializable {
      */
     public Node(long id, String rs, String contig, int start, int end, String genotype, double gf) {
         this.id = id;
+        this.rs = rs;
 	this.contig = contig;
 	this.start = start;
         this.end = end;
-        this.rs = rs;
 	this.genotype = genotype;
         this.gf = gf;
+	isCalled = !isNoCall();
+    }
+
+    /**
+     * Construct from a nodes.txt file line.
+     * 0   1           2      3        4        5        6
+     * id  rs          contig start    end      genotype gf
+     * 1   rs112943240 6      25726329 25726329 C/CTT    0.43
+     */
+    public Node(String line) {
+	String[] parts = line.split("\t");
+	id = Long.parseLong(parts[0]);
+	rs = parts[1];
+	contig = parts[2];
+	start = Integer.parseInt(parts[3]);
+	end = Integer.parseInt(parts[4]);
+	genotype = parts[5];
+	gf = Double.parseDouble(parts[6]);
+	if (rs.equals(".")) rs = null;
 	isCalled = !isNoCall();
     }
 
@@ -42,7 +61,7 @@ public class Node implements Comparable, Serializable {
      */
     public boolean isNoCall() {
 	if (genotype==null) {
-	    System.err.println("ERROR: Node.isNoCall() called but genotype="+genotype);
+	    System.err.println("ERROR: Node.isNoCall() called but genotype is null.");
 	    System.exit(1);
 	}
         return genotype.equals("./.") || genotype.equals("00");
@@ -98,16 +117,36 @@ public class Node implements Comparable, Serializable {
     }
 
     /**
-     * Nodes are equal if they have the same id, contig, start, end, and genotype.
+     * Return a unique key for this node based on genomic quantities.
+     */
+    public String getKey() {
+	return getKey(contig, start, end, rs, genotype);
+    }
+
+    /**
+     * Return a key for the given genomic quanties.
+     */
+    public static String getKey(String contig, int start, int end, String rs, String genotype) {
+	return contig+":"+start+"-"+end+" "+rs+" "+genotype;
+    }
+
+    /**
+     * Nodes are equal if they:
+     * 1. have the same id if rs==null or genotype==null or contig==null.
+     * 2. have the same id and rs and genotype if those are not null.
+     * 3. have the same id, contig, start, end, and genotype if those are all present.
      */
     @Override
     public boolean equals(Object o) {
 	Node that = (Node) o;
-        return this.id==that.id &&
-	    this.contig.equals(that.contig) &&
-	    this.start==that.start &&
-	    this.end==that.end &&
-	    this.genotype.equals(that.genotype);
+	boolean equal = (this.id==that.id);
+	if (this.rs!=null && that.rs!=null && this.genotype!=null && that.genotype!=null) {
+	    equal = equal && this.rs.equals(that.rs) && this.genotype.equals(that.genotype);
+	}
+	if (this.contig!=null && that.contig!=null && this.start!=0 && that.start!=0 && this.end!=0 && that.end!=0 && this.genotype!=null && that.genotype!=null) {
+	    equal = equal && this.contig.equals(that.contig) && this.start==that.start && this.end==that.end && this.genotype.equals(that.genotype);
+	}
+	return equal;
     }
 
     /**
@@ -123,6 +162,6 @@ public class Node implements Comparable, Serializable {
      */
     public int compareTo(Object o) {
 	Node that = (Node) o;
-        return Long.compare(this.id,that.id);
+        return Long.compare(this.id, that.id);
     }
 }

@@ -102,12 +102,9 @@ public class GraphViewer {
      */
     private static void createAndShowGUI(String graphName, String pathsName, boolean decorateEdges, double minorNodeFrac) throws IOException {
         // get the graph
-        PangenomicGraph graph = new PangenomicGraph();
+        PangenomicGraph graph = new PangenomicGraph(graphName);
         graph.verbose = true;
-        graph.name = graphName;
-        graph.nodesFile = new File(graphName+".nodes.txt");
-        graph.pathsFile = new File(pathsName+".paths.txt");
-        graph.loadTXT();
+	graph.loadPathsFromTXT(graph.getNodesFile(), graph.getPathsFile());
         graph.tallyLabelCounts();
         graph.buildNodePaths();
 

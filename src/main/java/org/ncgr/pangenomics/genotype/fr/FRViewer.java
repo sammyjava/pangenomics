@@ -98,21 +98,13 @@ public class FRViewer {
         int kappa = Integer.MAX_VALUE;
         if (!pieces[2].equals("Inf")) kappa = Integer.parseInt(pieces[2]);
 
-        String nodesFilename = graphName+".nodes.txt";
-        String pathsFilename = graphName+".paths.txt";
-        File nodesFile = new File(nodesFilename);
-        File pathsFile = new File(pathsFilename);
-
         // read run properties from params file
         Properties parameters = FRUtils.readParameters(prefix);
         
         // load the graph
-        PangenomicGraph graph = new PangenomicGraph();
+        PangenomicGraph graph = new PangenomicGraph(graphName);
         graph.verbose = true;
-        graph.name = graphName;
-        graph.nodesFile = nodesFile;
-        graph.pathsFile = pathsFile;
-        graph.loadTXT();
+	graph.loadPathsFromTXT(graph.getNodesFile(), graph.getPathsFile());
         graph.buildNodePaths();
         graph.tallyLabelCounts();
 

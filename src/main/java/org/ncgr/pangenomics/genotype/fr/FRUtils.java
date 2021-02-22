@@ -211,12 +211,19 @@ public class FRUtils {
     }
 
     /**
+     * Grab the graph name from the full FR run prefix
+     */
+    public static String getGraphName(String prefix) {
+	String[] parts = prefix.split("-");
+	return parts[0];
+    }
+
+    /**
      * Form the graph nodes filename
      * if prefix = HTT.1k-1.0-0 then filename = HTT.nodes.txt
      */
     public static String getNodesFilename(String prefix) {
-        String[] parts = prefix.split("-");
-        return parts[0]+".nodes.txt";
+        return getGraphName(prefix)+".nodes.txt";
     }
 
     /**
@@ -224,8 +231,7 @@ public class FRUtils {
      * if prefix = HTT.1k-1.0-0 then filename = HTT.paths.txt
      */
     public static String getPathsFilename(String prefix) {
-        String[] parts = prefix.split("-");
-        return parts[0]+".paths.txt";
+        return getGraphName(prefix)+".paths.txt";
     }
 
     /**
@@ -332,13 +338,13 @@ public class FRUtils {
 	// build the SVM strings in parallel
 	ConcurrentSkipListMap<String,String> pathSVM = new ConcurrentSkipListMap<>();
 	concurrentPaths.parallelStream().forEach(path -> {
-		String svm = path.label;
+		String svm = path.getLabel();
 		int c  = 0;
 		for (FrequentedRegion fr : prunedFRs) {
 		    c++;
 		    svm += "\t"+c+":"+fr.countSubpathsOf(path);
 		}
-		pathSVM.put(path.name, svm);
+		pathSVM.put(path.getName(), svm);
 	    });
 	///////////////////////////////////////////////////////
 	// sort by SVM string
@@ -396,8 +402,8 @@ public class FRUtils {
     		for (FrequentedRegion fr : prunedFRs) {
     		    arff += fr.countSubpathsOf(path)+",";
     		}
-    		arff += path.label;
-    		pathARFF.put(path.name, arff);
+    		arff += path.getLabel();
+    		pathARFF.put(path.getName(), arff);
     	    });
     	/////////////////////////////////////////////////////////
     	// sort by ARFF string
@@ -478,7 +484,7 @@ public class FRUtils {
             } else {
                 out.print("\t");
             }
-            out.print(path.name+"."+path.label);
+            out.print(path.getName()+"."+path.getLabel());
         }
         out.println("");
     	/////////////////////////////////////////////////////////
@@ -538,7 +544,7 @@ public class FRUtils {
     	// output
 	System.out.println("sample\tlabel\tscore");
         for (Path path : concurrentPathPRS.keySet()) {
-            System.out.println(path.name+"\t"+path.label+"\t"+concurrentPathPRS.get(path));
+            System.out.println(path.getName()+"\t"+path.getLabel()+"\t"+concurrentPathPRS.get(path));
         }
     }
 
@@ -756,10 +762,8 @@ public class FRUtils {
      * Load a graph from a pair of TXT files along with checks on the number of case and control paths desired.
      */
     public static PangenomicGraph readGraph(String graphPrefix, String pathsPrefix) throws FileNotFoundException, IOException {
-	PangenomicGraph graph = new PangenomicGraph();
-	graph.nodesFile = new File(getNodesFilename(graphPrefix));
-	graph.pathsFile = new File(getPathsFilename(pathsPrefix)); 
-	graph.loadTXT();
+	PangenomicGraph graph = new PangenomicGraph(getGraphName(graphPrefix));
+	graph.loadPathsFromTXT(new File(getNodesFilename(graphPrefix)), new File(getPathsFilename(pathsPrefix)));
 	graph.tallyLabelCounts();
         return graph;
     }

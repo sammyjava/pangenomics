@@ -1,25 +1,29 @@
 #!/bin/sh
 # usage: PangenomicGraph
-#  -arff,--printarfffile             print out an ARFF file of path node
-#                                    participation [false]
-#  -dncp,--dropnocallpaths           drop no-call nodes and paths that
-#                                    traverse them [false]
-#  -ecc,--equalizecasescontrols      reduce cases or controls to make equal
-#                                    in number [false]
-#  -g,--graph <arg>                  name of graph
-#  -l,--labelfile <arg>              tab-delimited file containing one
-#                                    sample<tab>label per line
-#  -list,--listfile <arg>            load graph from a PLINK list file
-#  -maxc,--maxcases <arg>            maxiumum number of cases in the graph
-#  -nodepaths,--printnodepathsfile   print out node paths file [false]
-#  -pca,--printpcafile               print out path pca file [false]
-#  -svm,--printsvmfile               print out a LIBSVM-compatible file of
-#                                    path node participation [false]
-#  -txt,--txtfile <arg>              root name of a pair of TXT files
-#                                    containing nodes and paths (e.g. FOO
-#                                    means FOO.nodes.txt and FOO.paths.txt)
-#  -v,--verbose                      verbose output (false)
-#  -vcf,--vcffile <arg>              load graph from <graph>.vcf.gz
+#  -ecc,--equalizecasescontrols   reduce cases or controls to make equal in
+#                                 number [false]
+#  -g,--graph <arg>               name of graph (required)
+#  -l,--labelsfile <arg>          tab-delimited file containing one
+#                                 sample<tab>label pair per line for desired
+#                                 paths
+#  -list,--listfile <arg>         build graph nodes/paths from a PLINK list
+#                                 file
+#  -maxc,--maxcases <arg>         maxiumum number of case paths in the graph
+#                                 [no limit]
+#  -maxmaf,--maxmaf <arg>         maximum MAF of loci to be included on
+#                                 graph [1.00]
+#  -minmaf,--minmaf <arg>         minimum MAF of loci to be included on
+#                                 graph [0.01]
+#  -n,--buildnodes                build graph nodes (this or --paths
+#                                 required)
+#  -nodes,--nodesfile <arg>       read graph nodes from a nodes.txt file
+#  -p,--buildpaths                build graph paths (this or --nodes
+#                                 required)
+#  -paths,--pathsfile <arg>       read graph paths from a paths file
+#                                 (<name>.paths.txt)
+#  -v,--verbose                   verbose output (false)
+#  -vcf,--vcffile <arg>           build graph nodes/paths from a
+#                                 tabix-indexed gzipped VCF file
 
 ## Graves	pheno_241.2
 ## IBD		pheno_555
@@ -34,5 +38,5 @@ GRAPH=HLA_PHEWAS_$1
 LABELSFILE=$GRAPH.labels.txt
 
 ## run all cases/controls in labels file
-java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.PangenomicGraph -list $GRAPHDIR/$LISTFILE \
-     -v -ecc -pca -arff -svm -g $GRAPHDIR/$GRAPH -l $GRAPHDIR/$LABELSFILE $4 $5 $6
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.PangenomicGraph -v --graph=$GRAPHDIR/$GRAPH \
+     --buildpaths --equalizecasescontrols --listfile=$GRAPHDIR/$LISTFILE  --labelsfile=$GRAPHDIR/$LABELSFILE

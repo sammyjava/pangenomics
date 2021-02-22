@@ -266,7 +266,7 @@ public class frGraphComponent extends mxGraphComponent implements ActionListener
         String[] sampleLabels = new String[sampleNames.length];
         for (int i=0; i<sampleNames.length; i++) {
             Path p = graph.getPath(sampleNames[i]);
-            sampleLabels[i] = sampleNames[i]+" ("+p.label+")";
+            sampleLabels[i] = sampleNames[i]+" ("+p.getLabel()+")";
             if (currentFR.containsSubpathOf(p)) {
                 sampleLabels[i] += CHECKMARK;
             }

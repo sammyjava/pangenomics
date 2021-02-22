@@ -121,7 +121,7 @@ class pgGraphComponent extends mxGraphComponent implements ActionListener, ListS
         String[] sampleLabels = new String[sampleNames.length];
         for (int i=0; i<sampleNames.length; i++) {
             Path p = graph.getPath(sampleNames[i]);
-            sampleLabels[i] = sampleNames[i]+" ("+p.label+")";
+            sampleLabels[i] = sampleNames[i]+" ("+p.getLabel()+")";
             if (sampleLabels[i].length()>maxSampleLabelLength) maxSampleLabelLength = sampleLabels[i].length();
         }
         int preferredSampleNameXsize = maxSampleLabelLength*9;
