@@ -65,7 +65,7 @@ public class FRFinder {
     Map<String,FrequentedRegion> frequentedRegions;
 
     // priority option
-    String priorityOption = "4";    // default
+    String priorityOption = "3";    // default
     int priorityOptionKey;          // 0, 1, 2, etc.
     String priorityOptionLabel;     // the current label for priority update emphasis: "case" or "ctrl"
     String priorityOptionParameter; // parameter for priority update emphasis, can be null or "alt" or "case" or "ctrl"
@@ -196,21 +196,21 @@ public class FRFinder {
             printToLog("# Resuming from previous run");
             String line = null;
             // allFrequentedRegions
-            BufferedReader sfrReader = new BufferedReader(new FileReader(getGraphName()+"."+ALL_FREQUENTED_REGIONS_SAVE));
+            BufferedReader sfrReader = new BufferedReader(new FileReader(graph.name+"."+ALL_FREQUENTED_REGIONS_SAVE));
             while ((line=sfrReader.readLine())!=null) {
                 String[] parts = line.split("\t");
                 NodeSet nodes = graph.getNodeSet(parts[0]);
                 allFrequentedRegions.put(nodes.toString(), new FrequentedRegion(graph, nodes, alpha, kappa, priorityOptionKey, priorityOptionLabel));
             }
 	    // rejectedNodeSets
-	    BufferedReader rnsReader = new BufferedReader(new FileReader(getGraphName()+"."+REJECTED_NODESETS_SAVE));
+	    BufferedReader rnsReader = new BufferedReader(new FileReader(graph.name+"."+REJECTED_NODESETS_SAVE));
 	    while ((line=rnsReader.readLine())!=null) {
 		rejectedNodeSets.add(line);
 	    }
             // frequentedRegions
 	    // 0                                                                                                1   2         3  4       
 	    // [1353,1355,1356,1357,1359,1360,1361,1363,1364,1366,1367,1368,...,1463,1464,1465,1467,1468,1469]	27  18621.00  1	 26
-            BufferedReader frReader = new BufferedReader(new FileReader(getGraphName()+"."+FREQUENTED_REGIONS_SAVE));
+            BufferedReader frReader = new BufferedReader(new FileReader(graph.name+"."+FREQUENTED_REGIONS_SAVE));
 	    line = frReader.readLine(); // header
             while ((line=frReader.readLine())!=null) {
                 String[] parts = line.split("\t");
@@ -459,26 +459,26 @@ public class FRFinder {
             // output current state for continuation if aborted
             if (frequentedRegions.size()>0 && writeSaveFiles()) {
                 // params with current clock time
-                FRUtils.printParameters(parameters, getGraphName()+".save", alpha, kappa, System.currentTimeMillis()-startTime);
+                FRUtils.printParameters(parameters, graph.name+".save", alpha, kappa, System.currentTimeMillis()-startTime);
                 // allFrequentedRegions
-                PrintStream sfrOut = new PrintStream(getGraphName()+"."+ALL_FREQUENTED_REGIONS_SAVE);
+                PrintStream sfrOut = new PrintStream(graph.name+"."+ALL_FREQUENTED_REGIONS_SAVE);
                 for (FrequentedRegion fr : allFrequentedRegions.values()) {
                     sfrOut.println(fr.toString());
                 }
                 sfrOut.close();
                 // acceptedFRPairs
-                PrintStream afrpOut = new PrintStream(getGraphName()+"."+ACCEPTED_FRPAIRS_SAVE);
+                PrintStream afrpOut = new PrintStream(graph.name+"."+ACCEPTED_FRPAIRS_SAVE);
                 for (FRPair frpair : acceptedFRPairs.values()) {
                     afrpOut.println(frpair.toString());
                 }
                 // rejectedNodeSets
-                PrintStream rnsOut = new PrintStream(getGraphName()+"."+REJECTED_NODESETS_SAVE);
+                PrintStream rnsOut = new PrintStream(graph.name+"."+REJECTED_NODESETS_SAVE);
                 for (String nodesKey : rejectedNodeSets) {
                     rnsOut.println(nodesKey);
                 }
                 rnsOut.close();
                 // frequentedRegions
-                PrintStream frOut = new PrintStream(getGraphName()+"."+FREQUENTED_REGIONS_SAVE);
+                PrintStream frOut = new PrintStream(graph.name+"."+FREQUENTED_REGIONS_SAVE);
                 boolean first = true;
                 for (FrequentedRegion fr : frequentedRegions.values()) {
                     if (first) {
@@ -535,9 +535,6 @@ public class FRFinder {
     }
     public String getPriorityOption() {
         return parameters.getProperty("priorityOption");
-    }
-    public String getGraphName() {
-        return parameters.getProperty("graphName");
     }
     public int getMaxRound() {
         return Integer.parseInt(parameters.getProperty("maxRound"));
@@ -656,10 +653,6 @@ public class FRFinder {
             System.exit(1);
         }
     }
-    public void setGraphName(String graphName) {
-	this.graphName = graphName;
-        parameters.setProperty("graphName", graphName);
-    }
     public void setRequireBestNodeSet() {
 	this.requireBestNodeSet = true;
 	parameters.setProperty("requireBestNodeSet", "true");
@@ -777,14 +770,14 @@ public class FRFinder {
      */
     String formOutputPrefix(double alpha, int kappa, NodeSet requiredNodes) {
         DecimalFormat alphaFormat = new DecimalFormat("0.0");
-	String prefix = "";
+	String prefix = graph.name+"-"+alphaFormat.format(alpha);
         if (kappa==Integer.MAX_VALUE) {
-            prefix = getGraphName()+"-"+alphaFormat.format(alpha)+"-Inf";
+            prefix += "-Inf";
         } else {
-            prefix = getGraphName()+"-"+alphaFormat.format(alpha)+"-"+kappa;
+            prefix += "-"+kappa;
         }
 	if (requiredNodes.size()==1) {
-	    prefix += "-"+requiredNodes.first();
+	    prefix += "-"+requiredNodes.first().id;
 	}
 	return prefix;
     }
@@ -857,7 +850,7 @@ public class FRFinder {
         kappaOption.setRequired(true);
         options.addOption(kappaOption);
         //
-        Option graphOption = new Option("graph", "graph", true, "graph name");
+        Option graphOption = new Option("graph", "graphname", true, "graph name");
         graphOption.setRequired(true);
         options.addOption(graphOption);
 	// INPUT: nodes.txt
