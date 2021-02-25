@@ -10,17 +10,16 @@
 #                                 file
 #  -maxc,--maxcases <arg>         maxiumum number of case paths in the graph
 #                                 [no limit]
-#  -maxmaf,--maxmaf <arg>         maximum MAF of loci to be included on
+#  -maxmaf,--maxmaf <arg>         maximum MAF/MGF of loci to be included on
 #                                 graph [1.00]
-#  -minmaf,--minmaf <arg>         minimum MAF of loci to be included on
+#  -minmaf,--minmaf <arg>         minimum MAF/MGF of loci to be included on
 #                                 graph [0.01]
 #  -n,--buildnodes                build graph nodes (this or --paths
 #                                 required)
 #  -nodes,--nodesfile <arg>       read graph nodes from a nodes.txt file
 #  -p,--buildpaths                build graph paths (this or --nodes
 #                                 required)
-#  -paths,--pathsfile <arg>       read graph paths from a paths file
-#                                 (<name>.paths.txt)
+#  -paths,--pathsfile <arg>       read graph paths from a paths.txt file
 #  -v,--verbose                   verbose output (false)
 #  -vcf,--vcffile <arg>           build graph nodes/paths from a
 #                                 tabix-indexed gzipped VCF file
@@ -34,12 +33,13 @@
 LISTFILE=HLA_PHEWAS.list
 
 DISEASE=HLA_PHEWAS_${1}
-LABELSFILE=$DISEASE.labels.txt
 
-GRAPH=${DISEASE}_${2}
+NODESFILE=${DISEASE}_${2}.nodes.txt
 
-MINMAF=$3
+LABELSFILE=$DISEASE.testing.labels.txt
+
+GRAPH=${DISEASE}_${2}.testing
 
 ## run all cases/controls in labels file
-java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.PangenomicGraph -v --buildpaths --equalizecasescontrols \
-	--graph=$GRAPH --listfile=$LISTFILE --labelsfile=$LABELSFILE --minmaf=$MINMAF
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.PangenomicGraph -v  --buildpaths \
+     --graph=$GRAPH --nodesfile=$NODESFILE --listfile=$LISTFILE  --labelsfile=$LABELSFILE

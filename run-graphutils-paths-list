@@ -1,17 +1,23 @@
 #!/bin/sh
 # usage: GraphUtils
-#  -g,--graph <arg>         name of graph
-#  -list,--listfile <arg>   load sample(s) from a PLINK list file
-#  -maxmaf,--maxmaf <arg>   maximum MAF of loci to be included from LIST or
-#                           VCF file [1.0]
-#  -mgf,--mgf <arg>         minimum MGF for inclusion
-#  -minmaf,--minmaf <arg>   minimum MAF of loci to be included from LIST or
-#                           VCF file [0.0]
-#  -prs,--prs               compute polygenic risk scores
-#  -samplefile <arg>        file containing samples+labels to determine
-#                           paths through the given graph (-g) from a VCF
-#                           (-vcf) or LIST (-list)
-#  -vcf,--vcffile <arg>     load sample(s) from a VCF file
+#  -arff,--printarfffile             print out an ARFF file of path node
+#                                    participation
+#  -g,--graph <arg>                  name of graph
+#  -list,--listfile <arg>            load sample(s) from a PLINK list file
+#  -maxmaf,--maxmaf <arg>            maximum MAF of loci to be included from
+#                                    LIST or VCF file [1.0]
+#  -mgf,--mgf <arg>                  minimum MGF for inclusion
+#  -minmaf,--minmaf <arg>            minimum MAF of loci to be included from
+#                                    LIST or VCF file [0.0]
+#  -nodepaths,--printnodepathsfile   print out node paths file
+#  -pca,--printpcafile               print out path pca file
+#  -prs,--prs                        compute polygenic risk scores
+#  -samplefile <arg>                 file containing samples+labels to
+#                                    determine paths through the given graph
+#                                    (-g) from a VCF (-vcf) or LIST (-list)
+#  -svm,--printsvmfile               print out a LIBSVM-compatible file of
+#                                    path node participation
+#  -vcf,--vcffile <arg>              load sample(s) from a VCF file
 
 GRAPHPREFIX=$1
 LISTFILE=$2

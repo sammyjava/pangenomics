@@ -24,23 +24,68 @@ import java.util.TreeSet;
  */
 public class ListImporter extends Importer {
 
-    boolean verbose;
-
     File listFile;
 
-    // we locally identify nodes in the VCF by Node.getKey()
-    HashMap<String,Node> nodesMap = new HashMap<>();
-
-    // construct with a List file
+    /**
+     * Construct for building nodes from a List file
+     */
     public ListImporter(File listFile) {
 	this.listFile = listFile;
     }
 
-    // load nodes from a file, with MAF restrictions
+    /**
+     * Construct for building paths from a List file and nodes
+     */
+    public ListImporter(File listFile, TreeMap<Long,Node> nodeIdMap, TreeMap<String,Node> nodeKeyMap) {
+	this.listFile = listFile;
+	this.nodeIdMap = nodeIdMap;
+	this.nodeKeyMap = nodeKeyMap;
+    }
+
+    /**
+     * Read the nodes in from a List file that have MGF within the given limits.
+     * This is done by reading them all in and then pruning.
+     *
+     */
     @Override
-    public void readNodes(double minMAF, double maxMAF) throws IOException {
-	System.err.println("ERROR: MAF filtering is not yet implemented in ListImporter.");
-	System.exit(1);
+    public void readNodes(double minMGF, double maxMGF) throws IOException {
+	// read all nodes first
+	readNodes();
+	// place each locus' GFs in a set
+	Map<String,TreeSet<Double>> gfMap = new HashMap<>(); // keyed by rs
+	for (Node n : nodeIdMap.values()) {
+	    TreeSet<Double> gfSet = gfMap.get(n.rs);
+	    if (gfSet==null) gfSet = new TreeSet<>();
+	    gfSet.add(n.gf);
+	    gfMap.put(n.rs, gfSet);
+	}
+	// determine the MGF for each rs
+	Map<String,Double> mgfMap = new HashMap<>();
+	for (String rs : gfMap.keySet()) {
+	    TreeSet<Double> gfSet = gfMap.get(rs);
+	    gfSet.remove(gfSet.last());   // last was majority genotype
+	    mgfMap.put(rs, gfSet.last()); // last is now largest minor genotype
+	}
+	// determine nodes to remove
+	Set<Node> nodesToRemove = new TreeSet<>();
+	for (Node n : nodeIdMap.values()) {
+	    double mgf = mgfMap.get(n.rs);
+	    if (mgf<minMGF || mgf>maxMGF) {
+		nodesToRemove.add(n);
+	    }
+	}
+	// remove nodes from TreeMap<Long,Node> nodes and HashMap<String,Node> nodeKeyMap
+	for (Node n : nodesToRemove) {
+	    if (nodeIdMap.remove(n.id)==null) {
+		System.err.println("ListImporter: removal of Node "+n+" from nodes failed.");
+		System.exit(1);
+	    }
+	    if (nodeKeyMap.remove(n.getKey())==null) {
+		System.err.println("ListImporter: removal of Node "+n+" from nodeKeyMap failed.");
+		System.exit(1);
+	    }
+	}
+	if (verbose) System.err.println("Removed "+nodesToRemove.size()+" nodes with MGF<"+minMGF+" and MGF>"+maxMGF);
     }
 
     /**
@@ -65,42 +110,42 @@ public class ListImporter extends Importer {
 	    String[] fields = line.split("\\t");
 	    if (fields.length==3) continue; // empty no-call line
 	    String contig = fields[0];
-	    String id = fields[1];
+	    String rs = fields[1];
 	    String genotype = fields[2];    // includes "00" if any samples
-	    String nodeKey = id+"_"+genotype;
+	    String nodeKey = Node.getKey(contig, 0, 0, rs, genotype);
 	    // handle possible multiple lines with same node
-	    Node n = nodesMap.get(nodeKey);
+	    Node n = nodeKeyMap.get(nodeKey);
 	    if (n==null) {
 		// add a new node
 		nodeId++;
 		// plink -list files do not supply start, end; GF will be updated below
-		n = new Node(nodeId, id, contig, 0, 0, genotype, 0.0);
-		nodes.put(nodeId, n);
-		nodesMap.put(nodeKey, n);
+		n = new Node(nodeId, rs, contig, 0, 0, genotype, 0.0);
+		nodeIdMap.put(nodeId, n);
+		nodeKeyMap.put(nodeKey, n);
 	    }
 	    // store this node's sample count for GF calculation
 	    int sampleCount = readSamples(line).size();
-	    if (!totalCounts.containsKey(id)) {
-		totalCounts.put(id, sampleCount);
+	    if (!totalCounts.containsKey(rs)) {
+		totalCounts.put(rs, sampleCount);
 	    } else {
-		int totalSampleCount = totalCounts.get(id) + sampleCount;
-		totalCounts.put(id, totalSampleCount);
+		int totalSampleCount = totalCounts.get(rs) + sampleCount;
+		totalCounts.put(rs, totalSampleCount);
 	    }
-	    if (!genotypeCounts.containsKey(id)) {
-		genotypeCounts.put(id, new HashMap<String,Integer>());
+	    if (!genotypeCounts.containsKey(rs)) {
+		genotypeCounts.put(rs, new HashMap<String,Integer>());
 	    }
-	    Map<String,Integer> counts = genotypeCounts.get(id);
+	    Map<String,Integer> counts = genotypeCounts.get(rs);
 	    counts.put(genotype, sampleCount);
 	}
 	listReader.close();
 	// update the nodes with their genotype frequencies
-	for (Node n : nodes.values()) {
+	for (Node n : nodeIdMap.values()) {
 	    int totalCount = totalCounts.get(n.rs); // identifier is called rs from NCBI
 	    int genotypeCount = genotypeCounts.get(n.rs).get(n.genotype);
 	    n.gf = (double)genotypeCount / (double)totalCount;
 	}
 	if (verbose) {
-	    System.err.println("ListImporter read "+nodes.size()+" nodes from "+listFile.getName());
+	    System.err.println("ListImporter read "+nodeIdMap.size()+" nodes from "+listFile.getName());
 	}
     }
 
@@ -114,9 +159,13 @@ public class ListImporter extends Importer {
      * 6	AA_A_9_30018537_FS	00
      */
     @Override
-    public void readPaths(File labelsFile, TreeMap<Long,Node> desiredNodes) throws IOException {
-	if (nodes.size()==0) {
-	    System.err.println("ERROR: ListImporter.readNodes() must be run before ListImporter.readPaths()");
+    public void readPaths(File labelsFile) throws IOException {
+	if (nodeIdMap.size()==0) {
+	    System.err.println("ERROR: ListImporter nodeIdMap is empty.");
+	    System.exit(1);
+	}
+	if (nodeKeyMap.size()==0) {
+	    System.err.println("ERROR: ListImporter nodeKeyMap is empty.");
 	    System.exit(1);
 	}
 	// load the desired samples (with labels)
@@ -128,14 +177,11 @@ public class ListImporter extends Importer {
 	    String[] fields = line.split("\\t");
 	    if (fields.length==3) continue; // empty no-call line
 	    String contig = fields[0];
-	    String id = fields[1];
+	    String rs = fields[1];
 	    String genotype = fields[2];    // includes "00" if any samples
-	    String nodeKey = id+"_"+genotype;
-	    Node n = nodesMap.get(nodeKey);
-	    if (n==null) {
-		System.err.println("ERROR: ListImporter nodesMap does not contain key="+nodeKey);
-		System.exit(1);
-	    }
+	    String nodeKey = Node.getKey(contig, 0, 0, rs, genotype);
+	    Node n = nodeKeyMap.get(nodeKey);
+	    if (n==null) continue; // purged node
 	    TreeSet<Sample> lineSamples = readSamples(line); // these do not have labels
 	    for (Sample sample : desiredSamples) {
 		if (!lineSamples.contains(sample)) continue; // this sample isn't in this call
@@ -169,5 +215,12 @@ public class ListImporter extends Importer {
 	    samples.add(new Sample(fields[i], null));
 	}
 	return samples;
+    }
+
+    /**
+     * Set verbosity
+     */
+    public void setVerbose(boolean flag) {
+	verbose = flag;
     }
 }

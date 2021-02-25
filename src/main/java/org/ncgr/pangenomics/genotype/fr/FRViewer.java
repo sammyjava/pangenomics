@@ -103,8 +103,9 @@ public class FRViewer {
         
         // load the graph
         PangenomicGraph graph = new PangenomicGraph(graphName);
-        graph.verbose = true;
-	graph.loadPathsFromTXT(graph.getNodesFile(), graph.getPathsFile());
+        graph.setVerbose(true);
+	graph.loadNodesFromTXT(graph.getNodesFile());
+	graph.loadPathsFromTXT(graph.getPathsFile());
         graph.buildNodePaths();
         graph.tallyLabelCounts();
 

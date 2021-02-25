@@ -763,7 +763,8 @@ public class FRUtils {
      */
     public static PangenomicGraph readGraph(String graphPrefix, String pathsPrefix) throws FileNotFoundException, IOException {
 	PangenomicGraph graph = new PangenomicGraph(getGraphName(graphPrefix));
-	graph.loadPathsFromTXT(new File(getNodesFilename(graphPrefix)), new File(getPathsFilename(pathsPrefix)));
+	graph.loadNodesFromTXT(new File(getNodesFilename(graphPrefix)));
+	graph.loadPathsFromTXT(new File(getPathsFilename(pathsPrefix)));
 	graph.tallyLabelCounts();
         return graph;
     }

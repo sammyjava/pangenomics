@@ -45,38 +45,27 @@ public class GraphUtils {
         Option graphOption = new Option("g", "graph", true, "name of graph");
         graphOption.setRequired(true);
         options.addOption(graphOption);
-
-        // other parameters
-        Option mgfOption = new Option("mgf", "mgf", true, "minimum MGF for inclusion");
-        mgfOption.setRequired(false);
-        options.addOption(mgfOption);
-        // samples in VCF file
-        Option vcfFileOption = new Option("vcf", "vcffile", true, "load sample(s) from a VCF file");
-        vcfFileOption.setRequired(false);
-        options.addOption(vcfFileOption);
-	// samples in LIST file
-	Option listFileOption = new Option("list", "listfile", true, "load sample(s) from a PLINK list file");
-	listFileOption.setRequired(false);
-	options.addOption(listFileOption);
-	//
-	Option minMAFOption = new Option("minmaf", "minmaf", true, "minimum MAF of loci to be included from LIST or VCF file [0.0]");
+	// graph nodes in TXT file
+	Option nodesFileOption = new Option("nodes", "nodesfile", true, "load graph nodes from this nodes.txt file");
+	nodesFileOption.setRequired(true);
+	options.addOption(nodesFileOption);
+	// graph paths in TXT file
+	Option pathsFileOption = new Option("paths", "pathsfile", true, "load graph paths from this paths.txt file");
+	pathsFileOption.setRequired(true);
+	options.addOption(pathsFileOption);
+	// FILTER min MAF
+	Option minMAFOption = new Option("minmaf", "minmaf", true, "minimum MAF/MGF of loci to be included from a VCF/List file [0.0]");
 	minMAFOption.setRequired(false);
 	options.addOption(minMAFOption);
-	//
-	Option maxMAFOption = new Option("maxmaf", "maxmaf", true, "maximum MAF of loci to be included from LIST or VCF file [1.0]");
+	// FILTER max MAF
+	Option maxMAFOption = new Option("maxmaf", "maxmaf", true, "maximum MAF/MGF of loci to be included from a VCF/List file [1.0]");
 	maxMAFOption.setRequired(false);
 	options.addOption(maxMAFOption);
-
         // actions
-        Option prsOption = new Option("prs", "prs", false, "compute polygenic risk scores");
+        Option prsOption = new Option("prs", "computeprs", false, "compute polygenic risk scores");
         prsOption.setRequired(false);
         options.addOption(prsOption);
 	//
-	Option sampleFileOption = new Option("samplefile", true, "file containing samples+labels to determine paths through the given graph (-g) from a VCF (-vcf) or LIST (-list)");
-	sampleFileOption.setRequired(false);
-	options.addOption(sampleFileOption);
-
-	// output
 	Option printPcaFileOption = new Option("pca", "printpcafile", false, "print out path pca file");
 	printPcaFileOption.setRequired(false);
 	options.addOption(printPcaFileOption);
@@ -89,10 +78,9 @@ public class GraphUtils {
 	printSvmFileOption.setRequired(false);
 	options.addOption(printSvmFileOption);
 	//
-	Option printNodePathsFileOption = new Option("nodepaths", "printnodepathsfile", false, "print out node paths file [false]");
+	Option printNodePathsFileOption = new Option("nodepaths", "printnodepathsfile", false, "print out node paths file");
 	printNodePathsFileOption.setRequired(false);
 	options.addOption(printNodePathsFileOption);
-
 
         try {
             cmd = parser.parse(options, args);
@@ -112,68 +100,39 @@ public class GraphUtils {
         // our PangenomicGraph
         PangenomicGraph graph = new PangenomicGraph(cmd.getOptionValue("graph"));
 	graph.verbose = true;
+	graph.loadNodesFromTXT(new File(cmd.getOptionValue("nodesfile")));
+	graph.loadPathsFromTXT(new File(cmd.getOptionValue("pathsfile")));
+	graph.tallyLabelCounts();
+	System.err.println(graph.name+" has "+graph.vertexSet().size()+" nodes and "+graph.paths.size()+" paths: "+
+			   graph.labelCounts.get("case")+"/"+graph.labelCounts.get("ctrl")+" cases/controls");
 
-        // load graph from TXT files
-	graph.loadPathsFromTXT(graph.getNodesFile(), graph.getPathsFile());
-        graph.tallyLabelCounts();
-        System.err.println(graph.name+" has "+graph.vertexSet().size()+" nodes and "+graph.paths.size()+" paths: "+graph.labelCounts.get("case")+"/"+graph.labelCounts.get("ctrl")+" cases/controls");
-
-        // options
-        boolean computePRS = cmd.hasOption("prs");
-	boolean computeSamplePaths = cmd.hasOption("samplefile");
-
+        // actions
 	if (cmd.hasOption("printnodepathsfile")) {
 	    String nodePathsFilename = graph.name+".nodepaths.txt";
 	    // if (cmd.hasOption("pathsfile")) nodePathsFilename = cmd.getOptionValue("pathsfile")+".nodepaths.txt";
 	    if (graph.verbose) System.err.println("Writing node paths file "+nodePathsFilename);
 	    printNodePaths(graph, new PrintStream(nodePathsFilename));
-	}
-
-	if (cmd.hasOption("printpcafile")) {
+	} else if (cmd.hasOption("printpcafile")) {
 	    String pcaFilename = graph.name+".pathpca.txt";
 	    // if (cmd.hasOption("pathsfile")) pcaFilename = cmd.getOptionValue("pathsfile")+".pathpca.txt";
 	    if (graph.verbose) System.err.println("Writing path PCA file "+pcaFilename);
 	    printPcaData(graph, new PrintStream(pcaFilename));
-	}
-
-	if (cmd.hasOption("printarfffile")) {
+	} else if (cmd.hasOption("printarfffile")) {
 	    String arffFilename = graph.name+".arff";
 	    // if (cmd.hasOption("pathsfile")) arffFilename = cmd.getOptionValue("pathsfile")+".arff";
 	    if (graph.verbose) System.err.println("Writing path ARFF file "+arffFilename);
 	    printArffData(graph, new PrintStream(arffFilename));
-	}
-	
-	if (cmd.hasOption("printsvmfile")) {
+	} else if (cmd.hasOption("printsvmfile")) {
 	    String svmFilename = graph.name+".svm.txt";
 	    // if (cmd.hasOption("pathsfile")) svmFilename = cmd.getOptionValue("pathsfile")+".svm.txt";
 	    if (graph.verbose) System.err.println("Writing path SVM file "+svmFilename);
 	    printSvmData(graph, new PrintStream(svmFilename));
-	}
-
-	// GraphUtils???
-        // build the node-paths map
-        // graph.buildNodePaths();
-
-        // actions
-        if (computePRS) {
+	} else if (cmd.hasOption("computeprs")) {
             double minMGF = 1e-2;
-            if (cmd.hasOption("mgf")) {
-                minMGF = Double.parseDouble(cmd.getOptionValue("mgf"));
+            if (cmd.hasOption("minmaf")) {
+                minMGF = Double.parseDouble(cmd.getOptionValue("minmaf"));
             }
             computePRS(graph, minMGF);
-        } else if (computeSamplePaths) {
-	    TreeSet<Sample> samples = Sample.readSamples(new File(cmd.getOptionValue("samplefile")));
-	    if (cmd.hasOption("vcf")) {
-		double minMAF = 0.0;
-		double maxMAF = 1.0;
-		if (cmd.hasOption("minmaf")) minMAF = Double.parseDouble(cmd.getOptionValue("minmaf"));
-		if (cmd.hasOption("maxmaf")) maxMAF = Double.parseDouble(cmd.getOptionValue("maxmaf"));
-		computePathsFromVCF(graph, cmd.getOptionValue("vcf"), samples, minMAF, maxMAF);
-	    } else if (cmd.hasOption("list")) {
-		computePathsFromList(graph, cmd.getOptionValue("list"), samples);
-	    } else {
-		System.err.println("ERROR: you must provide a VCF file (-vcf) or LIST file (-list) that contains the given samples");
-	    }			
 	}
     }
 
@@ -217,64 +176,7 @@ public class GraphUtils {
     }
 
     /**
-     * Compute the paths through the graph for the given samples in the given VCF file
-     */
-    public static void computePathsFromVCF(PangenomicGraph graph, String vcfFilename, TreeSet<Sample> samples, double minMAF, double maxMAF) throws FileNotFoundException, IOException {
-        VCFImporter importer = new VCFImporter(new File(vcfFilename));
-	importer.verbose = true;
-        importer.readNodes(minMAF, maxMAF);
-	importer.readPaths(samples);
-	// make sure the imported nodes match the graph's nodes for the same id (this will not be true if MAF is different)
-	checkImportedNodes(graph, importer.nodes);
-	// output
-	outputPaths(graph, importer.sampleNodeSets);
-    }
-
-    /**
-     * Compute the paths through the graph for the given samples in the given LIST file
-     */
-    public static void computePathsFromList(PangenomicGraph graph, String listFilename, TreeSet<Sample> samples) throws FileNotFoundException, IOException {
-	// ListImporter importer = new ListImporter(new File(listFilename));
-	// importer.verbose = true;
-	// importer.readNodes();
-	// importer.readPaths(samples);
-	// // make sure the imported nodes match the graph's nodes for the same id (this will not be true if MAF is different)
-	// checkImportedNodes(graph, importer.nodes);
-	// // output
-	// outputPaths(graph, importer.sampleNodeSets);
-    }
-
-    /**
-     * Check that the imported nodes and graph nodes are identical
-     */
-    public static void checkImportedNodes(PangenomicGraph graph, Map<Long,Node> importedNodes) {
-	for (long id : importedNodes.keySet()) {
-	    Node importedNode = importedNodes.get(id);
-	    Node graphNode = graph.getNode(id);
-	    if (graphNode==null) {
-		System.err.println("ERROR: imported node "+importedNode+" is not present in the graph.");
-		System.exit(1);
-	    } else if (!importedNode.equals(graphNode)) {
-		System.err.println("ERROR: imported node "+importedNode+" does not equal the corresponding graph node "+graphNode);
-		System.exit(1);
-	    }
-	}
-    }
-
-    /**
-     * Output the paths
-     */
-    public static void outputPaths(PangenomicGraph graph, TreeMap<Sample,NodeSet> sampleNodeSets) {
-    	for (Sample sample : sampleNodeSets.keySet()) {
-	    NodeSet nodeSet = sampleNodeSets.get(sample);
-	    Path path = new Path(graph, new LinkedList<Node>(nodeSet), sample);
-	    System.out.println(path.toString());
-	}
-    }
-
-    /**
      * Print ARFF of node participation by path, for Weka analysis.
-     * NOTE: no-call nodes are dropped.
      *
      * @RELATION iris
      *
@@ -331,7 +233,6 @@ public class GraphUtils {
 
     /**
      * Print the labeled path node participation for LIBSVM analysis.
-     * NOTE: no-call nodes are dropped.
      *
      * path1 case 1:1 2:1 3:1 4:0 ... (tab separated, don't skip any indexes)
      * path2 ctrl 1:0 2:0 3:0 4:1 ...

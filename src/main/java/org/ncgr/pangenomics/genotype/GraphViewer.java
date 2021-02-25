@@ -104,7 +104,8 @@ public class GraphViewer {
         // get the graph
         PangenomicGraph graph = new PangenomicGraph(graphName);
         graph.verbose = true;
-	graph.loadPathsFromTXT(graph.getNodesFile(), graph.getPathsFile());
+	graph.loadNodesFromTXT(graph.getNodesFile());
+	graph.loadPathsFromTXT(graph.getPathsFile());
         graph.tallyLabelCounts();
         graph.buildNodePaths();
 

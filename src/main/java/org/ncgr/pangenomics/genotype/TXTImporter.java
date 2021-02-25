@@ -22,21 +22,28 @@ import java.util.TreeSet;
  * Importer for TXT files [graph].nodes.txt and [graph].paths.txt containing Nodes and Paths.
  *
  *    abstract void readNodes(double minMAF, double maxMAF) throws IOException;
- *    abstract void readPaths(File labelsFile, TreeMap<Long,Node> desiredNodes) throws IOException;
+ *    abstract void readPaths(File labelsFile) throws IOException;
  *
  * @author Sam Hokin
  */
 public class TXTImporter extends Importer {
 
-    boolean verbose;
-
     File nodesFile;
     File pathsFile;
 
-    // construct from a nodes.txt file and paths.txt file
-    public TXTImporter(File nodesFile, File pathsFile) {
+    /**
+     * Constructor for building nodes from a nodes.txt file
+     */
+    public TXTImporter(File nodesFile) {
 	this.nodesFile = nodesFile;
+    }
+
+    /**
+     * Constructor for building paths from a paths.txt file
+     */
+    public TXTImporter(File pathsFile, TreeMap<Long,Node> nodeIdMap) {
 	this.pathsFile = pathsFile;
+	this.nodeIdMap = nodeIdMap;
     }
     
     /**
@@ -57,18 +64,18 @@ public class TXTImporter extends Importer {
         while ((line=reader.readLine())!=null) {
 	    if (line.startsWith("#")) continue;
 	    Node n = new Node(line);
-            nodes.put(n.id, n);
+            nodeIdMap.put(n.id, n);
         }
         reader.close();
-        if (verbose) System.err.println("Read "+nodes.size()+" nodes from "+nodesFile.getName());
+        if (verbose) System.err.println("Read "+nodeIdMap.size()+" nodes from "+nodesFile.getName());
     }
 
     /**
      * Import paths from the pathsFile and a labels file to restrict the samples.
      */
     @Override
-    public void readPaths(File labelsFile, TreeMap<Long,Node> desiredNodes) throws IOException {
-	if (nodes.size()==0) {
+    public void readPaths(File labelsFile) throws IOException {
+	if (nodeIdMap.size()==0) {
 	    System.err.println("TXTImporter: readNodes() must be called before readPaths().");
 	    System.exit(1);
 	}
@@ -106,8 +113,8 @@ public class TXTImporter extends Importer {
      * name     label   nodeset
      * 642913	case	[1,8,17,21,24,25,28,33,35,37,...]
      */
-    public void readPaths(TreeMap<Long,Node> desiredNodes) throws IOException {
-	if (nodes.size()==0) {
+    public void readPaths() throws IOException {
+	if (nodeIdMap.size()==0) {
 	    System.err.println("TXTImporter: readNodes() must be called before readPaths().");
 	    System.exit(1);
 	}
@@ -128,5 +135,12 @@ public class TXTImporter extends Importer {
 	}
 	// wrap up
 	if (verbose) System.err.println("Read "+sampleNodeSets.size()+" sample paths from "+pathsFile.getName());
+    }
+
+    /**
+     * Set verbosity
+     */
+    public void setVerbose(boolean flag) {
+	verbose = flag;
     }
 }

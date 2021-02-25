@@ -1069,8 +1069,9 @@ public class FRFinder {
 	}
 	// load graph from a pair of TXT files
 	PangenomicGraph pg = new PangenomicGraph(cmd.getOptionValue("graph"));
-	pg.verbose = cmd.hasOption("verbose");
-	pg.loadPathsFromTXT(pg.getNodesFile(), pg.getPathsFile());
+	pg.setVerbose(cmd.hasOption("verbose"));
+	pg.loadPathsFromTXT(pg.getNodesFile());
+	pg.loadPathsFromTXT(pg.getPathsFile());
 	// remove paths that contain an excluded path node, if there are any
 	String excludedPathNodeString = "[]";
 	if (cmd.hasOption("excludedpathnodes")) {

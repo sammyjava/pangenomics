@@ -674,7 +674,8 @@ class FrequentedRegion implements Comparable {
 
         // import the PangenomicGraph from a pair of TXT files
         PangenomicGraph pg = new PangenomicGraph(cmd.getOptionValue("graph"));
-	pg.loadPathsFromTXT(pg.getNodesFile(), pg.getPathsFile());
+	pg.loadNodesFromTXT(pg.getNodesFile());
+	pg.loadPathsFromTXT(pg.getPathsFile());
 	// remove paths that contain an excluded node, if given
 	String excludedPathNodeString = "[]";
 	if (cmd.hasOption("excludedpathnodes")) {

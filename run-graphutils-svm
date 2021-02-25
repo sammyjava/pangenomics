@@ -3,23 +3,23 @@
 #  -arff,--printarfffile             print out an ARFF file of path node
 #                                    participation
 #  -g,--graph <arg>                  name of graph
-#  -list,--listfile <arg>            load sample(s) from a PLINK list file
-#  -maxmaf,--maxmaf <arg>            maximum MAF of loci to be included from
-#                                    LIST or VCF file [1.0]
-#  -mgf,--mgf <arg>                  minimum MGF for inclusion
-#  -minmaf,--minmaf <arg>            minimum MAF of loci to be included from
-#                                    LIST or VCF file [0.0]
-#  -nodepaths,--printnodepathsfile   print out node paths file [false]
+#  -maxmaf,--maxmaf <arg>            maximum MAF/MGF of loci to be included
+#                                    from a VCF/List file [1.0]
+#  -minmaf,--minmaf <arg>            minimum MAF/MGF of loci to be included
+#                                    from a VCF/List file [0.0]
+#  -nodepaths,--printnodepathsfile   print out node paths file
+#  -nodes,--nodesfile <arg>          load graph nodes from this nodes.txt
+#                                    file
+#  -paths,--pathsfile <arg>          load graph paths from this paths.txt
+#                                    file
 #  -pca,--printpcafile               print out path pca file
-#  -prs,--prs                        compute polygenic risk scores
-#  -samplefile <arg>                 file containing samples+labels to
-#                                    determine paths through the given graph
-#                                    (-g) from a VCF (-vcf) or LIST (-list)
+#  -prs,--computeprs                 compute polygenic risk scores
 #  -svm,--printsvmfile               print out a LIBSVM-compatible file of
 #                                    path node participation
-#  -vcf,--vcffile <arg>              load sample(s) from a VCF file
 
-GRAPH=$1
+NODESFILE=$1.nodes.txt
+PATHSFILE=$2.paths.txt
+GRAPH=$2
 
-echo "Building LIBSVM file from $GRAPH"
-java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.GraphUtils -svm -g $GRAPH
+echo "Building LIBSVM file from $NODESFILE and $PATHSFILE"
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.GraphUtils --printsvmfile --graph=$GRAPH --nodesfile=$NODESFILE --pathsfile=$PATHSFILE
