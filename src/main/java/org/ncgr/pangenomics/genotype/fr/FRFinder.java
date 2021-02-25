@@ -85,11 +85,7 @@ public class FRFinder {
     boolean writePathFRs = false;
     boolean writeFRSubpaths = false;
     boolean requireBestNodeSet = false;
-    boolean includeNoCalls = false;
     boolean requireSamePosition = false;
-    boolean requireHomozygous = false;
-    double minMGF = 0.01;
-    double maxPVal = 1.0;
     int minSize = 1;
     int maxSize = Integer.MAX_VALUE;
     int maxRound = 0;
@@ -135,12 +131,8 @@ public class FRFinder {
         parameters.setProperty("priorityOption", priorityOption);
         parameters.setProperty("keepOption", keepOption);
         parameters.setProperty("keepOption", "null");
-        parameters.setProperty("minMGF", String.valueOf(minMGF));
-	parameters.setProperty("maxPVal", String.valueOf(maxPVal));
-	parameters.setProperty("includeNoCalls", String.valueOf(includeNoCalls));
 	parameters.setProperty("requireBestNodeSet", String.valueOf(requireBestNodeSet));
 	parameters.setProperty("requireSamePosition", String.valueOf(requireSamePosition));
-	parameters.setProperty("requireHomozygous", String.valueOf(requireHomozygous));
     }
 
     /**
@@ -178,15 +170,11 @@ public class FRFinder {
                    "minSupport="+minSupport+" " +
                    "minSize="+minSize+" " +
 		   "maxSize="+maxSize+" " +
-                   "minMGF="+minMGF+" " +
-		   "maxPVal="+maxPVal+" " +
                    "maxRound="+maxRound+" " +
 		   "maxClocktime="+maxClocktime+" " +
 		   "keepOption="+keepOption+" " +
-		   "includeNoCalls="+includeNoCalls+" " +
 		   "requireBestNodeSet="+requireBestNodeSet+" " +
 		   "requireSamePosition="+requireSamePosition+" " +
-		   "requireHomozygous="+requireHomozygous+" " +
                    "requiredNodes="+requiredNodeString+" " +
 		   "includedNodes="+includedNodeString+" " +
                    "excludedNodes="+excludedNodeString+" " +
@@ -237,31 +225,15 @@ public class FRFinder {
             printToLog("# Now continuing with FR finding...");
         } else {
 	    // load the single-node FRs into allFrequentedRegions
-	    // - keep if gf>=minMGF
-	    // - keep if p<=maxPVal
-	    // - reject those with no genotype call unless includeNoCalls
 	    // - keep those not in excludedNodes
 	    // - exclude those with insufficient support if alpha=1.0
-	    // - reject those with HET call if requireHomozygous
-	    ConcurrentSkipListSet<Node> excRejects = new ConcurrentSkipListSet<>();
-	    ConcurrentSkipListSet<Node> ngcRejects = new ConcurrentSkipListSet<>();
-	    ConcurrentSkipListSet<Node> mgfRejects = new ConcurrentSkipListSet<>();
-	    ConcurrentSkipListSet<Node> pvalRejects = new ConcurrentSkipListSet<>();
-	    ConcurrentSkipListSet<Node> supportRejects = new ConcurrentSkipListSet<>();
-	    ConcurrentSkipListSet<Node> homRejects = new ConcurrentSkipListSet<>();
 	    ConcurrentSkipListSet<Node> nodes = new ConcurrentSkipListSet<>(graph.getNodes());
+	    ConcurrentSkipListSet<Node> excRejects = new ConcurrentSkipListSet<>();
+	    ConcurrentSkipListSet<Node> supportRejects = new ConcurrentSkipListSet<>();
 	    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	    nodes.parallelStream().forEach(node -> {
 		    if (excludedNodes.contains(node)) {
 			excRejects.add(node);
-		    } else if (!includeNoCalls && !node.isCalled) {
-			ngcRejects.add(node);
-		    } else if (requireHomozygous && !node.isHomozygous()) {
-			homRejects.add(node);
-		    } else if (node.gf<minMGF) {
-			mgfRejects.add(node);
-		    } else if (maxPVal<1.0 && graph.fisherExactP(node)>maxPVal) {
-			pvalRejects.add(node);
 		    } else {
 			FrequentedRegion fr = new FrequentedRegion(graph, new NodeSet(node), alpha, kappa, priorityOptionKey, priorityOptionLabel);
 			if (alpha==1.0 && fr.support<minSupport) {
@@ -274,11 +246,7 @@ public class FRFinder {
 	    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	    // DX
 	    printToLog("# "+excRejects.size()+" nodes excluded because contained in excludedNodes");
-	    printToLog("# "+ngcRejects.size()+" nodes excluded because not called and includeNoCalls=false");
-	    printToLog("# "+mgfRejects.size()+" nodes excluded because allele frequency<"+minMGF);
-	    printToLog("# "+pvalRejects.size()+" nodes excluded because p>"+maxPVal);
 	    if (alpha==1.0) printToLog("# "+supportRejects.size()+" nodes excluded because FR support<"+minSupport);
-	    if (requireHomozygous) printToLog("# "+homRejects.size()+" nodes excluded because not homozygous");
 	    // store interesting single-node FRs in round 0, since we won't hit them in the loop
 	    for (FrequentedRegion fr : allFrequentedRegions.values()) {
 		if (isInteresting(fr)) {
@@ -598,17 +566,8 @@ public class FRFinder {
     public String getKeepOption() {
         return parameters.getProperty("keepOption");
     }
-    public double getMinMGF() {
-        return Double.parseDouble(parameters.getProperty("minMGF"));
-    }
-    public double getMaxPVal() {
-	return Double.parseDouble(parameters.getProperty("maxPVal"));
-    }
     public boolean getRequireBestNodeSet() {
 	return Boolean.parseBoolean(parameters.getProperty("requireBestNodeSet"));
-    }
-    public boolean getIncludeNoCalls() {
-	return Boolean.parseBoolean(parameters.getProperty("includeNoCalls"));
     }
     public boolean getRequireSamePosition() {
 	return Boolean.parseBoolean(parameters.getProperty("requireSamePosition"));
@@ -701,29 +660,13 @@ public class FRFinder {
 	this.graphName = graphName;
         parameters.setProperty("graphName", graphName);
     }
-    public void setMinMGF(double minMGF) {
-	this.minMGF = minMGF;
-        parameters.setProperty("minMGF", String.valueOf(minMGF));
-    }
-    public void setMaxPVal(double maxPVal) {
-	this.maxPVal = maxPVal;
-	parameters.setProperty("maxPVal", String.valueOf(maxPVal));
-    }
     public void setRequireBestNodeSet() {
 	this.requireBestNodeSet = true;
 	parameters.setProperty("requireBestNodeSet", "true");
     }
-    public void setIncludeNoCalls() {
-	this.includeNoCalls = true;
-	parameters.setProperty("includeNoCalls", "true");
-    }
     public void setRequireSamePosition() {
 	this.requireSamePosition = true;
 	parameters.setProperty("requireSamePosition", "true");
-    }
-    public void setRequireHomozygous() {
-	this.requireHomozygous = true;
-	parameters.setProperty("requireHomozygous", "true");
     }
     
     /**
@@ -917,11 +860,15 @@ public class FRFinder {
         Option graphOption = new Option("graph", "graph", true, "graph name");
         graphOption.setRequired(true);
         options.addOption(graphOption);
-        //
-        Option txtOption = new Option("txt", "txt", false, "load from [graph].nodes.txt and [graph].paths.txt");
-        txtOption.setRequired(false);
-        options.addOption(txtOption);
-        //
+	// INPUT: nodes.txt
+	Option nodesFileOption = new Option("nodes", "nodesfile", true, "read graph nodes from a nodes.txt file");
+	nodesFileOption.setRequired(true);
+	options.addOption(nodesFileOption);
+        // INPUT: paths.txt 
+        Option pathsFileOption = new Option("paths", "pathsfile", true, "read graph paths from a paths.txt file");
+        pathsFileOption.setRequired(true);
+        options.addOption(pathsFileOption);
+	//
         Option minSupportOption = new Option("m", "minsupport", true, "minimum number of supporting paths for an FR to be considered interesting [1]");
         minSupportOption.setRequired(false);
         options.addOption(minSupportOption);
@@ -933,10 +880,6 @@ public class FRFinder {
         Option maxSizeOption = new Option("maxs", "maxsize", true, "maximum number of nodes that a FR can contain to be considered interesting [unlimited]");
         maxSizeOption.setRequired(false);
         options.addOption(maxSizeOption);
-	//
-        Option labelsOption = new Option("p", "pathlabels", true, "tab-delimited file with pathname<tab>label");
-        labelsOption.setRequired(false);
-        options.addOption(labelsOption);
         //
         Option verboseOption = new Option("v", "verbose", false, "verbose output [false]");
         verboseOption.setRequired(false);
@@ -1001,22 +944,10 @@ public class FRFinder {
         Option keepOptionOption = new Option("keep", "keepoption", true, "option for keeping FRs in finder loop: subset[:N]|distance[:N] [keep all]");
         keepOptionOption.setRequired(false);
         options.addOption(keepOptionOption);
-        //
-        Option minMGFOption = new Option("minmgf", "minmgf", true, "minimum MGF for nodes included in search [0.01]");
-        minMGFOption.setRequired(false);
-        options.addOption(minMGFOption);
-	//
-        Option maxPValOption = new Option("maxp", "maxpval", true, "maximum p-value for nodes included in search [1.0]");
-        maxPValOption.setRequired(false);
-        options.addOption(maxPValOption);
 	//
 	Option requireBestNodeSetOption = new Option("rbns", "requirebestnodeset", false, "require the best NodeSet from the previous round in the next round [false]");
 	requireBestNodeSetOption.setRequired(false);
 	options.addOption(requireBestNodeSetOption);
-	//
-	Option includeNoCallsOption = new Option("inc", "includenocalls", false, "include nodes which do not have genotype calls (./.) [false]");
-	includeNoCallsOption.setRequired(false);
-	options.addOption(includeNoCallsOption);
 	//
 	Option requireSamePositionOption = new Option("rsp", "requiresameposition", false, "require that interesting FRs consist of nodes at same genomic position [false]");
 	requireSamePositionOption.setRequired(false);
@@ -1025,10 +956,6 @@ public class FRFinder {
 	Option maxClocktimeOption = new Option("maxct", "maxclocktime", true, "limit the computation to the given clock time in minutes [0=unlimited]");
 	maxClocktimeOption.setRequired(false);
 	options.addOption(maxClocktimeOption);
-	//
-	Option requireHomozygousOption = new Option("rh", "requirehomozygous", false, "require that FR nodes be homozygous genotypes");
-	requireHomozygousOption.setRequired(false);
-	options.addOption(requireHomozygousOption);
 	
         try {
             cmd = parser.parse(options, args);
@@ -1044,10 +971,6 @@ public class FRFinder {
             System.exit(1);
             return;
         }
-
-        // path labels file
-        File labelsFile = null;
-        if (cmd.hasOption("pathlabels")) labelsFile = new File(cmd.getOptionValue("pathlabels"));
 
         // required run parameters
         double alpha = Double.parseDouble(cmd.getOptionValue("alpha"));
@@ -1070,8 +993,8 @@ public class FRFinder {
 	// load graph from a pair of TXT files
 	PangenomicGraph pg = new PangenomicGraph(cmd.getOptionValue("graph"));
 	pg.setVerbose(cmd.hasOption("verbose"));
-	pg.loadPathsFromTXT(pg.getNodesFile());
-	pg.loadPathsFromTXT(pg.getPathsFile());
+	pg.loadNodesFromTXT(new File(cmd.getOptionValue("nodesfile")));
+	pg.loadPathsFromTXT(new File(cmd.getOptionValue("pathsfile")));
 	// remove paths that contain an excluded path node, if there are any
 	String excludedPathNodeString = "[]";
 	if (cmd.hasOption("excludedpathnodes")) {
@@ -1137,12 +1060,8 @@ public class FRFinder {
 	if (cmd.hasOption("writesavefiles")) frf.setWriteSaveFiles();
 	if (cmd.hasOption("writepathfrs")) frf.setWritePathFRs();
 	if (cmd.hasOption("writefrsubpaths")) frf.setWriteFRSubpaths();
-	if (cmd.hasOption("minmgf")) frf.setMinMGF(Double.parseDouble(cmd.getOptionValue("minmgf")));
-	if (cmd.hasOption("maxpval")) frf.setMaxPVal(Double.parseDouble(cmd.getOptionValue("maxpval")));
 	if (cmd.hasOption("requirebestnodeset")) frf.setRequireBestNodeSet();
-	if (cmd.hasOption("includenocalls")) frf.setIncludeNoCalls();
 	if (cmd.hasOption("requiresameposition")) frf.setRequireSamePosition();
-	if (cmd.hasOption("requirehomozygous")) frf.setRequireHomozygous();
 	// these are not stored in parameters
 	if (cmd.hasOption("verbose")) frf.verbose = true;
 	if (cmd.hasOption("debug")) frf.debug = true;
