@@ -549,7 +549,7 @@ public class FRUtils {
     }
 
     /**
-     * Print out the best (last per run) FRs from a combined run file. Uses a TreeSet to make sure they're distinct.
+     * Print out the best (last per run) FRs from a combined run file. Uses a TreeSet to make sure they're unique.
      *
      * nodes	size	support	case	ctrl	OR	p	pri
      * [891]	1	4712	2549	2163	1.178	1.01E-14	71
@@ -561,51 +561,36 @@ public class FRUtils {
      * [259,411,892]	3	101	24	77	0.312	1.02E-7	506
      * [259,411,873,892]	4	100	23	77	0.299	4.76E-8	524 <== print this one
      */
-    public static void printBestFRs(String graphPrefix, String pathsPrefix, String frsPrefix) throws IOException {
-	// read in the graph
-	PangenomicGraph graph = readGraph(graphPrefix, pathsPrefix);
-	//
+    public static void printBestFRs(String frsPrefix) throws IOException {
 	double alpha = readAlpha(frsPrefix);
 	int kappa = readKappa(frsPrefix);
-	TreeSet<FrequentedRegion> sortedFRs = new TreeSet<>();
         String frFilename = getFRsFilename(frsPrefix);
+	TreeSet<String> sortedLines = new TreeSet<>();
         BufferedReader reader = new BufferedReader(new FileReader(frFilename));
+	String header = null;
 	String lastLine = null;
         String thisLine = null;
-	int count = 0;
         while ((thisLine=reader.readLine())!=null) {
-	    if (thisLine.startsWith("nodes")) {
-		if (lastLine!=null) {
-		    FrequentedRegion fr = new FrequentedRegion(graph, alpha, kappa, lastLine);
-		    fr.updateNodes();
-		    if (fr.containsNoCallNode()) {
-			count++;
-		    } else {
-			sortedFRs.add(fr);
-		    }
-		}
-		lastLine = null;
-	    } else {
-		lastLine = thisLine;
+	    if (lastLine==null) {
+		// header
+		header = thisLine;
+	    } else if (thisLine.startsWith("nodes") && lastLine!=null) {
+		// best FR from this round
+		sortedLines.add(lastLine);
 	    }
+	    lastLine = thisLine;
 	}
-	FrequentedRegion lastFR = new FrequentedRegion(graph, alpha, kappa, lastLine);
-	lastFR.updateNodes();
-	if (lastFR.containsNoCallNode()) {
-	    count++;
-	} else {
-	    sortedFRs.add(lastFR);
-	}
-	System.err.println("Removed "+count+" FRs with no-call nodes.");
-	// output
-	System.out.println("nodes\tsize\tsupport\tcase\tctrl\tOR\tp\tpri");
-	for (FrequentedRegion fr : sortedFRs) {
-	    System.out.println(fr.toString());
+	// last best FR
+	sortedLines.add(lastLine);
+	// spit 'em out
+	System.out.println(header);
+	for (String line : sortedLines) {
+	    System.out.println(line);
 	}
     }
 
      /**
-      * Main class with methods for post-processing.
+      * Main class with methods for various utility tasks
       */
     public static void main(String[] args) throws FileNotFoundException, IOException {
         Options options = new Options();
@@ -614,19 +599,19 @@ public class FRUtils {
         CommandLine cmd;
 
         Option graphPrefixOption = new Option("g", "graphprefix", true, "prefix of graph file (e.g. HLAA)");
-        graphPrefixOption.setRequired(true);
+        graphPrefixOption.setRequired(false);
         options.addOption(graphPrefixOption);
         //
         Option pathsPrefixOption = new Option("p", "pathsprefix", true, "prefix of paths file (e.g. HLAA)");
-        pathsPrefixOption.setRequired(true);
+        pathsPrefixOption.setRequired(false);
         options.addOption(pathsPrefixOption);
         //
         Option frsPrefixOption = new Option("f", "frsprefix", true, "prefix of FRs file (e.g. HLAA-0.0-Inf)");
-        frsPrefixOption.setRequired(true);
+        frsPrefixOption.setRequired(false);
         options.addOption(frsPrefixOption);
         //
         Option priorityOptionOption = new Option("pri", "priorityoption", true, "option for priority weighting of FRs: "+FrequentedRegion.PRIORITY_OPTIONS);
-        priorityOptionOption.setRequired(true);
+        priorityOptionOption.setRequired(false);
         options.addOption(priorityOptionOption);
 	//
 	Option postprocessOption = new Option("post", "postprocess", false, "postprocess by applying new minsup, minsize to an FR set given by inputprefix");
@@ -669,7 +654,7 @@ public class FRUtils {
 	numCtrlPathsOption.setRequired(false);
 	options.addOption(numCtrlPathsOption);
 	//
-	Option extractBestFRsOption = new Option("extractbest", "extractbestfrs", false, "extract the best (last) FRs from a file containing many runs, each starting with the heading line");
+	Option extractBestFRsOption = new Option("extractbest", "extractbestfrs", false, "extract the best (last) FRs from a file containing many runs, each starting with the header");
 	extractBestFRsOption.setRequired(false);
 	options.addOption(extractBestFRsOption);
         //
@@ -692,14 +677,10 @@ public class FRUtils {
             return;
         }
 	
-	String graphPrefix = cmd.getOptionValue("graphprefix");
-	String pathsPrefix = cmd.getOptionValue("pathsprefix");
-	String frsPrefix = cmd.getOptionValue("frsprefix");
-
 	if (cmd.hasOption("post")) {
 	    int minSupport = Integer.parseInt(cmd.getOptionValue("minsupport"));
 	    int minSize = Integer.parseInt(cmd.getOptionValue("minsize"));
-	    postprocess(graphPrefix, pathsPrefix, frsPrefix, minSupport, minSize);
+	    postprocess(cmd.getOptionValue("graphprefix"), cmd.getOptionValue("pathsprefix"), cmd.getOptionValue("frsPrefix"), minSupport, minSize);
 	}
 
 	if (cmd.hasOption("svm") || cmd.hasOption("arff") || cmd.hasOption("pathfrs") || cmd.hasOption("prs")) {
@@ -723,18 +704,22 @@ public class FRUtils {
 	    if (cmd.hasOption("maxpvalue")) maxPValue = Double.parseDouble(cmd.getOptionValue("maxpvalue"));
 	    if (cmd.hasOption("minpriority")) minPriority = Integer.parseInt(cmd.getOptionValue("minpriority"));
             if (cmd.hasOption("svm")) {
-		printPathFRsSVM(graphPrefix, pathsPrefix, frsPrefix, priorityOptionKey, priorityOptionLabel, minSize, minSupport, maxPValue, minPriority);
+		printPathFRsSVM(cmd.getOptionValue("graphprefix"), cmd.getOptionValue("pathsprefix"), cmd.getOptionValue("frsprefix"),
+				priorityOptionKey, priorityOptionLabel, minSize, minSupport, maxPValue, minPriority);
             } else if (cmd.hasOption("arff")) {
-                printPathFRsARFF(graphPrefix, pathsPrefix, frsPrefix, priorityOptionKey, priorityOptionLabel, minSize, minSupport, maxPValue, minPriority);
+                printPathFRsARFF(cmd.getOptionValue("graphprefix"), cmd.getOptionValue("pathsprefix"), cmd.getOptionValue("frsprefix"),
+				 priorityOptionKey, priorityOptionLabel, minSize, minSupport, maxPValue, minPriority);
             } else if (cmd.hasOption("pathfrs")) {
-                printPathFRs(graphPrefix, pathsPrefix, frsPrefix, priorityOptionKey, priorityOptionLabel, minSize, minSupport, maxPValue, minPriority);
+                printPathFRs(cmd.getOptionValue("graphprefix"), cmd.getOptionValue("pathsprefix"), cmd.getOptionValue("frsprefix"),
+			     priorityOptionKey, priorityOptionLabel, minSize, minSupport, maxPValue, minPriority);
             } else if (cmd.hasOption("prs")) {
-                calculatePRS(graphPrefix, pathsPrefix, frsPrefix, priorityOptionKey, priorityOptionLabel, minSize, minSupport, maxPValue, minPriority);
+                calculatePRS(cmd.getOptionValue("graphprefix"), cmd.getOptionValue("pathsprefix"), cmd.getOptionValue("frsprefix"),
+			     priorityOptionKey, priorityOptionLabel, minSize, minSupport, maxPValue, minPriority);
             }
         }
 
 	if (cmd.hasOption("extractbestfrs")) {
-	    printBestFRs(graphPrefix, pathsPrefix, frsPrefix);
+	    printBestFRs(cmd.getOptionValue("frsprefix"));
 	}
     }
 

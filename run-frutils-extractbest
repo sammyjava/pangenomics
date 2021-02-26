@@ -38,6 +38,5 @@
 #  -svm,--svm                       print out an SVM style file from the
 #                                   data given by inputprefix
 
-
-java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils --extractbestfrs -pri 3 -i $1 > $1-best.frs.txt
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils --extractbestfrs -pri 3 -f $1 > $1-best.frs.txt
 cp $1.params.txt $1-best.params.txt
