@@ -6,11 +6,9 @@
 #                                  the given nodes []
 #  -ep,--excludedpathnodes <arg>   exclude paths that include any of the
 #                                  given nodes []
-#  -graph,--graph <arg>            graph name
+#  -graph,--graphname <arg>        graph name
 #  -in,--includednodes <arg>       require that interesting FRs contain at
 #                                  least one of the given nodes []
-#  -inc,--includenocalls           include nodes which do not have genotype
-#                                  calls (./.) [false]
 #  -ip,--includedpathnodes <arg>   include only paths that include at least
 #                                  one of the given nodes []
 #  -k,--kappa <arg>                value of kappa; -1=infinity (required)
@@ -20,19 +18,15 @@
 #                                  FR to be considered interesting [1]
 #  -maxct,--maxclocktime <arg>     limit the computation to the given clock
 #                                  time in minutes [0=unlimited]
-#  -maxp,--maxpval <arg>           maximum p-value for nodes included in
-#                                  search [1.0]
 #  -maxs,--maxsize <arg>           maximum number of nodes that a FR can
 #                                  contain to be considered interesting
 #                                  [unlimited]
-#  -minmgf,--minmgf <arg>          minimum MGF for nodes included in search
-#                                  [0.01]
 #  -mp,--minpriority <arg>         minimum priority for an FR to be
 #                                  considered interesting [0=disabled]
 #  -mr,--maxround <arg>            maximum FR-finding round to run
 #                                  [0=unlimited]
-#  -p,--pathlabels <arg>           tab-delimited file with
-#                                  pathname<tab>label
+#  -nodes,--nodesfile <arg>        read graph nodes from a nodes.txt file
+#  -paths,--pathsfile <arg>        read graph paths from a paths.txt file
 #  -pri,--priorityoption <arg>     option for priority weighting of FRs:
 #                                  0:label=total support or label support
 #                                  [null,case,ctrl], 1:label=(label
@@ -44,8 +38,6 @@
 #  -r,--resume                     resume from a previous run [false]
 #  -rbns,--requirebestnodeset      require the best NodeSet from the
 #                                  previous round in the next round [false]
-#  -rh,--requirehomozygous         require that FR nodes be homozygous
-#                                  genotypes
 #  -rn,--requirednodes <arg>       require that interesting FRs contain the
 #                                  given nodes []
 #  -rns,--requirednodescan <arg>   starting and ending node for a single
@@ -54,8 +46,6 @@
 #                                  nodes at same genomic position [false]
 #  -s,--minsize <arg>              minimum number of nodes that a FR must
 #                                  contain to be considered interesting [1]
-#  -txt,--txt                      load from [graph].nodes.txt and
-#                                  [graph].paths.txt
 #  -v,--verbose                    verbose output [false]
 #  -wfrs,--writefrsubpaths         write the FR subpaths file at end [false]
 #  -wpfr,--writepathfrs            write the path FR file at end [false]
@@ -80,7 +70,6 @@ echo "# $graph alpha=$alpha kappa=$kappa priorityOption=$priorityoption $5 $6 $7
 
 ## TXT input
 ## DO NOT USE -XX:+UseG1GC!!! Causes hang at certain RAM limit.
-java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRFinder \
-	--verbose --txt \
-	--graph=$graph --alpha=$alpha --kappa=$kappa --priorityoption=$priorityoption \
+java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRFinder \
+	--verbose --txt --graph=$graph --alpha=$alpha --kappa=$kappa --priorityoption=$priorityoption \
 	$5 $6 $7 $8 $9 ${10} ${11} ${12} ${13} ${14} ${15}

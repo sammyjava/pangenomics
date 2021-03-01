@@ -42,15 +42,5 @@ GRAPHPREFIX=$1
 PATHSPREFIX=$2
 FRSPREFIX=$3
 
-## SVM file building parameters
-PRIORITYOPTION=3
-NUMCASEPATHS=0
-NUMCTRLPATHS=0
-MINSIZE=0
-MINSUPPORT=0
-MINPRIORITY=0
-
 ## write the SVM file
-ARGS="-ncase $NUMCASEPATHS -nctrl $NUMCTRLPATHS -s $MINSIZE -m $MINSUPPORT -pri $PRIORITYOPTION -minp $MINPRIORITY"
-echo "Writing SVM file with $ARGS"
-java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -svm -g $GRAPHPREFIX -p $PATHSPREFIX -f $FRSPREFIX $ARGS
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -svm -g $GRAPHPREFIX -p $PATHSPREFIX -f $FRSPREFIX

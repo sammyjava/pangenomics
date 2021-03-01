@@ -74,9 +74,9 @@ public class FRUtils {
 	    }
 	}
 	System.err.println("Loaded "+frequentedRegions.size()+" FRs from "+frsPrefix);
-	// build the subpaths for each FR, serial because parallel seems to drop some data
-	System.err.println("Updating FR support and priorities...");
 	/////////////////////////////////////////////////////////////////////////////////
+	// build the subpaths for each FR
+	System.err.println("Updating FR support and priorities...");
 	Set<FrequentedRegion> updatedFRs = frequentedRegions.parallelStream().map(fr -> {
 		fr.update();
 		return fr;
@@ -87,7 +87,7 @@ public class FRUtils {
 
     /**
      * Read FRs from the text file written by an FR run, but leaving support, OR, p, priority at the values in the file.
-     * This method does NOT populate the FR subpaths. It assigns a number to each FR in TreeSet order.
+     * This method populates the FR subpaths based on alpha, kappa.
      *
      * nodes   size    support case    ctrl    OR      p       pri
      * [1341]  1       21      19      2       9.500   9.48E-3 202
@@ -101,21 +101,30 @@ public class FRUtils {
         int kappa = readKappa(frsPrefix);
         String frFilename = getFRsFilename(frsPrefix);
 	// read the FRs
-        TreeSet<FrequentedRegion> frs = new TreeSet<>();
+        TreeSet<FrequentedRegion> frequentedRegions = new TreeSet<>();
         BufferedReader reader = new BufferedReader(new FileReader(frFilename));
         String line = null;
         while ((line=reader.readLine())!=null) {
 	    FrequentedRegion fr = new FrequentedRegion(graph, alpha, kappa, line);
 	    if (fr.size>0) {
-		frs.add(fr);
+		frequentedRegions.add(fr);
 	    }
 	}
+	// number the FRs
         int number = 0;
-        for (FrequentedRegion fr : frs) {
+        for (FrequentedRegion fr : frequentedRegions) {
             fr.number = number++;
         }
-	System.err.println("Loaded "+frs.size()+" unique FRs from "+frsPrefix);
-	return frs;
+	System.err.println("Loaded "+frequentedRegions.size()+" unique FRs from "+frsPrefix);
+	/////////////////////////////////////////////////////////////////////////////////
+	// build the subpaths for each FR
+	System.err.println("Updating FR support and priorities...");
+	Set<FrequentedRegion> updatedFRs = frequentedRegions.parallelStream().map(fr -> {
+		fr.update();
+		return fr;
+	    }).collect(Collectors.toSet());
+	/////////////////////////////////////////////////////////////////////////////////
+	return frequentedRegions;
     }
 
     /**
@@ -320,27 +329,21 @@ public class FRUtils {
      * path3 ctrl 1:0 2:1 3:0 4:2 ...
      *
      * which is similar, but not identical to, the SVMlight format.
-     *
-     * This also allows pruning on size, support, p-value, and priority with a given priority option.
      */
-    public static void printPathFRsSVM(String graphPrefix, String pathsPrefix, String frsPrefix, int priorityOptionKey, String priorityOptionLabel,
-				       int minSize, int minSupport, double maxPValue, int minPriority) throws IOException {
+    public static void printPathFRsSVM(String graphPrefix, String pathsPrefix, String frsPrefix) throws IOException, FileNotFoundException {
 	// read the graph
-	PangenomicGraph graph = readGraph(graphPrefix, pathsPrefix);
+	final PangenomicGraph graph = readGraph(graphPrefix, pathsPrefix);
         // read the FRs from files
-	TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(graph, frsPrefix, priorityOptionKey, priorityOptionLabel);
-	// prune the FRs
-	TreeSet<FrequentedRegion> prunedFRs = pruneFrequentedRegions(frequentedRegions, minSize, minSupport, maxPValue, minPriority);
-	System.err.println(prunedFRs.size()+" FRs to be printed to SVM file.");
+	final TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(graph, frsPrefix);
 	// collect the paths, cases and controls
-        ConcurrentSkipListSet<Path> concurrentPaths = buildConcurrentPaths(graph);
+        final ConcurrentSkipListSet<Path> concurrentPaths = buildConcurrentPaths(graph);
 	///////////////////////////////////////////////////////
 	// build the SVM strings in parallel
 	ConcurrentSkipListMap<String,String> pathSVM = new ConcurrentSkipListMap<>();
 	concurrentPaths.parallelStream().forEach(path -> {
 		String svm = path.getLabel();
 		int c  = 0;
-		for (FrequentedRegion fr : prunedFRs) {
+		for (FrequentedRegion fr : frequentedRegions) {
 		    c++;
 		    svm += "\t"+c+":"+fr.countSubpathsOf(path);
 		}
@@ -383,23 +386,19 @@ public class FRUtils {
      *
      * This also allows pruning on size, support, and p-value.
      */
-    public static void printPathFRsARFF(String graphPrefix, String pathsPrefix, String frsPrefix, int priorityOptionKey, String priorityOptionLabel,
-					int minSize, int minSupport, double maxPValue, int minPriority) throws IOException {
+    public static void printPathFRsARFF(String graphPrefix, String pathsPrefix, String frsPrefix) throws IOException {
 	// read the graph
-	PangenomicGraph graph = readGraph(graphPrefix, pathsPrefix);
+	final PangenomicGraph graph = readGraph(graphPrefix, pathsPrefix);
     	// read the FRs from files
-    	TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(graph, frsPrefix, priorityOptionKey, priorityOptionLabel);
-        // prune the FRs
-        TreeSet<FrequentedRegion> prunedFRs = pruneFrequentedRegions(frequentedRegions, minSize, minSupport, maxPValue, minPriority);
-    	System.err.println(prunedFRs.size()+" FRs to be printed to ARFF file.");
+    	final TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(graph, frsPrefix);
     	// collect the paths, cases and controls
-        ConcurrentSkipListSet<Path> concurrentPaths = buildConcurrentPaths(graph);
+        final ConcurrentSkipListSet<Path> concurrentPaths = buildConcurrentPaths(graph);
     	/////////////////////////////////////////////////////////
     	// now load pathARFF for selected paths in parallel
     	ConcurrentSkipListMap<String,String> pathARFF = new ConcurrentSkipListMap<>();
     	concurrentPaths.parallelStream().forEach(path -> {
     		String arff = "";
-    		for (FrequentedRegion fr : prunedFRs) {
+    		for (FrequentedRegion fr : frequentedRegions) {
     		    arff += fr.countSubpathsOf(path)+",";
     		}
     		arff += path.getLabel();
@@ -417,7 +416,7 @@ public class FRUtils {
         out.println("@ATTRIBUTE ID STRING");
         // attributes: each FR is labeled FRn
         int c = 0;
-        for (FrequentedRegion fr : prunedFRs) {
+        for (FrequentedRegion fr : frequentedRegions) {
             c++;
             String frLabel = "FR"+c;
             out.println("@ATTRIBUTE "+frLabel+" NUMERIC");
@@ -442,23 +441,17 @@ public class FRUtils {
      * sample1.case sample2.ctrl sample3.ctrl ... sampleN.case
      * FR1 0        3            2                1
      * ...
-     *
-     * This also allows pruning on size, support, and p-value.
      */
-    public static void printPathFRs(String graphPrefix, String pathsPrefix, String frsPrefix, int priorityOptionKey, String priorityOptionLabel,
-				    int minSize, int minSupport, double maxPValue, int minPriority) throws IOException {
+    public static void printPathFRs(String graphPrefix, String pathsPrefix, String frsPrefix) throws IOException {
 	// read the graph
-	PangenomicGraph graph = readGraph(graphPrefix, pathsPrefix);
+	final PangenomicGraph graph = readGraph(graphPrefix, pathsPrefix);
     	// read the FRs from files
-    	TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(graph, frsPrefix, priorityOptionKey, priorityOptionLabel);
-        // prune the FRs
-        TreeSet<FrequentedRegion> prunedFRs = pruneFrequentedRegions(frequentedRegions, minSize, minSupport, maxPValue, minPriority);
-    	System.err.println(prunedFRs.size()+" FRs to be printed to pathfrs.txt file.");
+    	final TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(graph, frsPrefix);
     	// collect the paths, cases and controls
-    	ConcurrentSkipListSet<Path> concurrentPaths = buildConcurrentPaths(graph);
+    	final ConcurrentSkipListSet<Path> concurrentPaths = buildConcurrentPaths(graph);
         // build a map of FR# labels to FR for row labels
     	ConcurrentSkipListMap<String,FrequentedRegion> concurrentFRMap = new ConcurrentSkipListMap<>();
-    	for (FrequentedRegion fr : prunedFRs) {
+    	for (FrequentedRegion fr : frequentedRegions) {
             String frLabel = "FR"+fr.number;
     	    concurrentFRMap.put(frLabel, fr);
     	}
@@ -499,17 +492,14 @@ public class FRUtils {
     /**
      * Calculate and print out polynomial risk scores per sample from FR support and odds ratio.
      */
-    public static void calculatePRS(String graphPrefix, String pathsPrefix, String frsPrefix, int priorityOptionKey, String priorityOptionLabel,
-				    int minSize, int minSupport, double maxPValue, int minPriority) throws IOException {
+    public static void calculatePRS(String graphPrefix, String pathsPrefix, String frsPrefix) throws IOException {
 	// read in the graph
-	PangenomicGraph graph = readGraph(graphPrefix, pathsPrefix);
+	final PangenomicGraph graph = readGraph(graphPrefix, pathsPrefix);
     	// read the FRs from files
-    	TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(graph, frsPrefix, priorityOptionKey, priorityOptionLabel);
-        // prune the FRs
-        ConcurrentSkipListSet<FrequentedRegion> concurrentFRs = new ConcurrentSkipListSet<>(pruneFrequentedRegions(frequentedRegions, minSize, minSupport, maxPValue, minPriority));
-    	System.err.println(concurrentFRs.size()+" FRs to be processed for polygenic risk scores.");
-    	// collect the paths, cases and controls
-        ConcurrentSkipListSet<Path> concurrentPaths = buildConcurrentPaths(graph);
+	final ConcurrentSkipListSet<FrequentedRegion> concurrentFRs = new ConcurrentSkipListSet<>(readFrequentedRegions(graph, frsPrefix));
+    	// build the paths
+        final ConcurrentSkipListSet<Path> concurrentPaths = buildConcurrentPaths(graph);
+	// maps
     	ConcurrentSkipListMap<Path,Integer> concurrentPathSupport = new ConcurrentSkipListMap<>(); // stores sum of support
         ConcurrentSkipListMap<Path,Double> concurrentPathPRS = new ConcurrentSkipListMap<>();      // stores PRS
   	/////////////////////////////////////////////////////////
@@ -677,48 +667,20 @@ public class FRUtils {
             return;
         }
 	
+	// ACTIONS
 	if (cmd.hasOption("post")) {
 	    int minSupport = Integer.parseInt(cmd.getOptionValue("minsupport"));
 	    int minSize = Integer.parseInt(cmd.getOptionValue("minsize"));
 	    postprocess(cmd.getOptionValue("graphprefix"), cmd.getOptionValue("pathsprefix"), cmd.getOptionValue("frsPrefix"), minSupport, minSize);
-	}
-
-	if (cmd.hasOption("svm") || cmd.hasOption("arff") || cmd.hasOption("pathfrs") || cmd.hasOption("prs")) {
-	    String[] parts = cmd.getOptionValue("priorityoption").split(":");
-	    int priorityOptionKey = Integer.parseInt(parts[0]);
-	    String priorityOptionLabel = null;
-	    if (parts.length>1) {
-		String priorityOptionParameter = parts[1];
-		if (priorityOptionParameter.equals("case") || priorityOptionParameter.equals("ctrl")) {
-		    priorityOptionLabel = priorityOptionParameter;
-		}
-	    }
-	    // impose defaults
-	    if (priorityOptionKey==1 && priorityOptionLabel==null) priorityOptionLabel = "case";
-	    int minSize = 0;
-	    int minSupport = 0;
-	    int minPriority = 0;
-	    double maxPValue = 1.0;
-	    if (cmd.hasOption("minsize")) minSize = Integer.parseInt(cmd.getOptionValue("minsize"));
-	    if (cmd.hasOption("minsupport")) minSupport = Integer.parseInt(cmd.getOptionValue("minsupport"));
-	    if (cmd.hasOption("maxpvalue")) maxPValue = Double.parseDouble(cmd.getOptionValue("maxpvalue"));
-	    if (cmd.hasOption("minpriority")) minPriority = Integer.parseInt(cmd.getOptionValue("minpriority"));
-            if (cmd.hasOption("svm")) {
-		printPathFRsSVM(cmd.getOptionValue("graphprefix"), cmd.getOptionValue("pathsprefix"), cmd.getOptionValue("frsprefix"),
-				priorityOptionKey, priorityOptionLabel, minSize, minSupport, maxPValue, minPriority);
-            } else if (cmd.hasOption("arff")) {
-                printPathFRsARFF(cmd.getOptionValue("graphprefix"), cmd.getOptionValue("pathsprefix"), cmd.getOptionValue("frsprefix"),
-				 priorityOptionKey, priorityOptionLabel, minSize, minSupport, maxPValue, minPriority);
-            } else if (cmd.hasOption("pathfrs")) {
-                printPathFRs(cmd.getOptionValue("graphprefix"), cmd.getOptionValue("pathsprefix"), cmd.getOptionValue("frsprefix"),
-			     priorityOptionKey, priorityOptionLabel, minSize, minSupport, maxPValue, minPriority);
-            } else if (cmd.hasOption("prs")) {
-                calculatePRS(cmd.getOptionValue("graphprefix"), cmd.getOptionValue("pathsprefix"), cmd.getOptionValue("frsprefix"),
-			     priorityOptionKey, priorityOptionLabel, minSize, minSupport, maxPValue, minPriority);
-            }
-        }
-
-	if (cmd.hasOption("extractbestfrs")) {
+	} else if (cmd.hasOption("svm")) {
+	    printPathFRsSVM(cmd.getOptionValue("graphprefix"), cmd.getOptionValue("pathsprefix"), cmd.getOptionValue("frsprefix"));
+	} else if (cmd.hasOption("arff")) {
+	    printPathFRsARFF(cmd.getOptionValue("graphprefix"), cmd.getOptionValue("pathsprefix"), cmd.getOptionValue("frsprefix"));
+	} else if (cmd.hasOption("pathfrs")) {
+	    printPathFRs(cmd.getOptionValue("graphprefix"), cmd.getOptionValue("pathsprefix"), cmd.getOptionValue("frsprefix"));
+	} else if (cmd.hasOption("prs")) {
+	    calculatePRS(cmd.getOptionValue("graphprefix"), cmd.getOptionValue("pathsprefix"), cmd.getOptionValue("frsprefix"));
+        } else if (cmd.hasOption("extractbestfrs")) {
 	    printBestFRs(cmd.getOptionValue("frsprefix"));
 	}
     }

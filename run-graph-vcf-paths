@@ -28,7 +28,6 @@
 GRAPH=$1
 LABELSFILE=$2
 VCFFILE=$3
-MINMAF=$4
 
 java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.PangenomicGraph -v --buildpaths --graph=$GRAPH \
-     --labelsfile $LABELSFILE --vcffile=$VCFFILE -minmaf $MINMAF
+     --nodesfile=$GRAPH.nodes.txt --labelsfile $LABELSFILE --vcffile=$VCFFILE

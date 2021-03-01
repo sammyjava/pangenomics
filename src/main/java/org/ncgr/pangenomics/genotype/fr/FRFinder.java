@@ -305,9 +305,15 @@ public class FRFinder {
 	    // requiredNodes and bestFR need to be final for the parallel stream
 	    final NodeSet finalRequiredNodes = requiredNodes;
 	    final FrequentedRegion finalBestFR = bestFR;
-	    // NOTE: the fr1 loop need not be parallel since the fr2 loop will consume all the CPUs anyway;
-	    // by running the fr1 loop in series we ensure that the fr2 loop cycles use the same fr1 loop data.
+	    if (debug) {
+		System.err.println("REQUIRE "+finalRequiredNodes);
+	    }
+	    // NOTE: the fr1 loop need not be parallel since the fr2 loop will consume all the CPUs anyway.
+	    // By running the fr1 loop in series we ensure that the fr2 loop cycles use the same fr1 loop data.
 	    for (FrequentedRegion fr1 : allFrequentedRegions.values()) {
+		if (debug) {
+		    System.err.println("---> "+fr1.toString());
+		}
 		if (finalBestFR==null) {
 		    if (finalRequiredNodes.size()>0) {
 			boolean contains = true;
@@ -317,7 +323,12 @@ public class FRFinder {
 				break;
 			    }
 			}
-			if (!contains) continue;
+			if (!contains) {
+			    if (debug) {
+				System.err.println("Require"+finalRequiredNodes+" so skipping "+fr1.toString());
+			    }
+			    continue;
+			}
 		    }
 		} else if (!fr1.equals(finalBestFR)) {
 		    continue;
@@ -380,6 +391,14 @@ public class FRFinder {
 				}
 			    }
 			}
+			// reject if it's too small
+			if (!rejected && frpair.nodes.size()<minSize) {
+			    rejected = true;
+			}
+			// reject if it's too large
+			if (!rejected && frpair.nodes.size()>maxSize) {
+			    rejected = true;
+			}
 			// NOW WE MERGE
 			if (rejected) {
 			    // add this rejected NodeSet to the rejected list
@@ -414,7 +433,7 @@ public class FRFinder {
 				// add this pair to the current interestingFRPairs if interesting
 				if (isInteresting(frpair.merged)) {
 				    interestingFRPairs.add(frpair);
-				    if (debug) System.err.println("int:"+frpair.merged.toString()+"|"+(System.currentTimeMillis()-roundStartTime)/1000);
+				    if (debug) System.err.println(fr1.toString()+"\t+\t"+fr2.toString());
 				}
 			    } else {
 				// add this to the rejected list
@@ -427,6 +446,9 @@ public class FRFinder {
 	    }
 	    // end of fr1 loop
 	    // add our new best merged FR from this round and store the interesting merged FRs
+	    if (debug) {
+		System.err.println("Found "+interestingFRPairs.size()+" interesting FR pairs.");
+	    }
             if (interestingFRPairs.size()>0) {
                 added = true;
 		// add all of this round's interesting FRs to allFrequentedRegions OUTSIDE of the fr2 loop
@@ -787,10 +809,10 @@ public class FRFinder {
      * This also uses priorityOptionLabel for the O.R- and p-based priorities.
      */
     boolean isInteresting(FrequentedRegion fr) {
-        boolean interesting = fr.support>=minSupport;
-	interesting = interesting && fr.size>=minSize;
-	interesting = interesting && fr.size<=maxSize;
-	if (minPriority!=0) interesting = interesting && fr.priority>=minPriority;
+	if (fr.support<minSupport) return false;
+	if (fr.size<minSize) return false;
+	if (fr.size>maxSize) return false;
+	if (minPriority!=0 && fr.priority<minPriority) return false;
         // if (priorityOptionKey==3 || priorityOptionKey==4) {
         //     if (priorityOptionLabel!=null && priorityOptionLabel.equals("case")) {
         //         interesting = interesting && fr.oddsRatio()>1.0;
@@ -798,7 +820,7 @@ public class FRFinder {
         //         interesting = interesting && fr.oddsRatio()<1.0;
         //     }
         // }
-        return interesting;   
+	return true;
     }
 
     /**
@@ -1056,8 +1078,8 @@ public class FRFinder {
 	if (cmd.hasOption("requirebestnodeset")) frf.setRequireBestNodeSet();
 	if (cmd.hasOption("requiresameposition")) frf.setRequireSamePosition();
 	// these are not stored in parameters
-	if (cmd.hasOption("verbose")) frf.verbose = true;
-	if (cmd.hasOption("debug")) frf.debug = true;
+	frf.verbose = cmd.hasOption("verbose");
+	frf.debug = cmd.hasOption("debug");
 	// run the requested job(s)
 	if (requiredNodeStart>0 && requiredNodeEnd>0) {
 	    for (long id=requiredNodeStart; id<=requiredNodeEnd; id++) {

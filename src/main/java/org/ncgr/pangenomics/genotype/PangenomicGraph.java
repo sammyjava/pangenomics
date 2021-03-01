@@ -676,11 +676,11 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         graphOption.setRequired(true);
         options.addOption(graphOption);
 	// ACTION: build graph nodes
-	Option nodesOption = new Option("n", "buildnodes", false, "build graph nodes (this or --paths required)");
+	Option nodesOption = new Option("n", "buildnodes", false, "build graph nodes (this or --buildpaths required)");
 	nodesOption.setRequired(false);
 	options.addOption(nodesOption);
 	// ACTION: build graph paths
-	Option pathsOption = new Option("p", "buildpaths", false, "build graph paths (this or --nodes required)");
+	Option pathsOption = new Option("p", "buildpaths", false, "build graph paths (this or --buildnodes required)");
 	pathsOption.setRequired(false);
 	options.addOption(pathsOption);
         // INPUT: VCF file
@@ -818,12 +818,15 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 
 	// output
 	if (!cmd.hasOption("nodesfile") && graph.getNodes().size()>0) {
+	    // to graph.nodes.txt, graph.paths.txt
 	    if (graph.verbose) System.err.println("Writing "+graph.getNodesFilename());
 	    graph.printNodes(new PrintStream(graph.getNodesFilename()));
 	}
 	if (!cmd.hasOption("pathsfile") && graph.paths.size()>0) {
-	    if (graph.verbose) System.err.println("Writing "+graph.getPathsFilename());
-	    graph.printPaths(new PrintStream(graph.getPathsFilename()));
+	    // to conglomerate paths filename
+	    String pathsFilename = graph.getPathsFilename()+"."+cmd.getOptionValue("labelsfile");
+	    if (graph.verbose) System.err.println("Writing "+pathsFilename);
+	    graph.printPaths(new PrintStream(pathsFilename));
 	}
     }
 
