@@ -489,16 +489,15 @@ class FrequentedRegion implements Comparable {
      * Return a count of subpaths of FR that belong to the given Path.
      */
     public int countSubpathsOf(Path path) {
-        int count = 0;
 	if (subpaths==null || subpaths.size()==0) {
-	    System.err.println("ERROR: FR "+nodes.toString()+" subpaths="+subpaths);
-	    System.exit(1);
+	    return 0;
 	} else {
+	    int count = 0;
             for (Path sp : subpaths) {
                 if (sp.getName().equals(path.getName())) count++;
             }
+	    return count;
         }
-        return count;
     }
 
     /**

@@ -246,7 +246,7 @@ public class FRFinder {
 	    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	    // DX
 	    printToLog("# "+excRejects.size()+" nodes excluded because contained in excludedNodes");
-	    if (alpha==1.0) printToLog("# "+supportRejects.size()+" nodes excluded because FR support<"+minSupport);
+	    if (alpha==1.0) printToLog("# "+supportRejects.size()+" nodes excluded because alpha=1.0 and FR support<"+minSupport);
 	    // store interesting single-node FRs in round 0, since we won't hit them in the loop
 	    for (FrequentedRegion fr : allFrequentedRegions.values()) {
 		if (isInteresting(fr)) {
@@ -884,7 +884,7 @@ public class FRFinder {
         pathsFileOption.setRequired(true);
         options.addOption(pathsFileOption);
 	//
-        Option minSupportOption = new Option("m", "minsupport", true, "minimum number of supporting paths for an FR to be considered interesting [1]");
+        Option minSupportOption = new Option("m", "minsupport", true, "minimum fraction of supporting paths for an FR to be considered interesting [0.0=1 path]");
         minSupportOption.setRequired(false);
         options.addOption(minSupportOption);
         //
@@ -892,7 +892,7 @@ public class FRFinder {
         minSizeOption.setRequired(false);
         options.addOption(minSizeOption);
 	//
-        Option maxSizeOption = new Option("maxs", "maxsize", true, "maximum number of nodes that a FR can contain to be considered interesting [unlimited]");
+        Option maxSizeOption = new Option("maxs", "maxsize", true, "maximum number of nodes that a FR can contain to be considered interesting [0=unlimited]");
         maxSizeOption.setRequired(false);
         options.addOption(maxSizeOption);
         //
@@ -1059,9 +1059,16 @@ public class FRFinder {
 	FRFinder frf = new FRFinder(pg);
 	// set optional FRFinder parameters
 	if (cmd.hasOption("priorityoption")) frf.setPriorityOption(cmd.getOptionValue("priorityoption"));
-	if (cmd.hasOption("minsupport")) frf.setMinSupport(Integer.parseInt(cmd.getOptionValue("minsupport")));
+	if (cmd.hasOption("minsupport")) {
+	    double frac = Double.parseDouble(cmd.getOptionValue("minsupport"));
+	    int minSupport = (int)(frac*(double)pg.paths.size());
+	    frf.setMinSupport(minSupport);
+	}
 	if (cmd.hasOption("minsize")) frf.setMinSize(Integer.parseInt(cmd.getOptionValue("minsize")));
-	if (cmd.hasOption("maxsize")) frf.setMaxSize(Integer.parseInt(cmd.getOptionValue("maxsize")));
+	if (cmd.hasOption("maxsize")) {
+	    int val = Integer.parseInt(cmd.getOptionValue("maxsize"));
+	    if (val>0) frf.setMaxSize(val);
+	}
 	if (cmd.hasOption("maxround")) frf.setMaxRound(Integer.parseInt(cmd.getOptionValue("maxround")));
 	if (cmd.hasOption("maxclocktime")) frf.setMaxClocktime(Integer.parseInt(cmd.getOptionValue("maxclocktime")));
 	if (cmd.hasOption("minpriority")) frf.setMinPriority(Integer.parseInt(cmd.getOptionValue("minpriority")));
