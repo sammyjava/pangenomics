@@ -2,11 +2,15 @@ package org.ncgr.pangenomics.genotype;
 
 import java.io.Serializable;
 
+import java.text.DecimalFormat;
+
 /**
  * Container for a node with genotype information as well as the range on the genome.
  * An int id is used for simplicity and the calling code is expected to enforce uniqueness.
  */
 public class Node implements Comparable, Serializable {
+    static DecimalFormat df = new DecimalFormat("0.00");
+
     public long id;
     public String contig;
     public int start;
@@ -113,7 +117,12 @@ public class Node implements Comparable, Serializable {
      */
     @Override
     public String toString() {
-	return "["+id+"] "+contig+":"+start+"-"+end+" "+rs+" "+genotype+" "+gf;
+        String location = contig;
+        if (start>0) location += ":"+start;
+        if (end>0) location += "-"+end;
+        String identifier = "";
+        if (rs!=null) identifier = rs;
+	return "["+id+"] "+location+" "+identifier+" "+genotype+" "+df.format(gf);
     }
 
     /**
