@@ -347,19 +347,23 @@ public class FRFinder {
 			FRPair frpair = new FRPair(fr1, fr2, priorityOptionKey, priorityOptionLabel);
 			String nodesKey = frpair.nodes.toString();
 			boolean rejected = false;
-			if (finalBestFR!=null && fr2.size>1) {
+			if (acceptedFRPairs.containsKey(nodesKey)) {
+			    // we've already processed this pair, which was merged
+			    frpair = acceptedFRPairs.get(nodesKey);
+			    rejected = true;
+			} else if (!rejected && kappa<Integer.MAX_VALUE && !frpair.onOneChromosome()) {
+			    // if kappa < infinity, do not combine FRs with nodes on different chromosomes
+			    rejected = true;
+			} else if (!rejected && finalBestFR!=null && fr2.size>1) {
 			    // we just append one node at a time in this mode
 			    rejected = true;
-			} else if (frequentedRegions.containsKey(nodesKey)) {
+			} else if (!rejected && frequentedRegions.containsKey(nodesKey)) {
 			    // if already found, bail
 			    rejected = true;
-			} else if (acceptedFRPairs.containsKey(nodesKey)) {
-			    // get stored FRPair since already accepted and merged in a previous round
-			    frpair = acceptedFRPairs.get(nodesKey);
-			} else if (rejectedNodeSets.contains(nodesKey)) {
+			} else if (!rejected && rejectedNodeSets.contains(nodesKey)) {
 			    // already rejected, bail
 			    rejected = true;
-			} else if (requireSamePosition && !frpair.nodes.haveSamePosition()) {
+			} else if (!rejected && requireSamePosition && !frpair.nodes.haveSamePosition()) {
 			    // can't have an FR with nodes at different positions
 			    rejected = true;
 			}

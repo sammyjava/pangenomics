@@ -37,13 +37,13 @@ import org.apache.commons.math3.stat.StatUtils;
  */
 public class WekaSMO {
     // grid search complexity range and step
-    static final int C_POWER_BEGIN = -5;
-    static final int C_POWER_END = 15;
+    static final int C_POWER_BEGIN = 5;
+    static final int C_POWER_END = 11;
     static final int C_POWER_STEP = 1;
 
     // RBF kernel gamma range and step
     static final int G_POWER_BEGIN = -25;
-    static final int G_POWER_END = 0;
+    static final int G_POWER_END = -10;
     static final int G_POWER_STEP = 1;
 
     // Poly kernel exponent range and step

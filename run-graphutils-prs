@@ -1,2 +1,26 @@
 #!/bin/sh
-java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.GraphUtils -g $1 -prs
+# usage: GraphUtils
+#  -arff,--printarfffile             print out an ARFF file of path node
+#                                    participation
+#  -g,--graph <arg>                  name of graph
+#  -maxmaf,--maxmaf <arg>            maximum MAF/MGF of loci to be included
+#                                    from a VCF/List file [1.0]
+#  -minmaf,--minmaf <arg>            minimum MAF/MGF of loci to be included
+#                                    from a VCF/List file [0.0]
+#  -nodepaths,--printnodepathsfile   print out node paths file
+#  -nodes,--nodesfile <arg>          load graph nodes from this nodes.txt
+#                                    file
+#  -paths,--pathsfile <arg>          load graph paths from this paths.txt
+#                                    file
+#  -pca,--printpcafile               print out path pca file
+#  -prs,--computeprs                 compute polygenic risk scores
+#  -svm,--printsvmfile               print out a LIBSVM-compatible file of
+#                                    path node participation
+
+GRAPH=$1
+PATHS=$2
+
+NODESFILE=$GRAPH.nodes.txt
+PATHSFILE=$PATHS.paths.txt
+
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.GraphUtils --computeprs --graph=$GRAPH --nodesfile=$NODESFILE --pathsfile=$PATHSFILE > $PATHS.prs.txt

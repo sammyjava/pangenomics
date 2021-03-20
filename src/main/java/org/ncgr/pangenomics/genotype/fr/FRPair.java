@@ -62,20 +62,6 @@ public class FRPair implements Comparable {
     }
     
     /**
-     * Algorithm 2 from Cleary, et al. returns the supporting path segments for the given merge of FRs.
-     */
-    public void merge() {
-        NodeSet mergedNodes = NodeSet.merge(fr1.nodes,fr2.nodes);
-        try {
-            merged = new FrequentedRegion(graph, mergedNodes, alpha, kappa, priorityOptionKey, priorityOptionLabel);
-        } catch (Exception e) {
-            System.err.println(e);
-            System.err.println("ERROR MERGING "+mergedNodes);
-            System.exit(1);
-        }
-    }
-
-    /**
      * Two FRPairs are equal if their components are equal.
      */
     @Override
@@ -109,5 +95,26 @@ public class FRPair implements Comparable {
         return fr1.toString()+";" +
             fr2.toString()+";" +
             merged.toString();
+    }
+
+    /**
+     * Algorithm 2 from Cleary, et al. returns the supporting path segments for the given merge of FRs.
+     */
+    public void merge() {
+        NodeSet mergedNodes = NodeSet.merge(fr1.nodes,fr2.nodes);
+        try {
+            merged = new FrequentedRegion(graph, mergedNodes, alpha, kappa, priorityOptionKey, priorityOptionLabel);
+        } catch (Exception e) {
+            System.err.println(e);
+            System.err.println("ERROR MERGING "+mergedNodes);
+            System.exit(1);
+        }
+    }
+
+    /**
+     * Return true iff this FRPair is on a single chromosome.
+     */
+    public boolean onOneChromosome() {
+	return FRUtils.onSameChromosome(fr1, fr2);
     }
 }

@@ -17,14 +17,13 @@
 #                              SMO and kernel parameters
 #  -tf,--testfile <arg>        test data file in ARFF format
 
-KERNEL=$1
-TRAINPREFIX=$2
-TESTPREFIX=$3
-C=$4
-KERNELPARAM=$5
+PREFIX=$1
+KERNEL=$2
+C=$3
+KERNELPARAM=$4
 
-TRAINFILE=$TRAINPREFIX.arff
-TESTFILE=$TESTPREFIX.arff
+TRAINFILE=$PREFIX.arff
+TESTFILE=$PREFIX.testing.arff
 
 echo "Running WekaSMO training on $TRAINFILE and testing on $TESTFILE with C=$C and kernelparam=$KERNELPARAM"
 java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --test --kernel=$KERNEL --arfffile=$TRAINFILE --testfile=$TESTFILE --complexity=$C --kernelparam=$KERNELPARAM

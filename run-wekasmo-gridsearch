@@ -18,9 +18,10 @@
 #                              SMO and kernel parameters
 #  -tf,--testfile <arg>        test data file in ARFF format
 
-KERNEL=$1
-PREFIX=$2
-NGRIDSEARCH=$3
+PREFIX=$1
+KERNEL=$2
+
+NGRIDSEARCH=400
 
 ARFFFILE=$PREFIX.arff
 

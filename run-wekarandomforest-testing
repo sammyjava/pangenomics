@@ -14,12 +14,11 @@
 #  -test,--test                run training/testing on datasets
 #  -tf,--testfile <arg>        test data file in ARFF format
 
-TRAINPREFIX=$1
-TESTPREFIX=$2
-ITERATIONS=$3
+PREFIX=$1
+ITERATIONS=$2
 
-TRAINFILE=$TRAINPREFIX.arff
-TESTFILE=$TESTPREFIX.arff
+TRAINFILE=$PREFIX.arff
+TESTFILE=$PREFIX.testing.arff
 
 echo "Running WekaRandomForest training on $TRAINFILE and testing on $TESTFILE with $ITERATIONS iterations"
 java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaRandomForest --test --arfffile=$TRAINFILE --testfile=$TESTFILE --iterations=$ITERATIONS

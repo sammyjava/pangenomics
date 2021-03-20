@@ -15,13 +15,13 @@
 #  -p,--pathlabels <arg>           tab-delimited file with
 #                                  pathname<tab>label
 #  -pri,--priorityoption <arg>     option for priority weighting of FRs:
-#                                  0=total support, 1:label=label
-#                                  support-other support [case,ctrl,alt],
+#                                  0:label=total support or label support
+#                                  [null,case,ctrl], 1:label=(label
+#                                  support-other support) [case,ctrl,alt],
 #                                  2=|case support-control support|,
-#                                  3:label=odds ratio in label's favor
-#                                  [case,ctrl,alt], 4:label=Fisher's exact
-#                                  test double-sided p value
-#                                  [null,case,ctrl,alt]
+#                                  3:label=O.R. in label's favor
+#                                  [null,case,ctrl], 4=Fisher's exact test
+#                                  two-tailed p value
 #  -txt,--txt                      load from [graph].nodes.txt and
 #                                  [graph].paths.txt
 
@@ -32,5 +32,5 @@ priorityoption=$4
 nodes=$5
 
 ## priorityoption doesn't matter, we're just looking at an FR with alpha, kappa
-java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FrequentedRegion \
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FrequentedRegion \
      --txt --graph=$graph --alpha=$alpha --kappa=$kappa --priorityoption=$priorityoption --nodes=$nodes $6 $7 $8 $9

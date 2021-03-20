@@ -4,7 +4,7 @@
 #                                   data given by inputprefix
 #  -extractbest,--extractbestfrs    extract the best (last) FRs from a file
 #                                   containing many runs, each starting with
-#                                   the heading line
+#                                   the header
 #  -f,--frsprefix <arg>             prefix of FRs file (e.g. HLAA-0.0-Inf)
 #  -g,--graphprefix <arg>           prefix of graph file (e.g. HLAA)
 #  -m,--minsupport <arg>            minimum number of supporting paths for
@@ -31,13 +31,16 @@
 #                                   3:label=O.R. in label's favor
 #                                   [null,case,ctrl], 4=Fisher's exact test
 #                                   two-tailed p value
-#  -prs,--prs                       generate polynomial risk scores from
+#  -prs,--prs                       generate polygenic risk scores from
 #                                   FRFinder output
 #  -s,--minsize <arg>               minimum number of nodes that a FR must
 #                                   contain to be considered interesting
 #  -svm,--svm                       print out an SVM style file from the
 #                                   data given by inputprefix
 
-INPUTPREFIX=$1
+GRAPHPREFIX=$1
+FRSPREFIX=$2
 
-java -server -cp "build/install/fr/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -prs -pri 3 -i $INPUTPREFIX $2 $3 > $INPUTPREFIX.prs.txt
+PATHSPREFIX=$GRAPHPREFIX
+
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -prs -g $GRAPHPREFIX -p $PATHSPREFIX -f $FRSPREFIX > $FRSPREFIX.prs.txt

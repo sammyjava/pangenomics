@@ -842,4 +842,15 @@ public class FRUtils {
 	}
         return concurrentPaths;
     }
+
+    /**
+     * Return true iff both FR nodesets are on same chromosome.
+     */
+    static boolean onSameChromosome(FrequentedRegion fr1, FrequentedRegion fr2) {
+	if (!fr1.onOneChromosome() || !fr2.onOneChromosome()) {
+	    return false;
+	} else {
+	    return (fr1.nodes.first().contig.equals(fr2.nodes.first().contig));
+	}
+    }
 }

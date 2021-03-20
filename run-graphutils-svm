@@ -19,7 +19,8 @@
 
 NODESFILE=$1.nodes.txt
 PATHSFILE=$2.paths.txt
-GRAPH=$2
+
+GRAPH=$1
 
 echo "Building LIBSVM file from $NODESFILE and $PATHSFILE"
 java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.GraphUtils --printsvmfile --graph=$GRAPH --nodesfile=$NODESFILE --pathsfile=$PATHSFILE

@@ -790,4 +790,17 @@ class FrequentedRegion implements Comparable {
         }
         return s;
     }
+
+    /**
+     * Return true iff all nodes are on one chromosome.
+     */
+    public boolean onOneChromosome() {
+	Node n1 = nodes.first();
+	for (Node n : nodes) {
+	    if (!n.contig.equals(n1.contig)) {
+		return false;
+	    }
+	}
+	return true;
+    }
 }
