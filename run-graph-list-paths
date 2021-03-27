@@ -24,22 +24,10 @@
 #  -vcf,--vcffile <arg>           build graph nodes/paths from a
 #                                 tabix-indexed gzipped VCF file
 
-## Graves	pheno_241.2
-## IBD		pheno_555
-## lupus	pheno_695.42
-## rheum	pheno_714.1
-## T1D		pheno_250.1
+GRAPH=$1
+LABELSFILE=$2
+LISTFILE=$3
 
-LISTFILE=HLA_PHEWAS.list
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.PangenomicGraph -v --buildpaths \
+     --graph=$GRAPH --nodesfile=$GRAPH.nodes.txt --labelsfile $LABELSFILE --listfile=$LISTFILE
 
-DISEASE=HLA_PHEWAS_${1}
-
-NODESFILE=${DISEASE}_${2}.nodes.txt
-
-LABELSFILE=$DISEASE.testing.labels.txt
-
-GRAPH=${DISEASE}_${2}.testing
-
-## run all cases/controls in labels file
-java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.PangenomicGraph -v  --buildpaths \
-     --graph=$GRAPH --nodesfile=$NODESFILE --listfile=$LISTFILE  --labelsfile=$LABELSFILE

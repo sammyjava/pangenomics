@@ -80,7 +80,6 @@ public class FRFinder {
     PrintStream logOut;
 
     // parameters, with defaults
-    boolean resume = false;
     boolean writeSaveFiles = false;
     boolean writePathFRs = false;
     boolean writeFRSubpaths = false;
@@ -113,7 +112,6 @@ public class FRFinder {
      * Initialize the default parameters.
      */
     void initializeParameters() {
-        parameters.setProperty("resume", String.valueOf(resume));
         parameters.setProperty("writeSaveFiles", String.valueOf(writeSaveFiles));
         parameters.setProperty("writePathFRs", String.valueOf(writePathFRs));
         parameters.setProperty("writeFRSubpaths", String.valueOf(writeFRSubpaths));
@@ -137,9 +135,9 @@ public class FRFinder {
 
     /**
      * Find the frequented regions in this Graph for the given alpha and kappa values.
-     * double alpha = penetrance: the fraction of a supporting strain's sequence that actually supports the FR;
-     *                alternatively, `1-alpha` is the fraction of inserted sequence
-     * int kappa = maximum insertion: the maximum number of inserted nodes that a supporting path may have.
+     * alpha = penetrance: the fraction of a supporting strain's sequence that actually supports the FR;
+     *         alternatively, `1-alpha` is the fraction of inserted sequence.
+     * kappa = maximum insertion: the maximum number of inserted nodes that a supporting path may have.
       */
     public void findFRs(double alpha, int kappa) throws FileNotFoundException, IOException {
 	// refresh this on each run
@@ -191,78 +189,44 @@ public class FRFinder {
         // FR-finding round counter
         int round = 0;
 
-        if (resume) {
-            // resume from a previous run
-            printToLog("# Resuming from previous run");
-            String line = null;
-            // allFrequentedRegions
-            BufferedReader sfrReader = new BufferedReader(new FileReader(graph.name+"."+ALL_FREQUENTED_REGIONS_SAVE));
-            while ((line=sfrReader.readLine())!=null) {
-                String[] parts = line.split("\t");
-                NodeSet nodes = graph.getNodeSet(parts[0]);
-                allFrequentedRegions.put(nodes.toString(), new FrequentedRegion(graph, nodes, alpha, kappa, priorityOptionKey, priorityOptionLabel));
-            }
-	    // rejectedNodeSets
-	    BufferedReader rnsReader = new BufferedReader(new FileReader(graph.name+"."+REJECTED_NODESETS_SAVE));
-	    while ((line=rnsReader.readLine())!=null) {
-		rejectedNodeSets.add(line);
-	    }
-            // frequentedRegions
-	    // 0                                                                                                1   2         3  4       
-	    // [1353,1355,1356,1357,1359,1360,1361,1363,1364,1366,1367,1368,...,1463,1464,1465,1467,1468,1469]	27  18621.00  1	 26
-            BufferedReader frReader = new BufferedReader(new FileReader(graph.name+"."+FREQUENTED_REGIONS_SAVE));
-	    line = frReader.readLine(); // header
-            while ((line=frReader.readLine())!=null) {
-                String[] parts = line.split("\t");
-                NodeSet nodes = graph.getNodeSet(parts[0]);
-                frequentedRegions.put(nodes.toString(), new FrequentedRegion(graph, nodes, alpha, kappa, priorityOptionKey, priorityOptionLabel));
-                round++; // increment round so we start where we left off
-            }
-	    // informativationalism
-            printToLog("# Loaded "+allFrequentedRegions.size()+" allFrequentedRegions.");
-	    printToLog("# Loaded "+rejectedNodeSets.size()+" rejectedNodeSets.");
-            printToLog("# Loaded "+frequentedRegions.size()+" frequentedRegions.");
-            printToLog("# Now continuing with FR finding...");
-        } else {
-	    // load the single-node FRs into allFrequentedRegions
-	    // - keep those not in excludedNodes
-	    // - exclude those with insufficient support if alpha=1.0
-	    ConcurrentSkipListSet<Node> nodes = new ConcurrentSkipListSet<>(graph.getNodes());
-	    ConcurrentSkipListSet<Node> excRejects = new ConcurrentSkipListSet<>();
-	    ConcurrentSkipListSet<Node> supportRejects = new ConcurrentSkipListSet<>();
-	    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	    nodes.parallelStream().forEach(node -> {
-		    if (excludedNodes.contains(node)) {
-			excRejects.add(node);
+	// load the single-node FRs into allFrequentedRegions
+	// - keep those not in excludedNodes
+	// - exclude those with insufficient support if alpha=1.0
+	ConcurrentSkipListSet<Node> nodes = new ConcurrentSkipListSet<>(graph.getNodes());
+	ConcurrentSkipListSet<Node> excRejects = new ConcurrentSkipListSet<>();
+	ConcurrentSkipListSet<Node> supportRejects = new ConcurrentSkipListSet<>();
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	nodes.parallelStream().forEach(node -> {
+		if (excludedNodes.contains(node)) {
+		    excRejects.add(node);
+		} else {
+		    FrequentedRegion fr = new FrequentedRegion(graph, new NodeSet(node), alpha, kappa, priorityOptionKey, priorityOptionLabel);
+		    if (alpha==1.0 && fr.support<minSupport) {
+			supportRejects.add(node);
 		    } else {
-			FrequentedRegion fr = new FrequentedRegion(graph, new NodeSet(node), alpha, kappa, priorityOptionKey, priorityOptionLabel);
-			if (alpha==1.0 && fr.support<minSupport) {
-			    supportRejects.add(node);
-			} else {
-			    allFrequentedRegions.put(fr.nodes.toString(), fr);
-			}
+			allFrequentedRegions.put(fr.nodes.toString(), fr);
 		    }
-		});
-	    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	    // DX
-	    printToLog("# "+excRejects.size()+" nodes excluded because contained in excludedNodes");
-	    if (alpha==1.0) printToLog("# "+supportRejects.size()+" nodes excluded because alpha=1.0 and FR support<"+minSupport);
-	    // store interesting single-node FRs in round 0, since we won't hit them in the loop
-	    for (FrequentedRegion fr : allFrequentedRegions.values()) {
-		if (isInteresting(fr)) {
-		    if (requiredNodes.size()==0 && includedNodes.size()==0) {
-			frequentedRegions.put(fr.nodes.toString(), fr);
-		    } else {
-			for (Node n : requiredNodes) {
-			    if (fr.nodes.contains(n)) frequentedRegions.put(fr.nodes.toString(), fr);
-			}
-			for (Node n : includedNodes) {
-			    if (fr.nodes.contains(n)) frequentedRegions.put(fr.nodes.toString(), fr);
-			}
+		}
+	    });
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// DX
+	printToLog("# "+excRejects.size()+" nodes excluded because contained in excludedNodes");
+	if (alpha==1.0) printToLog("# "+supportRejects.size()+" nodes excluded because alpha=1.0 and FR support<"+minSupport);
+	// store interesting single-node FRs in round 0, since we won't hit them in the loop
+	for (FrequentedRegion fr : allFrequentedRegions.values()) {
+	    if (isInteresting(fr)) {
+		if (requiredNodes.size()==0 && includedNodes.size()==0) {
+		    frequentedRegions.put(fr.nodes.toString(), fr);
+		} else {
+		    for (Node n : requiredNodes) {
+			if (fr.nodes.contains(n)) frequentedRegions.put(fr.nodes.toString(), fr);
+		    }
+		    for (Node n : includedNodes) {
+			if (fr.nodes.contains(n)) frequentedRegions.put(fr.nodes.toString(), fr);
 		    }
 		}
 	    }
-        }
+	}
 
         // add the full required nodes FR to allFrequentedRegions, and frequentedRegions if interesting
 	if (requiredNodes.size()>0) {
@@ -547,9 +511,6 @@ public class FRFinder {
     public boolean writeFRSubpaths() {
         return Boolean.parseBoolean(parameters.getProperty("writeFRSubpaths"));
     }
-    public boolean resume() {
-        return Boolean.parseBoolean(parameters.getProperty("resume"));
-    }
     public int getMinSupport() {
         return Integer.parseInt(parameters.getProperty("minSupport"));
     }
@@ -601,10 +562,6 @@ public class FRFinder {
 	this.priorityOption = priorityOption;
         parsePriorityOption(priorityOption);
         parameters.setProperty("priorityOption", priorityOption);
-    }
-    public void setResume() {
-	this.resume = true;
-        parameters.setProperty("resume", "true");
     }
     public void setWriteSaveFiles() {
 	this.writeSaveFiles = true;
@@ -912,10 +869,6 @@ public class FRFinder {
         priorityOptionOption.setRequired(true);
         options.addOption(priorityOptionOption);
         //
-        Option resumeOption = new Option("r", "resume", false, "resume from a previous run [false]");
-        resumeOption.setRequired(false);
-        options.addOption(resumeOption);
-        //
         Option maxRoundOption = new Option("mr", "maxround", true, "maximum FR-finding round to run [0=unlimited]");
         maxRoundOption.setRequired(false);
         options.addOption(maxRoundOption);
@@ -1082,7 +1035,6 @@ public class FRFinder {
 	if (cmd.hasOption("excludedpathnodes")) frf.setExcludedPathNodes(cmd.getOptionValue("excludedpathnodes"));
 	if (cmd.hasOption("includedpathnodes")) frf.setIncludedPathNodes(cmd.getOptionValue("includedpathnodes"));
 	if (cmd.hasOption("keepoption")) frf.setKeepOption(cmd.getOptionValue("keepoption"));
-	if (cmd.hasOption("resume")) frf.setResume();
 	if (cmd.hasOption("writesavefiles")) frf.setWriteSaveFiles();
 	if (cmd.hasOption("writepathfrs")) frf.setWritePathFRs();
 	if (cmd.hasOption("writefrsubpaths")) frf.setWriteFRSubpaths();
