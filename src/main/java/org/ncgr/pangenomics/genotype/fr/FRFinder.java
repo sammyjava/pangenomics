@@ -61,10 +61,7 @@ public class FRFinder {
     // parameters are stored in a Properties object
     Properties parameters = new Properties();
 
-    // the output FRs
-    Map<String,FrequentedRegion> frequentedRegions;
 
-    // priority option
     String priorityOption = "3";    // default
     int priorityOptionKey;          // 0, 1, 2, etc.
     String priorityOptionLabel;     // the current label for priority update emphasis: "case" or "ctrl"
@@ -97,6 +94,23 @@ public class FRFinder {
     String includedNodeString = "[]";
     String excludedPathNodeString = "[]";
     String includedPathNodeString = "[]";
+
+    // optional required and excluded nodes
+    NodeSet requiredNodes = new NodeSet();
+    NodeSet includedNodes = new NodeSet();
+    NodeSet excludedNodes = new NodeSet();
+
+    // the found FRs
+    Map<String,FrequentedRegion> frequentedRegions;
+
+    // save all scanned FRs
+    ConcurrentHashMap<String,FrequentedRegion> allFrequentedRegions = new ConcurrentHashMap<>();
+
+    // accepted FRPairs so we don't merge them more than once
+    ConcurrentHashMap<String,FRPair> acceptedFRPairs = new ConcurrentHashMap<>();
+
+    // rejected NodeSets (strings), so we don't bother scanning them more than once
+    ConcurrentSkipListSet<String> rejectedNodeSets = new ConcurrentSkipListSet<>();
     
     /**
      * Construct with a populated Graph and default parameters.
@@ -109,86 +123,12 @@ public class FRFinder {
     }
 
     /**
-     * Initialize the default parameters.
-     */
-    void initializeParameters() {
-        parameters.setProperty("writeSaveFiles", String.valueOf(writeSaveFiles));
-        parameters.setProperty("writePathFRs", String.valueOf(writePathFRs));
-        parameters.setProperty("writeFRSubpaths", String.valueOf(writeFRSubpaths));
-        parameters.setProperty("minSupport", String.valueOf(minSupport));
-        parameters.setProperty("minSize", String.valueOf(minSize));
-	parameters.setProperty("maxSize", String.valueOf(maxSize));
-        parameters.setProperty("maxRound", String.valueOf(maxRound));
-	parameters.setProperty("maxClocktime", String.valueOf(maxClocktime));
-        parameters.setProperty("minPriority", String.valueOf(minPriority));
-        parameters.setProperty("requiredNodeString", requiredNodeString);
-        parameters.setProperty("excludedNodeString", excludedNodeString);
-        parameters.setProperty("includedNodeString", includedNodeString);
-	parameters.setProperty("excludedPathNodeString", excludedPathNodeString);
-	parameters.setProperty("includedPathNodeString", includedPathNodeString);
-        parameters.setProperty("priorityOption", priorityOption);
-        parameters.setProperty("keepOption", keepOption);
-        parameters.setProperty("keepOption", "null");
-	parameters.setProperty("requireBestNodeSet", String.valueOf(requireBestNodeSet));
-	parameters.setProperty("requireSamePosition", String.valueOf(requireSamePosition));
-    }
-
-    /**
      * Find the frequented regions in this Graph for the given alpha and kappa values.
      * alpha = penetrance: the fraction of a supporting strain's sequence that actually supports the FR;
      *         alternatively, `1-alpha` is the fraction of inserted sequence.
      * kappa = maximum insertion: the maximum number of inserted nodes that a supporting path may have.
-      */
-    public void findFRs(double alpha, int kappa) throws FileNotFoundException, IOException {
-	// refresh this on each run
-	frequentedRegions = new HashMap<>();
-	
-        // optional required and excluded nodes
-	NodeSet requiredNodes = graph.getNodeSet(requiredNodeString);
-	NodeSet includedNodes = graph.getNodeSet(includedNodeString);
-	NodeSet excludedNodes = graph.getNodeSet(excludedNodeString);
-	NodeSet initialRequiredNodes = graph.getNodeSet(requiredNodeString); // this one is static for outputPrefix
-
-        // store all scanned FRs in a Map
-	ConcurrentHashMap<String,FrequentedRegion> allFrequentedRegions = new ConcurrentHashMap<>();
-
-        // rejected NodeSets (strings), so we don't bother scanning them more than once
-        ConcurrentSkipListSet<String> rejectedNodeSets = new ConcurrentSkipListSet<>();
-
-        // accepted FRPairs so we don't merge them more than once
-        ConcurrentHashMap<String,FRPair> acceptedFRPairs = new ConcurrentHashMap<>();
-
-        // initialize log file
-        logOut = new PrintStream(formOutputPrefix(alpha, kappa, initialRequiredNodes)+".log");
-	printToLog("# Starting findFRs: " +
-                   "alpha="+alpha+" " +
-                   "kappa="+kappa+" " +
-		   "priorityOption="+priorityOption+" " +
-                   "minPriority="+minPriority+" " +
-                   "minSupport="+minSupport+" " +
-                   "minSize="+minSize+" " +
-		   "maxSize="+maxSize+" " +
-                   "maxRound="+maxRound+" " +
-		   "maxClocktime="+maxClocktime+" " +
-		   "keepOption="+keepOption+" " +
-		   "requireBestNodeSet="+requireBestNodeSet+" " +
-		   "requireSamePosition="+requireSamePosition+" " +
-                   "requiredNodes="+requiredNodeString+" " +
-		   "includedNodes="+includedNodeString+" " +
-                   "excludedNodes="+excludedNodeString+" " +
-		   "excludedPathNodes="+excludedPathNodeString+" " +
-		   "includedPathNodes="+includedPathNodeString);
-	
-
-	// validate if requireSamePosition
-	if (requireSamePosition && requiredNodes.size()>0 && !requiredNodes.haveSamePosition()) {
-	    System.err.println("ERROR: requireSamePosition=true but required nodes do not have same position.");
-	    System.exit(1);
-	}
-
-        // FR-finding round counter
-        int round = 0;
-
+     */
+    public void initializeFRs(double alpha, int kappa) throws FileNotFoundException, IOException {
 	// load the single-node FRs into allFrequentedRegions
 	// - keep those not in excludedNodes
 	// - exclude those with insufficient support if alpha=1.0
@@ -209,25 +149,61 @@ public class FRFinder {
 		}
 	    });
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// DX
-	printToLog("# "+excRejects.size()+" nodes excluded because contained in excludedNodes");
-	if (alpha==1.0) printToLog("# "+supportRejects.size()+" nodes excluded because alpha=1.0 and FR support<"+minSupport);
-	// store interesting single-node FRs in round 0, since we won't hit them in the loop
-	for (FrequentedRegion fr : allFrequentedRegions.values()) {
-	    if (isInteresting(fr)) {
-		if (requiredNodes.size()==0 && includedNodes.size()==0) {
-		    frequentedRegions.put(fr.nodes.toString(), fr);
-		} else {
-		    for (Node n : requiredNodes) {
-			if (fr.nodes.contains(n)) frequentedRegions.put(fr.nodes.toString(), fr);
-		    }
-		    for (Node n : includedNodes) {
-			if (fr.nodes.contains(n)) frequentedRegions.put(fr.nodes.toString(), fr);
-		    }
-		}
-	    }
+	System.out.println("# "+excRejects.size()+" nodes excluded because contained in excludedNodes");
+	if (alpha==1.0) System.out.println("# "+supportRejects.size()+" nodes excluded because alpha=1.0 and FR support<"+minSupport);
+
+	// add the full included nodes FR to allFrequentedRegions
+	if (includedNodes.size()>0) {
+	    FrequentedRegion includedFR = new FrequentedRegion(graph, includedNodes, alpha, kappa, priorityOptionKey, priorityOptionLabel);
+	    allFrequentedRegions.put(includedFR.nodes.toString(), includedFR);
 	}
 
+        // DX: dump out the interesting single-node FRs sorted by priority
+        System.out.println("# "+allFrequentedRegions.size()+" single-node FRs will be used to initiate search.");
+    }
+
+    /**
+     * Find the frequented regions in this Graph for the given alpha and kappa values.
+     * alpha = penetrance: the fraction of a supporting strain's sequence that actually supports the FR;
+     *         alternatively, `1-alpha` is the fraction of inserted sequence.
+     * kappa = maximum insertion: the maximum number of inserted nodes that a supporting path may have.
+      */
+    public void findFRs(double alpha, int kappa) throws FileNotFoundException, IOException {
+	// validate if requireSamePosition
+	if (requireSamePosition && requiredNodes.size()>0 && !requiredNodes.haveSamePosition()) {
+	    System.err.println("ERROR: requireSamePosition=true but required nodes do not have same position.");
+	    System.exit(1);
+	}
+	// this round's log file
+        logOut = new PrintStream(formOutputPrefix(alpha, kappa, requiredNodes)+".log");
+	System.out.println("");
+	printToLog("# Starting findFRs: " +
+                   "alpha="+alpha+" " +
+                   "kappa="+kappa+" " +
+		   "priorityOption="+priorityOption+" " +
+                   "minPriority="+minPriority+" " +
+                   "minSupport="+minSupport+" " +
+                   "minSize="+minSize+" " +
+		   "maxSize="+maxSize+" " +
+                   "maxRound="+maxRound+" " +
+		   "maxClocktime="+maxClocktime+" " +
+		   "keepOption="+keepOption+" " +
+		   "requireBestNodeSet="+requireBestNodeSet+" " +
+		   "requireSamePosition="+requireSamePosition+" " +
+                   "requiredNodes="+requiredNodeString+" " +
+		   "includedNodes="+includedNodeString+" " +
+                   "excludedNodes="+excludedNodeString+" " +
+		   "excludedPathNodes="+excludedPathNodeString+" " +
+		   "includedPathNodes="+includedPathNodeString);
+	// the output FRs
+	frequentedRegions = new HashMap<>();
+	// add the full included nodes FR if interesting
+	if (includedNodes.size()>0) {
+	    FrequentedRegion includedFR = new FrequentedRegion(graph, includedNodes, alpha, kappa, priorityOptionKey, priorityOptionLabel);
+	    if (isInteresting(includedFR)) {
+		frequentedRegions.put(includedFR.nodes.toString(), includedFR);
+	    }
+	}
         // add the full required nodes FR to allFrequentedRegions, and frequentedRegions if interesting
 	if (requiredNodes.size()>0) {
 	    FrequentedRegion requiredFR = new FrequentedRegion(graph, requiredNodes, alpha, kappa, priorityOptionKey, priorityOptionLabel);
@@ -236,27 +212,13 @@ public class FRFinder {
 		frequentedRegions.put(requiredFR.nodes.toString(), requiredFR);
 	    }
 	}
-
-	// add the full included nodes FR to allFrequentedRegions, and frequentedRegions if interesting
-	if (includedNodes.size()>0) {
-	    FrequentedRegion includedFR = new FrequentedRegion(graph, includedNodes, alpha, kappa, priorityOptionKey, priorityOptionLabel);
-	    allFrequentedRegions.put(includedFR.nodes.toString(), includedFR);
-	    if (isInteresting(includedFR)) {
-		frequentedRegions.put(includedFR.nodes.toString(), includedFR);
-	    }
+	// output the the round 0 FRs
+	for (FrequentedRegion fr : frequentedRegions.values()) {
+	    printToLog("0:"+fr.toString());
 	}
-
-        // DX: dump out the interesting single-node FRs sorted by priority
-        printToLog("# "+allFrequentedRegions.size()+" single-node FRs will be used to initiate search.");
-        TreeSet<FrequentedRegion> sortedFRs = new TreeSet<>(frequentedRegions.values());
-        for (FrequentedRegion fr : sortedFRs) {
-            printToLog("0:"+fr.toString());
-        }
-
-	// used if requireBestNodeSet
-	FrequentedRegion bestFR = null;
-
-        // build the FRs round by round
+	// start the scan
+        int round = 0; // round counter
+	FrequentedRegion bestFR = null; // used if requireBestNodeSet
 	long startTime = System.currentTimeMillis();
 	boolean clocktimeExceeded = false;
         boolean added = true;
@@ -488,6 +450,7 @@ public class FRFinder {
         
 	// final output
 	if (frequentedRegions.size()>0) {
+	    NodeSet initialRequiredNodes = graph.getNodeSet(requiredNodeString);
             FRUtils.printParameters(parameters, formOutputPrefix(alpha, kappa, initialRequiredNodes), alpha, kappa, elapsedTime);
             printFrequentedRegions(formOutputPrefix(alpha, kappa, initialRequiredNodes));
             if (writePathFRs) {
@@ -602,14 +565,17 @@ public class FRFinder {
     public void setRequiredNodes(String requiredNodeString) {
 	this.requiredNodeString = requiredNodeString;
         parameters.setProperty("requiredNodeString", requiredNodeString);
+	requiredNodes = graph.getNodeSet(requiredNodeString);
     }
     public void setIncludedNodes(String includedNodeString) {
 	this.includedNodeString = includedNodeString;
 	parameters.setProperty("includedNodeString", includedNodeString);
+	includedNodes = graph.getNodeSet(includedNodeString);
     }
     public void setExcludedNodes(String excludedNodeString) {
 	this.excludedNodeString = excludedNodeString;
         parameters.setProperty("excludedNodeString", excludedNodeString);
+	excludedNodes = graph.getNodeSet(excludedNodeString);
     }
     public void setExcludedPathNodes(String excludedPathNodeString) {
 	this.excludedPathNodeString = excludedPathNodeString;
@@ -1044,6 +1010,7 @@ public class FRFinder {
 	frf.verbose = cmd.hasOption("verbose");
 	frf.debug = cmd.hasOption("debug");
 	// run the requested job(s)
+	frf.initializeFRs(alpha, kappa);
 	if (requiredNodeStart>0 && requiredNodeEnd>0) {
 	    for (long id=requiredNodeStart; id<=requiredNodeEnd; id++) {
 		if (pg.nodeIdMap.containsKey(id)) {
@@ -1057,5 +1024,30 @@ public class FRFinder {
 	} else {
 	    frf.findFRs(alpha, kappa);
 	}
+    }
+
+    /**
+     * Initialize the default parameters.
+     */
+    void initializeParameters() {
+        parameters.setProperty("writeSaveFiles", String.valueOf(writeSaveFiles));
+        parameters.setProperty("writePathFRs", String.valueOf(writePathFRs));
+        parameters.setProperty("writeFRSubpaths", String.valueOf(writeFRSubpaths));
+        parameters.setProperty("minSupport", String.valueOf(minSupport));
+        parameters.setProperty("minSize", String.valueOf(minSize));
+	parameters.setProperty("maxSize", String.valueOf(maxSize));
+        parameters.setProperty("maxRound", String.valueOf(maxRound));
+	parameters.setProperty("maxClocktime", String.valueOf(maxClocktime));
+        parameters.setProperty("minPriority", String.valueOf(minPriority));
+        parameters.setProperty("requiredNodeString", requiredNodeString);
+        parameters.setProperty("excludedNodeString", excludedNodeString);
+        parameters.setProperty("includedNodeString", includedNodeString);
+	parameters.setProperty("excludedPathNodeString", excludedPathNodeString);
+	parameters.setProperty("includedPathNodeString", includedPathNodeString);
+        parameters.setProperty("priorityOption", priorityOption);
+        parameters.setProperty("keepOption", keepOption);
+        parameters.setProperty("keepOption", "null");
+	parameters.setProperty("requireBestNodeSet", String.valueOf(requireBestNodeSet));
+	parameters.setProperty("requireSamePosition", String.valueOf(requireSamePosition));
     }
 }
