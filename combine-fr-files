@@ -1,0 +1,14 @@
+#!/bin/sh
+
+FRPREFIX=$1
+PARAMNUMBER=$2
+
+## remove old files
+rm $FRPREFIX-combined*
+
+## combine the runs
+cat $FRPREFIX-*.frs.txt > $FRPREFIX-combined.frs.txt
+cp $FRPREFIX-$PARAMNUMBER.params.txt $FRPREFIX-combined.params.txt
+
+## form the combined-best file
+./run-frutils-extractbest $FRPREFIX-combined

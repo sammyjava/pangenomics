@@ -43,4 +43,4 @@ PATHSPREFIX=$2
 FRSPREFIX=$3
 
 ## write the SVM file
-java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -svm -g $GRAPHPREFIX -p $PATHSPREFIX -f $FRSPREFIX
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -svm -g $GRAPHPREFIX -p $PATHSPREFIX -f $FRSPREFIX $4 $5 $6 $7

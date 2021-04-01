@@ -100,13 +100,13 @@ public class FRFinder {
     NodeSet includedNodes = new NodeSet();
     NodeSet excludedNodes = new NodeSet();
 
-    // the found FRs
+    // the found FRs per finding run
     Map<String,FrequentedRegion> frequentedRegions;
 
-    // save all scanned FRs
-    ConcurrentHashMap<String,FrequentedRegion> allFrequentedRegions = new ConcurrentHashMap<>();
+    // starting FRs for each finding run
+    ConcurrentHashMap<String,FrequentedRegion> initialFrequentedRegions = new ConcurrentHashMap<>();
 
-    // accepted FRPairs so we don't merge them more than once
+    // store accepted FRPairs so we don't merge them more than once
     ConcurrentHashMap<String,FRPair> acceptedFRPairs = new ConcurrentHashMap<>();
 
     // rejected NodeSets (strings), so we don't bother scanning them more than once
@@ -123,13 +123,10 @@ public class FRFinder {
     }
 
     /**
-     * Find the frequented regions in this Graph for the given alpha and kappa values.
-     * alpha = penetrance: the fraction of a supporting strain's sequence that actually supports the FR;
-     *         alternatively, `1-alpha` is the fraction of inserted sequence.
-     * kappa = maximum insertion: the maximum number of inserted nodes that a supporting path may have.
+     * Initialize the maps used in findFRs.
      */
     public void initializeFRs(double alpha, int kappa) throws FileNotFoundException, IOException {
-	// load the single-node FRs into allFrequentedRegions
+	// load the single-node FRs into initialFrequentedRegions
 	// - keep those not in excludedNodes
 	// - exclude those with insufficient support if alpha=1.0
 	ConcurrentSkipListSet<Node> nodes = new ConcurrentSkipListSet<>(graph.getNodes());
@@ -144,7 +141,7 @@ public class FRFinder {
 		    if (alpha==1.0 && fr.support<minSupport) {
 			supportRejects.add(node);
 		    } else {
-			allFrequentedRegions.put(fr.nodes.toString(), fr);
+			initialFrequentedRegions.put(fr.nodes.toString(), fr);
 		    }
 		}
 	    });
@@ -152,14 +149,14 @@ public class FRFinder {
 	System.out.println("# "+excRejects.size()+" nodes excluded because contained in excludedNodes");
 	if (alpha==1.0) System.out.println("# "+supportRejects.size()+" nodes excluded because alpha=1.0 and FR support<"+minSupport);
 
-	// add the full included nodes FR to allFrequentedRegions
+	// add the full included nodes FR to initialFrequentedRegions
 	if (includedNodes.size()>0) {
 	    FrequentedRegion includedFR = new FrequentedRegion(graph, includedNodes, alpha, kappa, priorityOptionKey, priorityOptionLabel);
-	    allFrequentedRegions.put(includedFR.nodes.toString(), includedFR);
+	    initialFrequentedRegions.put(includedFR.nodes.toString(), includedFR);
 	}
 
         // DX: dump out the interesting single-node FRs sorted by priority
-        System.out.println("# "+allFrequentedRegions.size()+" single-node FRs will be used to initiate search.");
+        System.out.println("# "+initialFrequentedRegions.size()+" single-node FRs will be used to initiate search(es).");
     }
 
     /**
@@ -195,7 +192,9 @@ public class FRFinder {
                    "excludedNodes="+excludedNodeString+" " +
 		   "excludedPathNodes="+excludedPathNodeString+" " +
 		   "includedPathNodes="+includedPathNodeString);
-	// the output FRs
+	// initialize the FRs to be scanned
+	ConcurrentHashMap<String,FrequentedRegion> allFrequentedRegions = new ConcurrentHashMap<>(initialFrequentedRegions);
+	// initialize the output FRs
 	frequentedRegions = new HashMap<>();
 	// add the full included nodes FR if interesting
 	if (includedNodes.size()>0) {

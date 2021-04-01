@@ -86,16 +86,23 @@ public class FRUtils {
     }
 
     /**
-     * Read FRs from the text file written by an FR run, but leaving support, OR, p, priority at the values in the file.
+     * Read FRs from the text file with no filtering on p or priority.
+     */
+    public static TreeSet<FrequentedRegion> readFrequentedRegions(PangenomicGraph graph, String frsPrefix) throws FileNotFoundException, IOException {
+	return readFrequentedRegions(graph, frsPrefix, 1.0, 0);
+    }
+
+    /**
+     * Read FRs from the text file written by an FR run, filtering on p-value and priority as given in the file.
      * This method populates the FR subpaths based on alpha, kappa.
-     *
+     * 0       1       2       3       4       5       6       7
      * nodes   size    support case    ctrl    OR      p       pri
      * [1341]  1       21      19      2       9.500   9.48E-3 202
      * 509678.ctrl:[18,20,21,23,24,26,27,29,30,33,34]
      * 628863.case:[18,20,21,23,24,26,27,29,30,33,34]
      * etc.
      */
-    public static TreeSet<FrequentedRegion> readFrequentedRegions(PangenomicGraph graph, String frsPrefix) throws FileNotFoundException, IOException {
+    public static TreeSet<FrequentedRegion> readFrequentedRegions(PangenomicGraph graph, String frsPrefix, double maxPValue, int minPriority) throws FileNotFoundException, IOException {
         // get alpha, kappa, and graph from the input prefix
         double alpha = readAlpha(frsPrefix);
         int kappa = readKappa(frsPrefix);
@@ -105,9 +112,13 @@ public class FRUtils {
         BufferedReader reader = new BufferedReader(new FileReader(frFilename));
         String line = null;
         while ((line=reader.readLine())!=null) {
-	    FrequentedRegion fr = new FrequentedRegion(graph, alpha, kappa, line);
-	    if (fr.size>0) {
-		frequentedRegions.add(fr);
+	    if (line.startsWith("#") || line.startsWith("nodes")) continue;
+	    String[] fields = line.split("\t");
+	    int size = Integer.parseInt(fields[1]);
+	    double p = Double.parseDouble(fields[6]);
+	    int pri = Integer.parseInt(fields[7]);
+	    if (size>0 && p<=maxPValue && pri>=minPriority) {
+		frequentedRegions.add(new FrequentedRegion(graph, alpha, kappa, line));
 	    }
 	}
 	// number the FRs
@@ -330,11 +341,11 @@ public class FRUtils {
      *
      * which is similar, but not identical to, the SVMlight format.
      */
-    public static void printPathFRsSVM(String graphPrefix, String pathsPrefix, String frsPrefix) throws IOException, FileNotFoundException {
+    public static void printPathFRsSVM(String graphPrefix, String pathsPrefix, String frsPrefix, double minPValue, int maxPriority) throws IOException, FileNotFoundException {
 	// read the graph
 	final PangenomicGraph graph = readGraph(graphPrefix, pathsPrefix);
         // read the FRs from files
-	final TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(graph, frsPrefix);
+	final TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(graph, frsPrefix, minPValue, maxPriority);
 	// collect the paths, cases and controls
         final ConcurrentSkipListSet<Path> concurrentPaths = buildConcurrentPaths(graph);
 	///////////////////////////////////////////////////////
@@ -541,6 +552,7 @@ public class FRUtils {
     /**
      * Print out the best (last per run) FRs from a combined run file. Uses a TreeSet to make sure they're unique.
      *
+     * 0        1       2       3       4       5       6       7
      * nodes	size	support	case	ctrl	OR	p	pri
      * [891]	1	4712	2549	2163	1.178	1.01E-14	71
      * [786,891]	2	113	10	103	0.097	8.54E-21	1012
@@ -551,10 +563,7 @@ public class FRUtils {
      * [259,411,892]	3	101	24	77	0.312	1.02E-7	506
      * [259,411,873,892]	4	100	23	77	0.299	4.76E-8	524 <== print this one
      */
-    public static void printBestFRs(String frsPrefix) throws IOException {
-	double alpha = readAlpha(frsPrefix);
-	int kappa = readKappa(frsPrefix);
-        String frFilename = getFRsFilename(frsPrefix);
+    public static void printBestFRs(String frFilename, double alpha, int kappa) throws IOException {
 	TreeSet<String> sortedLines = new TreeSet<>();
         BufferedReader reader = new BufferedReader(new FileReader(frFilename));
 	String header = null;
@@ -644,7 +653,7 @@ public class FRUtils {
 	numCtrlPathsOption.setRequired(false);
 	options.addOption(numCtrlPathsOption);
 	//
-	Option extractBestFRsOption = new Option("extractbest", "extractbestfrs", false, "extract the best (last) FRs from a file containing many runs, each starting with the header");
+	Option extractBestFRsOption = new Option("extractbest", "extractbestfrs", false, "extract the best FRs from a file containing many runs, each starting with the header");
 	extractBestFRsOption.setRequired(false);
 	options.addOption(extractBestFRsOption);
         //
@@ -666,22 +675,39 @@ public class FRUtils {
             System.exit(1);
             return;
         }
+
+	// file stuff
+	String graphPrefix = cmd.getOptionValue("graphprefix");
+	String pathsPrefix = cmd.getOptionValue("pathsprefix");
+	String frsPrefix = cmd.getOptionValue("frsprefix");
+
+	// param defaults
+	int minSupport = 0;
+	double maxPValue = 1.0;
+	int minPriority = 0;
+	int minSize = 0;
+	// supplied params
+	if (cmd.hasOption("minsupport")) minSupport = Integer.parseInt(cmd.getOptionValue("minsupport"));
+	if (cmd.hasOption("maxpvalue")) maxPValue = Double.parseDouble(cmd.getOptionValue("maxpvalue"));
+	if (cmd.hasOption("minpriority")) minPriority = Integer.parseInt(cmd.getOptionValue("minpriority"));
+	if (cmd.hasOption("minsize")) minSize = Integer.parseInt(cmd.getOptionValue("minsize"));
 	
 	// ACTIONS
 	if (cmd.hasOption("post")) {
-	    int minSupport = Integer.parseInt(cmd.getOptionValue("minsupport"));
-	    int minSize = Integer.parseInt(cmd.getOptionValue("minsize"));
-	    postprocess(cmd.getOptionValue("graphprefix"), cmd.getOptionValue("pathsprefix"), cmd.getOptionValue("frsPrefix"), minSupport, minSize);
+	    postprocess(graphPrefix, pathsPrefix, frsPrefix, minSupport, minSize);
 	} else if (cmd.hasOption("svm")) {
-	    printPathFRsSVM(cmd.getOptionValue("graphprefix"), cmd.getOptionValue("pathsprefix"), cmd.getOptionValue("frsprefix"));
+	    printPathFRsSVM(graphPrefix, pathsPrefix, frsPrefix, maxPValue, minPriority);
 	} else if (cmd.hasOption("arff")) {
-	    printPathFRsARFF(cmd.getOptionValue("graphprefix"), cmd.getOptionValue("pathsprefix"), cmd.getOptionValue("frsprefix"));
+	    printPathFRsARFF(graphPrefix, pathsPrefix, frsPrefix);
 	} else if (cmd.hasOption("pathfrs")) {
-	    printPathFRs(cmd.getOptionValue("graphprefix"), cmd.getOptionValue("pathsprefix"), cmd.getOptionValue("frsprefix"));
+	    printPathFRs(graphPrefix, pathsPrefix, frsPrefix);
 	} else if (cmd.hasOption("prs")) {
-	    calculatePRS(cmd.getOptionValue("graphprefix"), cmd.getOptionValue("pathsprefix"), cmd.getOptionValue("frsprefix"));
+	    calculatePRS(graphPrefix, pathsPrefix, frsPrefix);
         } else if (cmd.hasOption("extractbestfrs")) {
-	    printBestFRs(cmd.getOptionValue("frsprefix"));
+	    double alpha = readAlpha(frsPrefix);
+	    int kappa = readKappa(frsPrefix);
+	    String frFilename = getFRsFilename(frsPrefix);
+	    printBestFRs(frFilename, alpha, kappa);
 	}
     }
 

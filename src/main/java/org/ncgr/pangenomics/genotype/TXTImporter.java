@@ -104,7 +104,7 @@ public class TXTImporter extends Importer {
 			       "while only "+sampleNodeSets.size()+" were loaded from "+pathsFile.getName());
 	}
 	// wrap up
-	if (verbose) System.err.println("Read "+sampleNodeSets.size()+" sample paths from "+labelsFile.getName()+" and "+pathsFile.getName());
+	if (verbose) System.err.println("Read "+sampleNodeSets.size()+" paths from "+labelsFile.getName()+" and "+pathsFile.getName());
     }
 
     /**
@@ -134,7 +134,7 @@ public class TXTImporter extends Importer {
 	    }
 	}
 	// wrap up
-	if (verbose) System.err.println("Read "+sampleNodeSets.size()+" sample paths from "+pathsFile.getName());
+	if (verbose) System.err.println("Read "+sampleNodeSets.size()+" paths from "+pathsFile.getName());
     }
 
     /**

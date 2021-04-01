@@ -1,0 +1,19 @@
+#!/bin/sh
+
+GRAPH=$1
+FRPREFIX=$2
+MAXP=$3
+MINPRI=$4
+
+## make the filtered SVM files
+./run-frutils-svm $GRAPH $GRAPH $FRPREFIX-combined-best --maxpvalue $MAXP --minpriority $MINPRI
+./run-frutils-svm $GRAPH $GRAPH.testing $FRPREFIX-combined-best --maxpvalue $MAXP --minpriority $MINPRI
+mv $FRPREFIX-combined-best.$GRAPH.svm.txt $FRPREFIX-combined-best.svm.txt
+mv $FRPREFIX-combined-best.$GRAPH.testing.svm.txt $FRPREFIX-combined-best.testing.svm.txt
+
+## scale the SVM files
+./run-libsvmscaler-samples $FRPREFIX-combined-best
+./run-libsvmscaler-testing $FRPREFIX-combined-best
+
+## run GridSearch with RBF
+./run-libsvmgridsearch $FRPREFIX-combined-best RBF
