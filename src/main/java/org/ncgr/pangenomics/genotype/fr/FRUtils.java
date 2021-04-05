@@ -86,14 +86,14 @@ public class FRUtils {
     }
 
     /**
-     * Read FRs from the text file with no filtering on p or priority.
+     * Read FRs from the text file with no filtering on size, support, p, or priority.
      */
     public static TreeSet<FrequentedRegion> readFrequentedRegions(PangenomicGraph graph, String frsPrefix) throws FileNotFoundException, IOException {
-	return readFrequentedRegions(graph, frsPrefix, 1.0, 0);
+	return readFrequentedRegions(graph, frsPrefix, 1, 1, 1.0, 0);
     }
 
     /**
-     * Read FRs from the text file written by an FR run, filtering on p-value and priority as given in the file.
+     * Read FRs from the text file written by an FR run, filtering on size, support, p-value and priority as given in the file.
      * This method populates the FR subpaths based on alpha, kappa.
      * 0       1       2       3       4       5       6       7
      * nodes   size    support case    ctrl    OR      p       pri
@@ -102,7 +102,8 @@ public class FRUtils {
      * 628863.case:[18,20,21,23,24,26,27,29,30,33,34]
      * etc.
      */
-    public static TreeSet<FrequentedRegion> readFrequentedRegions(PangenomicGraph graph, String frsPrefix, double maxPValue, int minPriority) throws FileNotFoundException, IOException {
+    public static TreeSet<FrequentedRegion> readFrequentedRegions(PangenomicGraph graph, String frsPrefix,
+								  int minSize, int minSupport, double maxPValue, int minPriority) throws FileNotFoundException, IOException {
         // get alpha, kappa, and graph from the input prefix
         double alpha = readAlpha(frsPrefix);
         int kappa = readKappa(frsPrefix);
@@ -111,16 +112,35 @@ public class FRUtils {
         TreeSet<FrequentedRegion> frequentedRegions = new TreeSet<>();
         BufferedReader reader = new BufferedReader(new FileReader(frFilename));
         String line = null;
+	int droppedSizeCount = 0;
+	int droppedSupportCount = 0;
+	int droppedPCount = 0;
+	int droppedPriCount = 0;
         while ((line=reader.readLine())!=null) {
 	    if (line.startsWith("#") || line.startsWith("nodes")) continue;
 	    String[] fields = line.split("\t");
 	    int size = Integer.parseInt(fields[1]);
+	    int support = Integer.parseInt(fields[2]);
 	    double p = Double.parseDouble(fields[6]);
 	    int pri = Integer.parseInt(fields[7]);
-	    if (size>0 && p<=maxPValue && pri>=minPriority) {
+	    if (size<minSize) {
+		droppedSizeCount++;
+	    } else if (support<minSupport) {
+		droppedSupportCount++;
+	    } else if (p>maxPValue) {
+		droppedPCount++;
+	    } else if (pri<minPriority) {
+		droppedPriCount++;
+	    } else {
 		frequentedRegions.add(new FrequentedRegion(graph, alpha, kappa, line));
 	    }
 	}
+	// DX
+	System.err.println("## size<"+minSize+": "+droppedSizeCount);
+	System.err.println("## support<"+minSupport+": "+droppedSupportCount);
+	System.err.println("## p>"+maxPValue+": "+droppedPCount);
+	System.err.println("## pri<"+minPriority+": "+droppedPriCount);
+	System.err.println("## total dropped: "+(droppedSizeCount+droppedSupportCount+droppedPCount+droppedPriCount));
 	// number the FRs
         int number = 0;
         for (FrequentedRegion fr : frequentedRegions) {
@@ -231,27 +251,31 @@ public class FRUtils {
     }
 
     /**
-     * Grab the graph name from the full FR run prefix
+     * Grab the graph name from an FR prefix.
      */
-    public static String getGraphName(String prefix) {
-	String[] parts = prefix.split("-");
+    public static String getGraphName(String frPrefix) {
+	String[] parts = frPrefix.split("-");
+	if (parts.length==1) {
+	    System.err.println("ERROR: FR prefix "+frPrefix+" does not contain '-'.");
+	    System.exit(1);
+	}
 	return parts[0];
     }
 
     /**
-     * Form the graph nodes filename
+     * Form the graph nodes filename from an FR prefix.
      * if prefix = HTT.1k-1.0-0 then filename = HTT.nodes.txt
      */
-    public static String getNodesFilename(String prefix) {
-        return getGraphName(prefix)+".nodes.txt";
+    public static String getNodesFilename(String frPrefix) {
+        return getGraphName(frPrefix)+".nodes.txt";
     }
 
     /**
-     * Form the graph paths filename
+     * Form the graph paths filename from an FR prefix.
      * if prefix = HTT.1k-1.0-0 then filename = HTT.paths.txt
      */
-    public static String getPathsFilename(String prefix) {
-        return getGraphName(prefix)+".paths.txt";
+    public static String getPathsFilename(String frPrefix) {
+        return getGraphName(frPrefix)+".paths.txt";
     }
 
     /**
@@ -341,11 +365,12 @@ public class FRUtils {
      *
      * which is similar, but not identical to, the SVMlight format.
      */
-    public static void printPathFRsSVM(String graphPrefix, String pathsPrefix, String frsPrefix, double minPValue, int maxPriority) throws IOException, FileNotFoundException {
+    public static void printPathFRsSVM(String graphPrefix, String pathsPrefix, String frsPrefix,
+				       int minSize, int minSupport, double maxPValue, int minPriority) throws IOException, FileNotFoundException {
 	// read the graph
 	final PangenomicGraph graph = readGraph(graphPrefix, pathsPrefix);
         // read the FRs from files
-	final TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(graph, frsPrefix, minPValue, maxPriority);
+	final TreeSet<FrequentedRegion> frequentedRegions = readFrequentedRegions(graph, frsPrefix, minSize, minSupport, maxPValue, minPriority);
 	// collect the paths, cases and controls
         final ConcurrentSkipListSet<Path> concurrentPaths = buildConcurrentPaths(graph);
 	///////////////////////////////////////////////////////
@@ -682,21 +707,21 @@ public class FRUtils {
 	String frsPrefix = cmd.getOptionValue("frsprefix");
 
 	// param defaults
+	int minSize = 0;
 	int minSupport = 0;
 	double maxPValue = 1.0;
 	int minPriority = 0;
-	int minSize = 0;
 	// supplied params
+	if (cmd.hasOption("minsize")) minSize = Integer.parseInt(cmd.getOptionValue("minsize"));
 	if (cmd.hasOption("minsupport")) minSupport = Integer.parseInt(cmd.getOptionValue("minsupport"));
 	if (cmd.hasOption("maxpvalue")) maxPValue = Double.parseDouble(cmd.getOptionValue("maxpvalue"));
 	if (cmd.hasOption("minpriority")) minPriority = Integer.parseInt(cmd.getOptionValue("minpriority"));
-	if (cmd.hasOption("minsize")) minSize = Integer.parseInt(cmd.getOptionValue("minsize"));
-	
+
 	// ACTIONS
 	if (cmd.hasOption("post")) {
 	    postprocess(graphPrefix, pathsPrefix, frsPrefix, minSupport, minSize);
 	} else if (cmd.hasOption("svm")) {
-	    printPathFRsSVM(graphPrefix, pathsPrefix, frsPrefix, maxPValue, minPriority);
+	    printPathFRsSVM(graphPrefix, pathsPrefix, frsPrefix, minSize, minSupport, maxPValue, minPriority);
 	} else if (cmd.hasOption("arff")) {
 	    printPathFRsARFF(graphPrefix, pathsPrefix, frsPrefix);
 	} else if (cmd.hasOption("pathfrs")) {
@@ -734,19 +759,32 @@ public class FRUtils {
     /**
      * Load a graph from a pair of TXT files along with checks on the number of case and control paths desired.
      */
-    public static PangenomicGraph readGraph(String graphPrefix, String pathsPrefix) throws FileNotFoundException, IOException {
-	PangenomicGraph graph = new PangenomicGraph(getGraphName(graphPrefix));
-	graph.loadNodesFromTXT(new File(getNodesFilename(graphPrefix)));
-	graph.loadPathsFromTXT(new File(getPathsFilename(pathsPrefix)));
+    public static PangenomicGraph readGraph(String graphPrefix, String pathsPrefix) throws IOException {
+	String nodesFilename = graphPrefix+".nodes.txt";
+	String pathsFilename = pathsPrefix+".paths.txt";
+	System.err.println("## Reading nodes file "+nodesFilename);
+	System.err.println("## Reading paths file "+pathsFilename);
+	File nodesFile = new File(nodesFilename);
+	File pathsFile = new File(pathsFilename);
+	if (!nodesFile.isFile()) {
+	    System.err.println("ERROR: file "+nodesFilename+" does not exist.");
+	    System.exit(1);
+	} else if (!pathsFile.isFile()) {
+	    System.err.println("ERROR: file "+pathsFilename+" does not exist.");
+	    System.exit(1);
+	}
+	PangenomicGraph graph = new PangenomicGraph(graphPrefix);
+	graph.loadNodesFromTXT(nodesFile);
+	graph.loadPathsFromTXT(pathsFile);
 	graph.tallyLabelCounts();
-        return graph;
+	return graph;
     }
     
     /**
      * Prune a TreeSet of FrequentedRegions based on size, support, p-value and priority.
      */
     public static TreeSet<FrequentedRegion> pruneFrequentedRegions(TreeSet<FrequentedRegion> frequentedRegions,
-										 int minSize, int minSupport, double maxPValue, int minPriority) {
+								   int minSize, int minSupport, double maxPValue, int minPriority) {
 	TreeSet<FrequentedRegion> frNoCalls = removeNoCalls(frequentedRegions);
 	TreeSet<FrequentedRegion> frMinSize = pruneOnSize(frNoCalls, minSize);
         TreeSet<FrequentedRegion> frMinSupport = pruneOnSupport(frMinSize, minSupport);

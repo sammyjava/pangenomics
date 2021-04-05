@@ -2,18 +2,24 @@
 
 GRAPH=$1
 FRPREFIX=$2
-MAXP=$3
-MINPRI=$4
+
+MINSUPPORT=$3
+MAXP=$4
+MINPRI=$5
 
 ## make the filtered SVM files
-./run-frutils-svm $GRAPH $GRAPH $FRPREFIX-combined-best --maxpvalue $MAXP --minpriority $MINPRI
-./run-frutils-svm $GRAPH $GRAPH.testing $FRPREFIX-combined-best --maxpvalue $MAXP --minpriority $MINPRI
-mv $FRPREFIX-combined-best.$GRAPH.svm.txt $FRPREFIX-combined-best.svm.txt
-mv $FRPREFIX-combined-best.$GRAPH.testing.svm.txt $FRPREFIX-combined-best.testing.svm.txt
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -svm -g $GRAPH -p $GRAPH         -f $FRPREFIX \
+	--minsupport $MINSUPPORT --maxpvalue $MAXP --minpriority $MINPRI
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -svm -g $GRAPH -p $GRAPH.testing -f $FRPREFIX \
+	--minsupport $MINSUPPORT --maxpvalue $MAXP --minpriority $MINPRI
+
+## remove the extra chunk from the file names
+mv $FRPREFIX.$GRAPH.svm.txt $FRPREFIX.svm.txt
+mv $FRPREFIX.$GRAPH.testing.svm.txt $FRPREFIX.testing.svm.txt
 
 ## scale the SVM files
-./run-libsvmscaler-samples $FRPREFIX-combined-best
-./run-libsvmscaler-testing $FRPREFIX-combined-best
+./run-libsvmscaler-samples $FRPREFIX
+./run-libsvmscaler-testing $FRPREFIX
 
 ## run GridSearch with RBF
-./run-libsvmgridsearch $FRPREFIX-combined-best RBF
+./run-libsvmgridsearch $FRPREFIX RBF

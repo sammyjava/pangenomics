@@ -106,12 +106,6 @@ public class FRFinder {
     // starting FRs for each finding run
     ConcurrentHashMap<String,FrequentedRegion> initialFrequentedRegions = new ConcurrentHashMap<>();
 
-    // store accepted FRPairs so we don't merge them more than once
-    ConcurrentHashMap<String,FRPair> acceptedFRPairs = new ConcurrentHashMap<>();
-
-    // rejected NodeSets (strings), so we don't bother scanning them more than once
-    ConcurrentSkipListSet<String> rejectedNodeSets = new ConcurrentSkipListSet<>();
-    
     /**
      * Construct with a populated Graph and default parameters.
      */
@@ -225,8 +219,12 @@ public class FRFinder {
 	    round++;
             added = false;
 	    long roundStartTime = System.currentTimeMillis();
+	    // store accepted FRPairs so we don't merge them more than once
+	    ConcurrentHashMap<String,FRPair> acceptedFRPairs = new ConcurrentHashMap<>();
             // store FRPairs in a map keyed by merged nodes in THIS round for parallel operation and sorting
             ConcurrentSkipListSet<FRPair> interestingFRPairs = new ConcurrentSkipListSet<>();
+	    // rejected NodeSets (strings), so we don't bother scanning them more than once
+	    ConcurrentSkipListSet<String> rejectedNodeSets = new ConcurrentSkipListSet<>();
 	    // requiredNodes and bestFR need to be final for the parallel stream
 	    final NodeSet finalRequiredNodes = requiredNodes;
 	    final FrequentedRegion finalBestFR = bestFR;
