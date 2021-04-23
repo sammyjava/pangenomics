@@ -178,7 +178,7 @@ public class Util {
     /**
      * Compute prediction statistics from a data file (which has the actual case/control values) and a prediction file (with predicted -1/1 values).
      */
-    public static void computeStats(String datafilename, String predfilename) throws FileNotFoundException, IOException {
+    public static void printStats(String datafilename, String predfilename) throws FileNotFoundException, IOException {
         List<Sample> samples = readSamples(datafilename);
         LinkedHashMap<Sample,String> predictions = new LinkedHashMap<>();
         BufferedReader reader = new BufferedReader(new FileReader(predfilename));
@@ -226,9 +226,9 @@ public class Util {
                     fpCount++;
                 }
             }
-            System.out.println(sample.name+"\t"+sample.label+"\t"+prediction+"\t"+status);
+            // System.out.println(sample.name+"\t"+sample.label+"\t"+prediction+"\t"+status);
         }
-        System.out.println("TP\tTN\tCorr\tTPR\tFPR");
+        System.out.println("TP\tTN\tAccur.\tTPR\tFPR");
         System.out.println(tpCount+"\t"+tnCount+"\t"+
 			   pf.format((double)(correctCount)/(double)samples.size())+"\t"+
                            df.format((double)tpCount/caseCount)+"\t"+
@@ -347,7 +347,7 @@ public class Util {
                 System.err.println("ERROR: --stats requires --datafile and --predfile");
                 System.exit(1);
             }
-            computeStats(cmd.getOptionValue("datafile"), cmd.getOptionValue("predfile"));
+            printStats(cmd.getOptionValue("datafile"), cmd.getOptionValue("predfile"));
         }
 
         // --elki

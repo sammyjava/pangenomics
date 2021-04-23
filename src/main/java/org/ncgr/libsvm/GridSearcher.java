@@ -10,9 +10,9 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.LinkedHashMap;
+import java.util.Set;
 import java.util.Vector;
-import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -32,8 +32,9 @@ import libsvm.svm_parameter;
  */
 public class GridSearcher {
 
-    static DecimalFormat df = new DecimalFormat("0.00E0");
-    static DecimalFormat pf = new DecimalFormat("00.0%");
+    static DecimalFormat sci = new DecimalFormat("0.00E0");
+    static DecimalFormat perc = new DecimalFormat("00.0%");
+    static DecimalFormat rate = new DecimalFormat("0.000");
 
     boolean verbose = false;
 
@@ -125,7 +126,7 @@ public class GridSearcher {
     }
 
     /**
-     * Run the search for each C (and gamma)
+     * Run the scan over (C,gamma), then sort on MCC.
      */
     public void run() {
 	if (verbose) {
@@ -138,17 +139,19 @@ public class GridSearcher {
 		System.err.println("gamma=2^n from "+gammaPowerBegin+"("+Math.pow(2.0,gammaPowerBegin)+") to "+gammaPowerEnd+"("+Math.pow(2.0,gammaPowerEnd)+") with n-step="+gammaPowerStep);
 	    }
 	}
-	ConcurrentSkipListSet<Double> CSet = new ConcurrentSkipListSet<>();
+	Set<Double> CSet = ConcurrentHashMap.newKeySet();
         for (int n=CPowerBegin; n<=CPowerEnd; n+=CPowerStep) {
             CSet.add(Math.pow(2.0, n));
         }
-	ConcurrentSkipListSet<Double> gammaSet = new ConcurrentSkipListSet<>();
+	Set<Double> gammaSet = ConcurrentHashMap.newKeySet();
 	for (int n=gammaPowerBegin; n<=gammaPowerEnd; n+=gammaPowerStep) {
             gammaSet.add(Math.pow(2.0, n));
 	}
 	// these maps are keyed by the svm_parameter
-	ConcurrentSkipListMap<svm_parameter,Integer> totalCorrectMap = new ConcurrentSkipListMap<>();
-	ConcurrentSkipListMap<svm_parameter,Double> accuracyMap = new ConcurrentSkipListMap<>();
+	Map<svm_parameter,Double> accuracyMap = new ConcurrentHashMap<>();
+	Map<svm_parameter,Double> tprMap = new ConcurrentHashMap<>();
+	Map<svm_parameter,Double> fprMap = new ConcurrentHashMap<>();
+	Map<svm_parameter,Double> mccMap = new ConcurrentHashMap<>();
         ////////////////////////////////////////////////////////////////////////////////////////////////
         // C loop
         CSet.parallelStream().forEach(C -> {
@@ -166,11 +169,17 @@ public class GridSearcher {
 			    svc.inputFilename = inputFilename;
 			    svc.run();
 			    if (verbose) {
-				System.err.println(kernelString+": C="+df.format(param.C)+" gamma="+df.format(param.gamma)+" totalCorrect="+svc.totalCorrect+" accuracy="+pf.format(svc.accuracy));
+				System.err.println(kernelString+": C="+sci.format(param.C)+" gamma="+sci.format(param.gamma)+
+						   " accuracy="+perc.format(svc.accuracy)+
+						   " TPR="+rate.format(svc.TPR)+
+						   " FPR="+rate.format(svc.FPR)+
+						   " MCC="+rate.format(svc.MCC));
 			    }
 			    // store the results
-			    totalCorrectMap.put(param, svc.totalCorrect);
 			    accuracyMap.put(param, svc.accuracy);
+			    tprMap.put(param, svc.TPR);
+			    fprMap.put(param, svc.FPR);
+			    mccMap.put(param, svc.MCC);
 			});
 		    ////////////////////////////////////////////////////////////////////////////////////////////////
 		} else {
@@ -183,43 +192,53 @@ public class GridSearcher {
 		    svc.inputFilename = inputFilename;
 		    svc.run();
 		    if (verbose) {
-			System.err.println(kernelString+": C="+df.format(param.C)+" totalCorrect="+svc.totalCorrect+" accuracy="+pf.format(svc.accuracy));
+			System.err.println(kernelString+": C="+sci.format(param.C)+
+					   " accuracy="+perc.format(svc.accuracy)+
+					   " TPR="+rate.format(svc.TPR)+
+					   " FPR="+rate.format(svc.FPR)+
+					   " MCC="+rate.format(svc.MCC));
 		    }
 		    // store the results
-		    totalCorrectMap.put(param, svc.totalCorrect);
 		    accuracyMap.put(param, svc.accuracy);
+		    tprMap.put(param, svc.TPR);
+		    fprMap.put(param, svc.FPR);
+		    mccMap.put(param, svc.MCC);
 		}
             });            
         ////////////////////////////////////////////////////////////////////////////////////////////////
-	// sort the results by total correct
-        List<Entry<svm_parameter,Integer>> totalCorrectList = new LinkedList<>(totalCorrectMap.entrySet());
-        totalCorrectList.sort(Entry.comparingByValue());
-        Map<svm_parameter,Integer> sortedCorrectMap = new LinkedHashMap<>();
+	// sort the results by MCC
+        List<Entry<svm_parameter,Double>> mccList = new LinkedList<>(mccMap.entrySet());
+        mccList.sort(Entry.comparingByValue());
 	Map<svm_parameter,Double> sortedAccuracyMap = new LinkedHashMap<>();
-	for (Entry<svm_parameter,Integer> entry : totalCorrectList) {
+	Map<svm_parameter,Double> sortedTPRMap = new LinkedHashMap<>();
+	Map<svm_parameter,Double> sortedFPRMap = new LinkedHashMap<>();
+	Map<svm_parameter,Double> sortedMCCMap = new LinkedHashMap<>();
+	for (Entry<svm_parameter,Double> entry : mccList) {
 	    svm_parameter param = entry.getKey();
-	    int totalCorrect = entry.getValue();
-	    double accuracy = accuracyMap.get(param);
-            sortedCorrectMap.put(param, totalCorrect);
-	    sortedAccuracyMap.put(param, accuracy);
+	    sortedMCCMap.put(param, entry.getValue());
+	    sortedAccuracyMap.put(param, accuracyMap.get(param));
+	    sortedTPRMap.put(param, tprMap.get(param));
+	    sortedFPRMap.put(param, fprMap.get(param));
 	}
 	// output
 	if (kernel_type==svm_parameter.RBF) {
-	    System.out.println("C\tgamma\tcorrect\taccuracy");
-	    System.err.println("C\tgamma\tcorrect\taccuracy");
+	    System.out.println("C\tgamma\taccur\tTPR\tFPR\tMCC");
 	} else {
-	    System.out.println("C\tcorrect\taccuracy");
-	    System.err.println("C\tcorrect\taccuracy");
+	    System.out.println("C\taccur\tTPR\tFPR\tMCC");
 	}
-	for (svm_parameter param : sortedCorrectMap.keySet()) {
-	    int totalCorrect = sortedCorrectMap.get(param);
-	    double accuracy = sortedAccuracyMap.get(param);
+	for (svm_parameter param : sortedMCCMap.keySet()) {
 	    if (kernel_type==svm_parameter.RBF) {
-		System.out.println(df.format(param.C)+"\t"+df.format(param.gamma)+"\t"+totalCorrect+"\t"+pf.format(accuracy));
-		System.err.println(df.format(param.C)+"\t"+df.format(param.gamma)+"\t"+totalCorrect+"\t"+pf.format(accuracy));
+		System.out.println(sci.format(param.C)+"\t"+sci.format(param.gamma)+
+				   "\t"+perc.format(sortedAccuracyMap.get(param))+
+				   "\t"+perc.format(sortedTPRMap.get(param))+
+				   "\t"+perc.format(sortedFPRMap.get(param))+
+				   "\t"+rate.format(sortedMCCMap.get(param)));
 	    } else {
-		System.out.println(df.format(param.C)+"\t"+totalCorrect+"\t"+pf.format(accuracy));
-		System.err.println(df.format(param.C)+"\t"+totalCorrect+"\t"+pf.format(accuracy));
+		System.out.println(sci.format(param.C)+
+				   "\t"+perc.format(sortedAccuracyMap.get(param))+
+				   "\t"+perc.format(sortedTPRMap.get(param))+
+				   "\t"+perc.format(sortedFPRMap.get(param))+
+				   "\t"+rate.format(sortedMCCMap.get(param)));
 	    }
 	}
     }

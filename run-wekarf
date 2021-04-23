@@ -1,0 +1,34 @@
+#!/bin/bash
+# usage: WekaRandomForest
+#  -a,--arfffile <arg>           input data file in ARFF format (required)
+#  -bo,--boostoption <arg>       boost method: Ada or Logit (none)
+#  -bsp,--bagsizepercent <arg>   the size of each bag, as a percentage of
+#                                the training set size [100]
+#  -btr,--breaktiesrandomly      break ties randomly
+#  -D,--debug                    turn on debugging mode
+#  -md,--maxdepth <arg>          maximum depth of the tree [0=unlimited]
+#  -nf,--numfeatures <arg>       number of features to use in random
+#                                selection [0=automatic]
+#  -ni,--numiterations <arg>     the number of bagging iterations [100]
+#  -no,--numoptimize <arg>       the number of training/testing runs to
+#                                optimize the model [10]
+#  -test,--test                  run training/testing on arfffile/testfile
+#  -tf,--testfile <arg>          test data file in ARFF format
+
+PREFIX=$1
+NUMITERATIONS=$2
+NUMFEATURES=$3
+
+TRAINFILE=$PREFIX.arff
+TESTFILE=$PREFIX.testing.arff
+
+## parameters
+KFOLD=10
+
+#echo "WekaRandomForest $KFOLD-fold cross-validation on $TRAINFILE"
+#java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaRandomForest --crossvalidate --arfffile=$TRAINFILE --kfold=$KFOLD \
+#     --numiterations=$NUMITERATIONS --numfeatures=$NUMFEATURES $4
+
+echo "WekaRandomForest training/testing on $TRAINFILE and $TESTFILE"
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaRandomForest --test --arfffile=$TRAINFILE --testfile=$TESTFILE \
+     --numiterations=$NUMITERATIONS --numfeatures=$NUMFEATURES $4 $5

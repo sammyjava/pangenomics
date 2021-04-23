@@ -61,7 +61,6 @@ public class FRFinder {
     // parameters are stored in a Properties object
     Properties parameters = new Properties();
 
-
     String priorityOption = "3";    // default
     int priorityOptionKey;          // 0, 1, 2, etc.
     String priorityOptionLabel;     // the current label for priority update emphasis: "case" or "ctrl"
@@ -104,7 +103,7 @@ public class FRFinder {
     Map<String,FrequentedRegion> frequentedRegions;
 
     // starting FRs for each finding run
-    ConcurrentHashMap<String,FrequentedRegion> initialFrequentedRegions = new ConcurrentHashMap<>();
+    Map<String,FrequentedRegion> initialFrequentedRegions = new ConcurrentHashMap<>();
 
     /**
      * Construct with a populated Graph and default parameters.
@@ -123,9 +122,11 @@ public class FRFinder {
 	// load the single-node FRs into initialFrequentedRegions
 	// - keep those not in excludedNodes
 	// - exclude those with insufficient support if alpha=1.0
-	ConcurrentSkipListSet<Node> nodes = new ConcurrentSkipListSet<>(graph.getNodes());
-	ConcurrentSkipListSet<Node> excRejects = new ConcurrentSkipListSet<>();
-	ConcurrentSkipListSet<Node> supportRejects = new ConcurrentSkipListSet<>();
+	
+	Set<Node> nodes = ConcurrentHashMap.newKeySet();
+	nodes.addAll(graph.getNodes());
+	Set<Node> excRejects = ConcurrentHashMap.newKeySet();
+	Set<Node> supportRejects = ConcurrentHashMap.newKeySet();
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	nodes.parallelStream().forEach(node -> {
 		if (excludedNodes.contains(node)) {
@@ -187,7 +188,7 @@ public class FRFinder {
 		   "excludedPathNodes="+excludedPathNodeString+" " +
 		   "includedPathNodes="+includedPathNodeString);
 	// initialize the FRs to be scanned
-	ConcurrentHashMap<String,FrequentedRegion> allFrequentedRegions = new ConcurrentHashMap<>(initialFrequentedRegions);
+	Map<String,FrequentedRegion> allFrequentedRegions = new ConcurrentHashMap<>(initialFrequentedRegions);
 	// initialize the output FRs
 	frequentedRegions = new HashMap<>();
 	// add the full included nodes FR if interesting
@@ -220,11 +221,11 @@ public class FRFinder {
             added = false;
 	    long roundStartTime = System.currentTimeMillis();
 	    // store accepted FRPairs so we don't merge them more than once
-	    ConcurrentHashMap<String,FRPair> acceptedFRPairs = new ConcurrentHashMap<>();
+	    Map<String,FRPair> acceptedFRPairs = new ConcurrentHashMap<>();
             // store FRPairs in a map keyed by merged nodes in THIS round for parallel operation and sorting
-            ConcurrentSkipListSet<FRPair> interestingFRPairs = new ConcurrentSkipListSet<>();
+            ConcurrentSkipListSet<FRPair> interestingFRPairs = new ConcurrentSkipListSet<>(); // must be sorted, so use ConcurrentSkipListSet
 	    // rejected NodeSets (strings), so we don't bother scanning them more than once
-	    ConcurrentSkipListSet<String> rejectedNodeSets = new ConcurrentSkipListSet<>();
+	    Set<String> rejectedNodeSets = ConcurrentHashMap.newKeySet();
 	    // requiredNodes and bestFR need to be final for the parallel stream
 	    final NodeSet finalRequiredNodes = requiredNodes;
 	    final FrequentedRegion finalBestFR = bestFR;

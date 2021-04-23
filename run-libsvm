@@ -14,7 +14,7 @@ MINSIZE=0
 
 MINSUPPORT=10
 
-KERNEL="RBF"
+KERNEL=RBF
 
 ## cross-validation
 K=10

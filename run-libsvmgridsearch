@@ -18,8 +18,8 @@
 #  -nr,--nr <arg>                 nr-fold for cross validation [10]
 #  -v,--verbose                   toggle verbose output
 
-PREFIX=$1
-KERNEL=$2
+KERNEL=$1
+PREFIX=$2
 
 RANGEFILE="$PREFIX.svm.range.txt"
 SCALEFILE="$PREFIX.svm.scale.txt"
@@ -32,14 +32,37 @@ NCONTROLS=200
 NCASES=0
 NCONTROLS=0
 
-CPOWERBEGIN=5
-CPOWEREND=11
 CPOWERSTEP=1
+GAMMAPOWERSTEP=1
 GAMMAPOWERBEGIN=-30
 GAMMAPOWEREND=-10
-GAMMAPOWERSTEP=1
 
-ARGS="-d $SCALEFILE -nr $NRFOLD -ncases $NCASES -ncontrols $NCONTROLS -k $KERNEL -cb $CPOWERBEGIN -ce $CPOWEREND -cs $CPOWERSTEP -gb $GAMMAPOWERBEGIN -ge $GAMMAPOWEREND -gs $GAMMAPOWERSTEP"
-
+## run in several batches because can't get more than 5 threads per run, for unknown reasons
+ARGS="-d $SCALEFILE -nr $NRFOLD -ncases $NCASES -ncontrols $NCONTROLS -k $KERNEL"
 echo "Running GridSearcher with $ARGS"
-java -server -cp "build/install/pangenomics/lib/*" org.ncgr.libsvm.GridSearcher -v $ARGS > $GRIDFILE
+
+CPOWERBEGIN=5
+CPOWEREND=5
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.libsvm.GridSearcher $ARGS -cb $CPOWERBEGIN -ce $CPOWEREND -cs $CPOWERSTEP -gb $GAMMAPOWERBEGIN -ge $GAMMAPOWEREND -gs $GAMMAPOWERSTEP &
+
+CPOWERBEGIN=6
+CPOWEREND=6
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.libsvm.GridSearcher $ARGS -cb $CPOWERBEGIN -ce $CPOWEREND -cs $CPOWERSTEP -gb $GAMMAPOWERBEGIN -ge $GAMMAPOWEREND -gs $GAMMAPOWERSTEP &
+
+CPOWERBEGIN=7
+CPOWEREND=7
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.libsvm.GridSearcher $ARGS -cb $CPOWERBEGIN -ce $CPOWEREND -cs $CPOWERSTEP -gb $GAMMAPOWERBEGIN -ge $GAMMAPOWEREND -gs $GAMMAPOWERSTEP &
+
+CPOWERBEGIN=8
+CPOWEREND=8
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.libsvm.GridSearcher $ARGS -cb $CPOWERBEGIN -ce $CPOWEREND -cs $CPOWERSTEP -gb $GAMMAPOWERBEGIN -ge $GAMMAPOWEREND -gs $GAMMAPOWERSTEP &
+
+CPOWERBEGIN=9
+CPOWEREND=9
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.libsvm.GridSearcher $ARGS -cb $CPOWERBEGIN -ce $CPOWEREND -cs $CPOWERSTEP -gb $GAMMAPOWERBEGIN -ge $GAMMAPOWEREND -gs $GAMMAPOWERSTEP &
+
+## a little longer to finish last
+CPOWERBEGIN=10
+CPOWEREND=11
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.libsvm.GridSearcher $ARGS -cb $CPOWERBEGIN -ce $CPOWEREND -cs $CPOWERSTEP -gb $GAMMAPOWERBEGIN -ge $GAMMAPOWEREND -gs $GAMMAPOWERSTEP
+

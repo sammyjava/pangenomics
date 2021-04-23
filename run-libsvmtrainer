@@ -30,8 +30,8 @@
 #  -w,--weight <arg>                  set the parameter C of class i to
 #                                     weight*C, for C-SVC [1]
 
-PREFIX=$1
-KERNEL=$2
+KERNEL=$1
+PREFIX=$2
 C=$3
 GAMMA=$4
 

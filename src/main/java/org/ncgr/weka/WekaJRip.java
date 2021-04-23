@@ -147,8 +147,7 @@ public class WekaJRip {
 	}
 
 	// Read all the instances in the file (ARFF, CSV, XRFF, ...)
-	DataSource source = new DataSource(arffFile);
- 	Instances data = source.getDataSet();
+ 	Instances data = Util.rearrange(new DataSource(arffFile).getDataSet());
         // remove the ID attribute
         data.deleteAttributeAt(0);
         // set the class attribute index

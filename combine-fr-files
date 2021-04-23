@@ -1,16 +1,29 @@
 #!/bin/sh
+# usage: FRUtils
+#  -extractbest,--extractbestfrs    extract the best FRs from a file
+#                                   containing many runs, each starting with
+#                                   the header
+#  -f,--frsprefix <arg>             prefix of FRs file (e.g. HLAA-0.0-Inf)
+#  -removedupes,--removedupefrs     remove duplicate FRs from a file
+#                                   containing many runs, each starting with
+#                                   the header
 
 FRPREFIX=$1
 PARAMNUMBER=$2
 
-## remove old files
+## remove old combined files
 rm $FRPREFIX-combined*
 
-## combine the runs
+## combine the numbered runs
 cat $FRPREFIX-*.frs.txt > $FRPREFIX-combined.frs.txt
 cp $FRPREFIX-$PARAMNUMBER.params.txt $FRPREFIX-combined.params.txt
 
-## form the combined-best file
+## form the one-from-each-run combined-best file (requires header from each run above!)
 java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -extractbest -f $FRPREFIX-combined > $FRPREFIX-combined-best.frs.txt
 cp $FRPREFIX-combined.params.txt $FRPREFIX-combined-best.params.txt
+
+## remove dupes from the combined FR file
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -removedupes -f $FRPREFIX-combined > temp.txt
+mv temp.txt $FRPREFIX-combined.frs.txt
+
 

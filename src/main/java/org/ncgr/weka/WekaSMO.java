@@ -1,4 +1,4 @@
- package org.ncgr.weka;
+package org.ncgr.weka;
 
 import java.text.DecimalFormat;
 
@@ -7,11 +7,13 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.LinkedHashMap;
 import java.util.Map.Entry;
+import java.util.TreeMap;
 import java.util.Random;
-import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
+import weka.classifiers.Classifier;
 import weka.classifiers.Evaluation;
 import weka.classifiers.functions.SMO;
 import weka.classifiers.functions.supportVector.Kernel;
@@ -20,6 +22,7 @@ import weka.classifiers.functions.supportVector.RBFKernel;
 import weka.core.Instance;
 import weka.core.Instances;
 import weka.core.SelectedTag;
+import weka.core.SerializationHelper;
 import weka.core.converters.ConverterUtils.DataSource;
 
 import org.apache.commons.cli.CommandLine;
@@ -29,8 +32,6 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-
-import org.apache.commons.math3.stat.StatUtils;
  
 /**
  * Run Weka SMO operations on an ARFF file.
@@ -42,7 +43,7 @@ public class WekaSMO {
     static final int C_POWER_STEP = 1;
 
     // RBF kernel gamma range and step
-    static final int G_POWER_BEGIN = -25;
+    static final int G_POWER_BEGIN = -30;
     static final int G_POWER_END = -10;
     static final int G_POWER_STEP = 1;
 
@@ -53,10 +54,12 @@ public class WekaSMO {
     
     // number formats
     static final DecimalFormat sci = new DecimalFormat("0.00E00");
-    static final DecimalFormat perc = new DecimalFormat("00.0%");
+    static final DecimalFormat perc = new DecimalFormat("0.0%");
     static final DecimalFormat rate = new DecimalFormat("0.000");
-    static final DecimalFormat round = new DecimalFormat("0");
     
+    /**
+     * Main class to run static methods.
+     */
     public static void main(String[] args) throws Exception {
 	Options options = new Options();
         CommandLineParser parser = new DefaultParser();
@@ -78,46 +81,46 @@ public class WekaSMO {
 	Option gridSearchOption = new Option("gs", "gridsearch", false, "run a grid search over parameters");
 	gridSearchOption.setRequired(false);
 	options.addOption(gridSearchOption);
-	//
 	Option crossValidateOption = new Option("cv", "crossvalidate", false, "run cross-validation");
 	crossValidateOption.setRequired(false);
 	options.addOption(crossValidateOption);
-	//
 	Option testOption = new Option("test", "test", false, "run training/testing on datasets with given SMO and kernel parameters");
 	testOption.setRequired(false);
 	options.addOption(testOption);
+	Option optimizeOption = new Option("op", "optimize", false, "optimize model by running noptimize training/testing runs and choosing highest MCC");
+	optimizeOption.setRequired(false);
+	options.addOption(optimizeOption);
 	// PARAMETERS
 	Option kfoldOption = new Option("k", "kfold", true, "cross-validation k-fold (required)");
 	kfoldOption.setRequired(false);
 	options.addOption(kfoldOption);
-	//
 	Option complexityOption = new Option("C", "complexity", true, "SMO complexity constant C");
 	complexityOption.setRequired(false);
 	options.addOption(complexityOption);
-	//
 	Option kernelParamOption = new Option("kp", "kernelparam", true, "SMO kernel parameter (RBF:gamma, Poly:exponent)");
 	kernelParamOption.setRequired(false);
 	options.addOption(kernelParamOption);
-	//
 	Option normalizationOption = new Option("N", "normalization", true, "0=normalize, 1=standardize, 2=neither [0]");
 	normalizationOption.setRequired(false);
 	options.addOption(normalizationOption);
-	//
 	Option toleranceOption = new Option("L", "tolerance", true, "tolerance parameter [1.0e-3]");
 	toleranceOption.setRequired(false);
 	options.addOption(toleranceOption);
-	//
 	Option epsilonOption = new Option("P", "epsilon", true, "epsilon for round-off error [1.0e-12]");
 	epsilonOption.setRequired(false);
 	options.addOption(epsilonOption);
-	//
 	Option fitCalibrationModelsOption = new Option("M", "fitcalibrationmodels", false, "fit calibration models to SVM outputs");
 	fitCalibrationModelsOption.setRequired(false);
 	options.addOption(fitCalibrationModelsOption);
-	//
 	Option nGridSearchOption = new Option("ng", "ngridsearch", true, "set number of cases+controls (equal) to use in grid search [0=all]");
 	nGridSearchOption.setRequired(false);
 	options.addOption(nGridSearchOption);
+	Option numOptimizeOption = new Option("no", "numoptimize", true, "the number of training/testing runs to optimize the model [10]");
+	numOptimizeOption.setRequired(false);
+	options.addOption(numOptimizeOption);
+	Option debugOption = new Option("D", "debug", false, "toggle on debug mode [off]");
+	debugOption.setRequired(false);
+	options.addOption(debugOption);
 
 	try {
             cmd = parser.parse(options, args);
@@ -132,42 +135,26 @@ public class WekaSMO {
 	final boolean crossValidate = cmd.hasOption("crossvalidate");
 	final boolean gridSearch = cmd.hasOption("gridsearch");
 	final boolean test = cmd.hasOption("test");
+	final boolean optimize = cmd.hasOption("optimize");
 
-	// cross-validation and grid search kfold
-	int kfold = 0;
-	if (crossValidate || gridSearch) {
-	    kfold = Integer.parseInt(cmd.getOptionValue("kfold"));
-	}
-
-	// the kernel and parameters
+	// parameters
+	int kfold = 10;
 	double C = 0.0;
 	double kernelParam = 0.0;
+	int numOptimize = 10;
 	String kernelName = cmd.getOptionValue("kernel");
-	if (kernelName.equals("RBF")) {
-	    if (test || crossValidate) {
-		C = Double.parseDouble(cmd.getOptionValue("C"));
-		kernelParam = Double.parseDouble(cmd.getOptionValue("kernelparam"));
-	    }
-	} else if (kernelName.equals("Poly")) {
-	    if (test || crossValidate) {
-		C = Double.parseDouble(cmd.getOptionValue("C"));
-		kernelParam = Double.parseDouble(cmd.getOptionValue("kernelparam"));
-	    }
-	} else {
-	    System.err.println("ERROR: you must specify either RBF or Poly kernel");
-	    System.exit(1);
-	}
+	if (cmd.hasOption("complexity")) C = Double.parseDouble(cmd.getOptionValue("C"));
+	if (cmd.hasOption("kernelparam")) kernelParam = Double.parseDouble(cmd.getOptionValue("kernelparam"));
+	if (cmd.hasOption("kfold")) kfold = Integer.parseInt(cmd.getOptionValue("kfold"));
+	if (cmd.hasOption("numoptimize")) numOptimize = Integer.parseInt(cmd.getOptionValue("numoptimize"));
+	boolean debug = cmd.hasOption("debug");
 
-	// Read instances from the input ARFF file
- 	Instances data = new DataSource(cmd.getOptionValue("arfffile")).getDataSet();
-        // remove the ID attribute
-        data.deleteAttributeAt(0);
-        // set the class attribute index at the end (0/1)
-        data.setClassIndex(data.numAttributes() - 1);
+	// Read instances from the input ARFF files
+ 	Instances data = Util.rearrange(new DataSource(cmd.getOptionValue("arfffile")).getDataSet());
 
 	// do work
 	if (crossValidate) {
-	    double correct = crossValidate(data, kernelName, kfold, C, kernelParam);
+	    double mcc = crossValidate(data, kernelName, kfold, C, kernelParam, debug);
 	} else if (gridSearch) {
 	    int nCases = 0;
 	    int nControls = 0;
@@ -175,108 +162,59 @@ public class WekaSMO {
 		nCases = Integer.parseInt(cmd.getOptionValue("ngridsearch"))/2;
 		nControls = nCases;
 	    }
-	    Instances searchData = reduceData(data, nCases, nControls);
+	    Instances searchData = Util.reduceData(data, nCases, nControls);
 	    searchGrid(searchData, kernelName, kfold);
 	} else if (test) {
-	    Instances testData = new DataSource(cmd.getOptionValue("testfile")).getDataSet();
-	    // remove the ID attribute
-	    testData.deleteAttributeAt(0);
-	    // set the class attribute index at the end (0/1)
-	    testData.setClassIndex(data.numAttributes() - 1);
-	    // test
+	    Instances testData = Util.rearrange(new DataSource(cmd.getOptionValue("testfile")).getDataSet());
 	    test(data, testData, kernelName, C, kernelParam);
+	} else if (optimize) {
+	    Instances testData = Util.rearrange(new DataSource(cmd.getOptionValue("testfile")).getDataSet());
+	    optimize(data, testData, kernelName, C, kernelParam, numOptimize);
 	}
+    }
+
+    /**
+     * Run a cross-validation on the data for a given kfold, C and kernel parameter, returning the MCC.
+     */
+    public static double crossValidate(Instances data, String kernelName, int kfold, double C, double kernelParam, boolean debug) throws Exception {
+	SMO smo = getSMO(kernelName, C, kernelParam);
+	Evaluation evaluation = new Evaluation(data);
+	if (debug) System.err.println("# cross-validating SMO with kfold="+kfold+" C="+sci.format(C)+" exp/gamma="+sci.format(kernelParam));
+	evaluation.crossValidateModel(smo, data, kfold, new Random(ThreadLocalRandom.current().nextInt()));
+	// output
+	Util.printResults(evaluation, C, kernelParam);
+	return evaluation.matthewsCorrelationCoefficient(1);
     }
 
     /**
      * Test a model on the given data.
      */
     public static void test(Instances trainingData, Instances testingData, String kernelName, double C, double kernelParam) throws Exception {
-	// SMO model
-	SMO model = new SMO();
-	model.setNumDecimalPlaces(3);
-	model.setC(C);
-	if (kernelName.equals("RBF")) {
-	    model.setKernel(getRBFKernel(kernelParam));
-	} else if (kernelName.equals("Poly")) {
-	    model.setKernel(getPolyKernel(kernelParam));
-	} else {
-	    throw new Exception("ERROR: only RBF and Poly kernels are supported at this time.");
-	}
-	// training
-	model.buildClassifier(trainingData);
+	SMO model = getSMO(kernelName, C, kernelParam);
 	Evaluation trainingEvaluation = new Evaluation(trainingData);
-	System.err.println("Training SMO classifier on "+trainingData.size()+" instances with C="+sci.format(C)+" and kernelParam="+sci.format(kernelParam));
-	trainingEvaluation.evaluateModel(model, trainingData);
-	printResults(trainingEvaluation);
-	// test
-	System.err.println("Evaluating SMO classifier on "+testingData.size()+" instances.");
 	Evaluation testingEvaluation = new Evaluation(testingData);
-	testingEvaluation.evaluateModel(model, testingData);
+	System.err.println("# testing/training SMO classifier with C="+sci.format(C)+" kernelParam="+sci.format(kernelParam));
+	model.buildClassifier(trainingData);	                  // train
+	trainingEvaluation.evaluateModel(model, trainingData);  // validate
+	testingEvaluation.evaluateModel(model, testingData);	  // test
 	// output
-	printResults(testingEvaluation);
+	System.err.println("# training result on "+trainingData.size()+" instances:");
+	Util.printResults(trainingEvaluation, C, kernelParam);
+	System.err.println("# testing result on "+testingData.size()+" instances:"); 
+	Util.printResults(testingEvaluation, C, kernelParam);
     }
 
     /**
-     * Print evaluation results.
-     */
-    public static void printResults(Evaluation evaluation) {
-	double correct = evaluation.correct();
-	double pctCorrect = evaluation.pctCorrect()/100.0;
-	double TPR = evaluation.truePositiveRate(1);
-	double FPR = evaluation.falsePositiveRate(1);
-	System.out.println("correct\tpct\tTPR\tFPR");
-	System.out.println(round.format(correct)+"\t"+pctCorrect+"\t"+rate.format(TPR)+"\t"+rate.format(FPR));
-    }
-
-    /**
-     * Reduce the number of cases and controls from those in the given data.
-     */
-    public static Instances reduceData(Instances data, int nCases, int nControls) {
-	if (nCases==0 || nControls==0) return data;
-	System.err.println("Reducing data to "+nCases+" cases and "+nControls+" controls...");
-	Instances reducedData = new Instances(data, (nCases+nControls));
-	Random r = new Random(ThreadLocalRandom.current().nextInt());
-	List<Integer> usedIndexes = new LinkedList<>();
-	double caseValue = 1.0;
-	double ctrlValue = 0.0;
-	// load cases
-	int caseCount = 0;
-	while (caseCount<nCases) {
-	    int i = r.nextInt(data.size());
-	    if (usedIndexes.contains(i)) continue;
-	    Instance instance = data.get(i);
-	    if (instance.classValue()==caseValue) {
-		caseCount++;
-		usedIndexes.add(i);
-		reducedData.add(instance);
-	    }
-	}
-	// load controls
-	int ctrlCount = 0;
-	while (ctrlCount<nControls) {
-	    int i = r.nextInt(data.size());
-	    if (usedIndexes.contains(i)) continue;
-	    Instance instance = data.get(i);
-	    if (instance.classValue()==ctrlValue) {
-		ctrlCount++;
-		usedIndexes.add(i);
-		reducedData.add(instance);
-	    }
-	}
-	return reducedData;
-    }
-
-    /**
-     * Run a grid search over C and kernel param.
+     * Run a k-fold cross-validation grid search over C and kernel param. Defines "best" as largest MCC.
      */
     public static void searchGrid(Instances data, String kernelName, int kfold) {
+	System.err.println("# searching (C,param) grid with "+kfold+"-fold cross-validation on "+data.size()+" instances");
 	// parameter search grid
-	ConcurrentSkipListSet<Double> CSet = new ConcurrentSkipListSet<>();
+	Set<Double> CSet = ConcurrentHashMap.newKeySet();
 	for (int n=C_POWER_BEGIN; n<=C_POWER_END; n+=C_POWER_STEP) {
 	    CSet.add(Math.pow(2.0, n));
 	}
-	ConcurrentSkipListSet<Double> kernelParamSet = new ConcurrentSkipListSet<>();
+	Set<Double> kernelParamSet = ConcurrentHashMap.newKeySet();
 	if (kernelName.equals("RBF")) {
 	    for (int n=G_POWER_BEGIN; n<=G_POWER_END; n+=G_POWER_STEP) {
 		kernelParamSet.add(Math.pow(2.0, n));
@@ -287,7 +225,7 @@ public class WekaSMO {
 	    }
 	}
 	// these maps are keyed by C:kernelParam
-	ConcurrentSkipListMap<String,Double> totalCorrectMap = new ConcurrentSkipListMap<>();
+	Map<String,Double> mccMap = new ConcurrentHashMap<>();
 	////////////////////////////////////////////////////////////////////////////////////////////////
 	// C loop
 	CSet.parallelStream().forEach(C -> {
@@ -296,8 +234,8 @@ public class WekaSMO {
 		kernelParamSet.parallelStream().forEach(kernelParam -> {
 			final String key = C+":"+kernelParam;
 			try {
-			    final double correct = crossValidate(data, kernelName, kfold, C, kernelParam);
-			    totalCorrectMap.put(key, correct);
+			    double mcc = crossValidate(data, kernelName, kfold, C, kernelParam, false);
+			    mccMap.put(key, mcc);
 			} catch (Exception ex) {
 			    System.err.println(ex);
 			    System.exit(1);
@@ -306,81 +244,77 @@ public class WekaSMO {
 		////////////////////////////////////////////////////////////////////////////////////////////////
 	    });            
 	////////////////////////////////////////////////////////////////////////////////////////////////
-	// sort the totalCorrect map
-	List<Entry<String,Double>> totalCorrectList = new LinkedList<>(totalCorrectMap.entrySet());
-	totalCorrectList.sort(Entry.comparingByValue());
-	Map<String,Double> sortedCorrectMap = new LinkedHashMap<>();
-	for (Entry<String,Double> entry : totalCorrectList) {
+	// sort the mcc map
+	List<Entry<String,Double>> mccList = new LinkedList<>(mccMap.entrySet());
+	mccList.sort(Entry.comparingByValue());
+	Map<String,Double> sortedMCCMap = new LinkedHashMap<>();
+	for (Entry<String,Double> entry : mccList) {
 	    String key = entry.getKey();
-	    double totalCorrect = entry.getValue();
-	    sortedCorrectMap.put(key, totalCorrect);
+	    double mcc = entry.getValue();
+	    sortedMCCMap.put(key, mcc);
 	}
 	// output
-	System.out.println("C\tparam\tcorrect\tperc");
-	for (String key : sortedCorrectMap.keySet()) {
+	System.out.println("C\tparam\t\tMCC");
+	for (String key : sortedMCCMap.keySet()) {
 	    String[] fields = key.split(":");
 	    double C = Double.parseDouble(fields[0]);
 	    double param = Double.parseDouble(fields[1]);
-	    int totalCorrect = sortedCorrectMap.get(key).intValue();
-	    System.out.println(sci.format(C)+"\t"+sci.format(param)+"\t"+totalCorrect+"\t"+perc.format((double)totalCorrect/(double)data.size()));
+	    double mcc = sortedMCCMap.get(key);
+	    System.out.println(sci.format(C)+"\t"+sci.format(param)+"\t"+rate.format(mcc));
 	}
     }
     
     /**
-     * Run a cross-validation on the data for a given kfold, C and kernel parameter.
+     * Optimize the model by training/testing numOptimize times and saving the best one (highest mcc).
+     *
+     * serialize model
+     * weka.core.SerializationHelper.write("/some/where/j48.model", cls);
+     *
+     * deserialize model
+     * Classifier cls = (Classifier) weka.core.SerializationHelper.read("/some/where/j48.model");
      */
-    public static double crossValidate(Instances data, String kernelName, int kfold, double C, double kernelParam) throws Exception {
-	// run the cross-validation
-	Evaluation evaluation = new Evaluation(data);
-	SMO model = new SMO();
-	model.setNumDecimalPlaces(3);
-	model.turnChecksOn();
-	// complexity
-	model.setC(C);
-	// kernel
-	if (kernelName.equals("RBF")) {
-	    // kernelParam = gamma
-	    model.setKernel(getRBFKernel(kernelParam));
-	} else if (kernelName.equals("Poly")) {
-	    // kernelParam = exponent
-	    model.setKernel(getPolyKernel(kernelParam));
-	} else {
-	    throw new Exception("ERROR: only RBF and Poly kernels are supported at this time.");
+    public static void optimize(Instances trainingData, Instances testingData, String kernelName, double C, double kernelParam, int numOptimize) throws Exception {
+	TreeMap<Double,Classifier> models = new TreeMap<>();
+	TreeMap<Double,Evaluation> evaluations = new TreeMap<>();
+	System.err.println("# optimizing SMO with "+kernelName+" kernel C="+sci.format(C)+" exp/gamma="+sci.format(kernelParam));
+    	for (int round=1; round<=numOptimize; round++) {
+	    SMO model = getSMO(kernelName, C, kernelParam);
+	    Evaluation testingEvaluation = new Evaluation(testingData);
+	    model.buildClassifier(trainingData);                  // train
+	    testingEvaluation.evaluateModel(model, testingData);  // test
+	    Util.printResults(testingEvaluation);                 // output
+	    // store
+	    evaluations.put(testingEvaluation.matthewsCorrelationCoefficient(1), testingEvaluation);
+	    models.put(testingEvaluation.matthewsCorrelationCoefficient(1), model);
 	}
-	// cross-validate
-	evaluation.crossValidateModel(model, data, kfold, new Random(ThreadLocalRandom.current().nextInt(0, 100)));
-	// assume case=1
-	double correct = evaluation.correct();
-	double pctCorrect = evaluation.pctCorrect();
-	double TPR = evaluation.truePositiveRate(1);
-	double FPR = evaluation.falsePositiveRate(1);
-	double MCC = evaluation.matthewsCorrelationCoefficient(1);
-	double precision = evaluation.precision(1);
-	double recall = evaluation.recall(1);
-	// DEBUG
-	System.err.println("kfold="+kfold+" C="+C+" kernelParam="+kernelParam);
-	System.err.println(evaluation.toSummaryString());
-	//
-	return correct;
+	// output
+	Util.printStats(evaluations);
+	// save
+	System.out.println("# saving best model to file wekasmo.model");
+	SerializationHelper.write("wekasmo.model", models.lastEntry().getValue());
     }
 
     /**
-     * Instantiate an RBF kernel with the given gamma value.
+     * Instantiate an SMO classifier with the given parameters.
      */
-    public static RBFKernel getRBFKernel(double gamma) {
-	RBFKernel kernel = new RBFKernel();
-	kernel.setGamma(gamma);
-	return kernel;
-    }
-
-    /**
-     * Instantiate a Poly kernel with the given exponent.
-     */
-    public static PolyKernel getPolyKernel(double exponent) {
-	PolyKernel kernel = new PolyKernel();
-	kernel.setExponent(exponent);
-	return kernel;
+    public static SMO getSMO(String kernelName, double C, double kernelParam) {
+	SMO model = new SMO();
+	int modelseed = ThreadLocalRandom.current().nextInt();
+	model.setRandomSeed(modelseed);
+	model.setNumDecimalPlaces(3);
+	model.setC(C);
+	if (kernelName.equals("RBF")) {
+	    RBFKernel kernel = new RBFKernel();
+	    kernel.setGamma(kernelParam);
+	    model.setKernel(kernel);
+	} else if (kernelName.equals("Poly")) {
+	    PolyKernel kernel = new PolyKernel();
+	    kernel.setExponent(kernelParam);
+	    model.setKernel(kernel);
+	} else {
+	    System.err.println("ERROR: only RBF and Poly kernels are supported at this time.");
+	    System.exit(1);
+	}
+	return model;
     }
 }
-	
-	

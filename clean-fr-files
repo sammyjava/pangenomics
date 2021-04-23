@@ -1,0 +1,16 @@
+#!/bin/sh
+
+FRPREFIX=$1
+
+rm *.log
+
+## remove numbered files
+rm ${FRPREFIX}-1*
+rm ${FRPREFIX}-2*
+rm ${FRPREFIX}-3*
+rm ${FRPREFIX}-4*
+rm ${FRPREFIX}-5*
+rm ${FRPREFIX}-6*
+rm ${FRPREFIX}-7*
+rm ${FRPREFIX}-8*
+rm ${FRPREFIX}-9*

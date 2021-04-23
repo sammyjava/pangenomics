@@ -15,9 +15,7 @@ import java.util.TreeMap;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.TreeSet;
-
-import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -210,8 +208,9 @@ public class GraphUtils {
         // data
         out.println("@DATA");
 	///////////////////////////////////////////////////////////////////////////////////////
-	ConcurrentSkipListSet<Path> concurrentPaths = new ConcurrentSkipListSet<>(graph.paths);
-	ConcurrentSkipListSet<String> arffData = new ConcurrentSkipListSet<>();
+	Set<Path> concurrentPaths = ConcurrentHashMap.newKeySet();
+	concurrentPaths.addAll(graph.paths);
+	Set<String> arffData = ConcurrentHashMap.newKeySet();
 	concurrentPaths.parallelStream().forEach(path -> {
 		String arff = path.getName();
 		for (Node node : graph.getNodes()) {
@@ -241,8 +240,9 @@ public class GraphUtils {
      */
     public static void printSvmData(PangenomicGraph graph, PrintStream out) {
 	///////////////////////////////////////////////////////////////////////////////////////
-	ConcurrentSkipListSet<Path> concurrentPaths = new ConcurrentSkipListSet<>(graph.paths);
-	ConcurrentSkipListSet<String> svmData = new ConcurrentSkipListSet<>();
+	Set<Path> concurrentPaths = ConcurrentHashMap.newKeySet();
+	concurrentPaths.addAll(graph.paths);
+	Set<String> svmData = ConcurrentHashMap.newKeySet();
 	concurrentPaths.parallelStream().forEach(path -> {
 		String svm = path.getName()+"\t"+path.getLabel();
 		int n = 0;
@@ -277,8 +277,9 @@ public class GraphUtils {
         out.println(headerBuilder.toString());
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// rows are nodes and counts of path support of each node
-	ConcurrentSkipListSet<Node> concurrentNodes = new ConcurrentSkipListSet<>(graph.getNodes());	
-	ConcurrentSkipListMap<Node,String> pcaData = new ConcurrentSkipListMap<>();
+	Set<Node> concurrentNodes = ConcurrentHashMap.newKeySet();
+	concurrentNodes.addAll(graph.getNodes());
+	Map<Node,String> pcaData = new ConcurrentHashMap<>();
 	concurrentNodes.parallelStream().forEach(node -> {
 		StringBuilder lineBuilder = new StringBuilder();
 		lineBuilder.append("N"+node.id);

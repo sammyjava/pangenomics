@@ -59,15 +59,14 @@ public class WekaREPTree {
 	final int kfold = Integer.parseInt(cmd.getOptionValue("kfold"));
 
 	// Read all the instances in the file (ARFF, CSV, XRFF, ...)
-	DataSource source = new DataSource(arffFile);
- 	Instances data = source.getDataSet();
+ 	Instances data = Util.rearrange(new DataSource(arffFile).getDataSet());
         // remove the ID attribute
         data.deleteAttributeAt(0);
         // set the class attribute index
         data.setClassIndex(data.numAttributes() - 1);
  
 	// populate a map with 10 Evaluations for parallel runs
-	ConcurrentHashMap<Integer,Evaluation> evaluations = new ConcurrentHashMap<>();
+	Map<Integer,Evaluation> evaluations = new ConcurrentHashMap<>();
 	for (int i=0; i<10; i++) {
 	    evaluations.put(i, new Evaluation(data));
 	}

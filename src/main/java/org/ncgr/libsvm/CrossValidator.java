@@ -5,8 +5,9 @@ import java.io.IOException;
 
 import java.text.DecimalFormat;
 
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -27,8 +28,8 @@ import libsvm.svm_problem;
  * Use svm to run a stratified k-fold cross-validation of data.
  */
 public class CrossValidator {
-    static DecimalFormat pf = new DecimalFormat("0.0%");
-    static DecimalFormat df = new DecimalFormat("0.000");
+    static DecimalFormat perc = new DecimalFormat("0.0%");
+    static DecimalFormat rate = new DecimalFormat("0.000");
 
     static final int NRFOLD = 10;
     
@@ -37,22 +38,27 @@ public class CrossValidator {
     int nrFold;
     
     // regression results
-    public double totalError = 0.0;
-    public double meanSquaredError = 0.0;
-    public double squaredCorrCoeff = 0.0;
+    public double totalError;
+    public double meanSquaredError;
+    public double squaredCorrCoeff;
 
     // classification results
-    public int plusFails = 0;
-    public int minusFails = 0;
-    public int plusTotal = 0;
-    public int minusTotal = 0;
-    public double percentCorrect = 0.0;
-    public double percentPlusCorrect = 0.0;
-    public double percentMinusCorrect = 0.0;
-    public int totalSamples = 0;
-    public int totalCorrect = 0;
-    public double accuracy = 0.0;
-    public int maxIndex = 0;
+    public int TP;
+    public int TN;
+    public int FP;
+    public int FN;
+    public double TPR;
+    public double TNR;
+    public double FPR;
+    public double FNR;
+    public double MCC;
+    public int positives;
+    public int negatives;
+    public int totalSamples;
+    public int totalCorrect;
+    public double accuracy;
+    public double precision;
+    public int maxIndex;
     public Vector<Integer> errorIndices;
 
     // the input filename
@@ -126,7 +132,7 @@ public class CrossValidator {
     }
 
     /**
-     * Perform the cross validation.
+     * Perform the cross validation and compute summary stats.
      */
     public void run() {
         double[] target = new double[prob.l];
@@ -162,28 +168,34 @@ public class CrossValidator {
                     errorIndices.add(i);
                 }
             }
-            accuracy = (double)totalCorrect/(double)prob.l;
+            accuracy = (double)totalCorrect/(double)prob.l; // fraction correct of all predictions
             totalSamples = prob.l;
         }
 	// calculate summary stats
-	plusFails = 0;
-	minusFails = 0;
+	FN = 0;
+	FP = 0;
 	for (int i : errorIndices) {
 	    if (prob.y[i]==+1) {
-		plusFails++;
+		FN++;
 	    } else if (prob.y[i]==-1) {
-		minusFails++;
+		FP++;
 	    }
 	}
-	plusTotal = 0;
-	minusTotal = 0;
+	positives = 0;
+	negatives = 0;
 	for (double y : prob.y) {
-	    if (y==+1) plusTotal++;
-	    if (y==-1) minusTotal++;
+	    if (y==+1) positives++;
+	    if (y==-1) negatives++;
 	}
-	percentCorrect = (double)(plusTotal+minusTotal-plusFails-minusFails)/(double)(plusTotal+minusTotal);
-	percentPlusCorrect = (double)(plusTotal-plusFails)/(double)plusTotal;
-	percentMinusCorrect = (double)(minusTotal-minusFails)/(double)minusTotal;
+	TP = positives - FN;
+	TN = negatives - FP;
+	TPR = (double)(TP)/(double)positives;
+	FNR = (double)(FN)/(double)positives;
+	TNR = (double)(TN)/(double)negatives;
+	FPR = (double)(FP)/(double)negatives;
+	MCC = (double)(TP*TN-FP*FN) / Math.sqrt((double)(TP+FP)*(double)(TP+FN)*(double)(TN+FP)*(double)(TN+FN)); // have to have (double) inside
+	accuracy = (double)(TP+TN)/(double)(positives+negatives);
+	precision = (double)(TP)/(double)(TP+FP);
     }
 
     /**
@@ -191,7 +203,7 @@ public class CrossValidator {
      */
     public void printOutput() {
 	// output for further processing
-	System.out.println(inputFilename+"\t"+maxIndex+"\t"+param.C+"\t"+param.gamma+"\t"+nrFold+"\t"+plusTotal+"\t"+minusTotal+"\t"+plusFails+"\t"+minusFails);
+	System.out.println(inputFilename+"\t"+maxIndex+"\t"+param.C+"\t"+param.gamma+"\t"+nrFold+"\t"+positives+"\t"+negatives+"\t"+FN+"\t"+FP);
 	// predictions by sample
 	for (int i=0; i<prob.l; i++) {
 	    String label = "";
@@ -443,7 +455,7 @@ public class CrossValidator {
         }
 
         // instantiate and run nRuns times in a parallelStream
-	ConcurrentHashMap<Integer,CrossValidator> scvMap = new ConcurrentHashMap<>();
+	Map<Integer,CrossValidator> scvMap = new ConcurrentHashMap<>();
 	for (int i=0; i<nRuns; i++) {
 	    scvMap.put(i, new CrossValidator(param, nrFold, inputFilename, nCases, nControls));
 	}
@@ -457,8 +469,8 @@ public class CrossValidator {
 	////////////////////////////////////////////////////////////////////////////////////////
 	// output
 	int total = 0;
-	int plusTotal = 0;
-	int minusTotal = 0;
+	int positives = 0;
+	int negatives = 0;
 	int totCorrectSum = 0;
 	int TPSum = 0;
 	int TNSum = 0;
@@ -472,31 +484,32 @@ public class CrossValidator {
 	    CrossValidator svm = scvMap.get(i);
 	    svm.printOutput();
 	    // summary line
-	    plusTotal = svm.plusTotal;
-	    minusTotal = svm.minusTotal;
-	    total = plusTotal + minusTotal;
-	    int TP = svm.plusTotal - svm.plusFails;
-	    int TN = svm.minusTotal - svm.minusFails;
-	    int FP = svm.minusFails;
-	    int FN = svm.plusFails;
+	    positives = svm.positives;
+	    negatives = svm.negatives;
+	    total = positives + negatives;
+	    int TP = svm.positives - svm.FN;
+	    int TN = svm.negatives - svm.FP;
+	    int FP = svm.FP;
+	    int FN = svm.FN;
 	    int totCorrect = TP + TN;
 	    double fracCorrect = (double)totCorrect / (double)total;
-	    double fracPlusCorrect = (double)TP / (double)svm.plusTotal;
-	    double fracMinusCorrect = (double)TN / (double)svm.minusTotal;
-	    double TPR = (double)TP / (double)svm.plusTotal;
-	    double FPR = (double)FP / (double)svm.minusTotal;
-	    double MCC = (double)(TP*TN-FP*FN) / Math.sqrt((double)(TP+FP)*(double)(TP+FN)*(double)(TN+FP)*(double)(TN+FN));
+	    double fracPlusCorrect = (double)TP / (double)svm.positives;
+	    double fracMinusCorrect = (double)TN / (double)svm.negatives;
+	    double TPR = (double)TP / (double)svm.positives;
+	    double FPR = (double)FP / (double)svm.negatives;
+	    double MCC = (double)(TP*TN-FP*FN) / Math.sqrt((double)(TP+FP)*(double)(TP+FN)*(double)(TN+FP)*(double)(TN+FN)); // have to have (double) inside
+
 	    System.err.println("===== ["+i+"] =====");
 	    System.err.println("Total Corr.\tCase Corr.\tControl Corr.\tTotal\tCase\tControl\tTPR\tFPR\tMCC");
 	    System.err.println(totCorrect+"/"+total+"\t"+
-			       TP+"/"+plusTotal+"\t"+
-			       TN+"/"+minusTotal+"\t"+
-			       pf.format(fracCorrect)+"\t"+
-			       pf.format(fracPlusCorrect)+"\t"+
-			       pf.format(fracMinusCorrect)+"\t"+
-			       df.format(TPR)+"\t"+
-			       df.format(FPR)+"\t"+
-			       df.format(MCC));
+			       TP+"/"+positives+"\t"+
+			       TN+"/"+negatives+"\t"+
+			       perc.format(fracCorrect)+"\t"+
+			       perc.format(fracPlusCorrect)+"\t"+
+			       perc.format(fracMinusCorrect)+"\t"+
+			       rate.format(TPR)+"\t"+
+			       rate.format(FPR)+"\t"+
+			       rate.format(MCC));
 	    // add to running totals
 	    totCorrectSum += totCorrect;
 	    TPSum += TP;
@@ -510,13 +523,13 @@ public class CrossValidator {
 	}
 	System.err.println("--------------------------------------------------------------------------------------------------");
 	System.err.println((double)totCorrectSum/nRuns+"/"+total+"\t"+
-			   (double)TPSum/nRuns+"/"+plusTotal+"\t"+
-			   (double)TNSum/nRuns+"/"+minusTotal+"\t"+
-			   pf.format(fracCorrectSum/nRuns)+"\t"+
-			   pf.format(fracPlusCorrectSum/nRuns)+"\t"+
-			   pf.format(fracMinusCorrectSum/nRuns)+"\t"+
-			   df.format(TPRSum/nRuns)+"\t"+
-			   df.format(FPRSum/nRuns)+"\t"+
-			   df.format(MCCSum/nRuns));
+			   (double)TPSum/nRuns+"/"+positives+"\t"+
+			   (double)TNSum/nRuns+"/"+negatives+"\t"+
+			   perc.format(fracCorrectSum/nRuns)+"\t"+
+			   perc.format(fracPlusCorrectSum/nRuns)+"\t"+
+			   perc.format(fracMinusCorrectSum/nRuns)+"\t"+
+			   rate.format(TPRSum/nRuns)+"\t"+
+			   rate.format(FPRSum/nRuns)+"\t"+
+			   rate.format(MCCSum/nRuns));
     }
 }

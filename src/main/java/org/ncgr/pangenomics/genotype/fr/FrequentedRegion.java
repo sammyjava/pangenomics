@@ -234,6 +234,25 @@ class FrequentedRegion implements Comparable {
     }
 
     /**
+     * Construct given an output line from toString(), without setting the other values. Useful for sorting.
+     * 0      1     2        3     4     5   6  7
+     * nodes  size  support  case  ctrl  OR  p  pri
+     */
+    FrequentedRegion(String line) {
+	if (line.startsWith("[")) {
+	    String[] fields = line.split("\t");
+	    this.nodes = new NodeSet(fields[0]);
+	    this.size = Integer.parseInt(fields[1]);
+	    this.support = Integer.parseInt(fields[2]);
+	    this.caseSubpathSupport = Integer.parseInt(fields[3]);
+	    this.ctrlSubpathSupport = Integer.parseInt(fields[4]);
+	    this.orValue = Double.parseDouble(fields[5]);
+	    this.pValue = Double.parseDouble(fields[6]);
+	    this.priority = Integer.parseInt(fields[7]);
+	}
+    }
+
+    /**
      * Update the subpaths, priority, etc.
      */
     void update() {
@@ -453,7 +472,8 @@ class FrequentedRegion implements Comparable {
 
     /**
      * Return a string summary of this frequented region.
-     * nodes         size support case ctrl OR    p        pri
+     * 0      1     2        3     4     5   6  7
+     * nodes  size  support  case  ctrl  OR  p  pri
      */
     @Override
     public String toString() {

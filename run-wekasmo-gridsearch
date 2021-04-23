@@ -18,19 +18,15 @@
 #                              SMO and kernel parameters
 #  -tf,--testfile <arg>        test data file in ARFF format
 
-PREFIX=$1
-KERNEL=$2
-
-NGRIDSEARCH=400
+KERNEL=$1
+PREFIX=$2
 
 ARFFFILE=$PREFIX.arff
 
-## SMO cross-validation options
+## SMO cross-validation grid search options
 KFOLD=10
+NGRIDSEARCH=0
     
-## cross-validate
-if [ -s $ARFFFILE ]
-then
-    echo "Running WekaSMO grid search on $ARFFFILE"
-    java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --gridsearch --kernel=$KERNEL --arfffile=$ARFFFILE --kfold=$KFOLD --ngridsearch=$NGRIDSEARCH
-fi
+## cross-validation grid search
+echo "Running WekaSMO grid search on $ARFFFILE"
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --gridsearch --kernel=$KERNEL --arfffile=$ARFFFILE --kfold=$KFOLD --ngridsearch=$NGRIDSEARCH

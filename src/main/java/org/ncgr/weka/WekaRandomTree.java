@@ -19,6 +19,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+
 import org.apache.commons.math3.stat.StatUtils;
  
 /**
@@ -59,15 +60,10 @@ public class WekaRandomTree {
 	final int kfold = Integer.parseInt(cmd.getOptionValue("kfold"));
 
 	// Read all the instances in the file (ARFF, CSV, XRFF, ...)
-	DataSource source = new DataSource(arffFile);
- 	Instances data = source.getDataSet();
-        // remove the ID attribute
-        data.deleteAttributeAt(0);
-        // set the class attribute index
-        data.setClassIndex(data.numAttributes() - 1);
+	Instances data = Util.rearrange(new DataSource(arffFile).getDataSet());
  
 	// populate a map with 10 Evaluations for parallel runs
-	ConcurrentHashMap<Integer,Evaluation> evaluations = new ConcurrentHashMap<>();
+	Map<Integer,Evaluation> evaluations = new ConcurrentHashMap<>();
 	for (int i=0; i<10; i++) {
 	    evaluations.put(i, new Evaluation(data));
 	}

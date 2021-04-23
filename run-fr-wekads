@@ -1,5 +1,7 @@
 #!/bin/sh
 # usage: FRUtils
+#  -arff,--arff                     print out an ARFF style file from the
+#                                   data given by inputprefix
 #  -f,--frsprefix <arg>             prefix of FRs file (e.g. HLAA-0.0-Inf)
 #  -g,--graphprefix <arg>           prefix of graph file (e.g. HLAA)
 #  -m,--minsupport <arg>            minimum number (not fraction) of
@@ -10,8 +12,6 @@
 #  -mpri,--minpriority <arg>        minimum priority value for an FR to be
 #                                   considered interesting
 #  -p,--pathsprefix <arg>           prefix of paths file (e.g. HLAA)
-#  -svm,--svm                       print out an SVM style file from the
-#                                   data given by inputprefix
 
 GRAPH=$1
 FRPREFIX=$2
@@ -21,18 +21,19 @@ MAXP=$4
 MINPRI=$5
 
 ## make the filtered SVM files
-java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -svm -g $GRAPH -p $GRAPH         -f $FRPREFIX \
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff -g $GRAPH -p $GRAPH         -f $FRPREFIX \
 	--minsupport $MINSUPPORT --maxpvalue $MAXP --minpriority $MINPRI
-java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -svm -g $GRAPH -p $GRAPH.testing -f $FRPREFIX \
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff -g $GRAPH -p $GRAPH.testing -f $FRPREFIX \
 	--minsupport $MINSUPPORT --maxpvalue $MAXP --minpriority $MINPRI
 
 ## remove the extra chunk from the file names
-mv $FRPREFIX.$GRAPH.svm.txt $FRPREFIX.svm.txt
-mv $FRPREFIX.$GRAPH.testing.svm.txt $FRPREFIX.testing.svm.txt
+mv $FRPREFIX.$GRAPH.arff $FRPREFIX.arff
+mv $FRPREFIX.$GRAPH.testing.arff $FRPREFIX.testing.arff
 
-## scale the SVM files
-./run-libsvmscaler-samples $FRPREFIX
-./run-libsvmscaler-testing $FRPREFIX
-
-## run GridSearch with RBF
-./run-libsvmgridsearch RBF $FRPREFIX
+## do the work
+echo "################## DS ####################################"
+./run-wekads $FRPREFIX $6
+echo "################## DS AdaBoost ###########################"
+./run-wekads $FRPREFIX --boostoption=Ada $6
+echo "################## DS LogitBoost #########################"
+./run-wekads $FRPREFIX --boostoption=Logit $6
