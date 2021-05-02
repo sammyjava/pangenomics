@@ -30,12 +30,36 @@ java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype
 mv $FRPREFIX.$GRAPH.arff $FRPREFIX.arff
 mv $FRPREFIX.$GRAPH.testing.arff $FRPREFIX.testing.arff
 
-ARFFFILE=$FRPREFIX.arff
+## SMO cross-validation grid search options
+TRAINFILE=$FRPREFIX.arff
+TESTFILE=$FRPREFIX.testing.arff
 
-## SMO cross-validation options
-KERNEL=RBF
-NGRIDSEARCH=0
 KFOLD=10
-    
-## grid search
-java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --gridsearch --kernel=$KERNEL --arfffile=$ARFFFILE --kfold=$KFOLD --ngridsearch=$NGRIDSEARCH
+NGRIDSEARCH=0
+CPOWERSTEP=1
+GAMMAPOWERSTEP=1
+GAMMAPOWERBEGIN=-30
+GAMMAPOWEREND=-10
+
+
+## run grid search in several batches because can't get more than about 10 threads per job
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --gridsearch --arfffile=$TRAINFILE --kfold=$KFOLD --ngridsearch=$NGRIDSEARCH \
+     -cb 5 -ce 5 -cs $CPOWERSTEP -gb $GAMMAPOWERBEGIN -ge $GAMMAPOWEREND -gs $GAMMAPOWERSTEP &
+
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --gridsearch --arfffile=$TRAINFILE --kfold=$KFOLD --ngridsearch=$NGRIDSEARCH \
+     -cb 6 -ce 6 -cs $CPOWERSTEP -gb $GAMMAPOWERBEGIN -ge $GAMMAPOWEREND -gs $GAMMAPOWERSTEP &
+
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --gridsearch --arfffile=$TRAINFILE --kfold=$KFOLD --ngridsearch=$NGRIDSEARCH \
+     -cb 7 -ce 7 -cs $CPOWERSTEP -gb $GAMMAPOWERBEGIN -ge $GAMMAPOWEREND -gs $GAMMAPOWERSTEP &
+
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --gridsearch --arfffile=$TRAINFILE --kfold=$KFOLD --ngridsearch=$NGRIDSEARCH \
+     -cb 8 -ce 8 -cs $CPOWERSTEP -gb $GAMMAPOWERBEGIN -ge $GAMMAPOWEREND -gs $GAMMAPOWERSTEP &
+
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --gridsearch --arfffile=$TRAINFILE --kfold=$KFOLD --ngridsearch=$NGRIDSEARCH \
+     -cb 9 -ce 9 -cs $CPOWERSTEP -gb $GAMMAPOWERBEGIN -ge $GAMMAPOWEREND -gs $GAMMAPOWERSTEP &
+
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --gridsearch --arfffile=$TRAINFILE --kfold=$KFOLD --ngridsearch=$NGRIDSEARCH \
+     -cb 10 -ce 10 -cs $CPOWERSTEP -gb $GAMMAPOWERBEGIN -ge $GAMMAPOWEREND -gs $GAMMAPOWERSTEP &
+
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --gridsearch --arfffile=$TRAINFILE --kfold=$KFOLD --ngridsearch=$NGRIDSEARCH \
+     -cb 11 -ce 11 -cs $CPOWERSTEP -gb $GAMMAPOWERBEGIN -ge $GAMMAPOWEREND -gs $GAMMAPOWERSTEP &

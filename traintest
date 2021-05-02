@@ -1,0 +1,15 @@
+#!/bin/sh
+
+KERNEL=RBF
+PREFIX=$1
+C=$2
+gamma=$3
+
+echo "############################# LIBSVM training ###########################"
+./run-libsvmtrainer $KERNEL $PREFIX $C $gamma
+./run-libsvmpredictor $PREFIX
+./run-libsvmstats $PREFIX
+
+echo "############################# LIBSVM testing #############################"
+./run-libsvmpredictor-testing $PREFIX
+./run-libsvmstats $PREFIX.testing

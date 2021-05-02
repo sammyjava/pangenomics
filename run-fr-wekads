@@ -30,10 +30,4 @@ java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype
 mv $FRPREFIX.$GRAPH.arff $FRPREFIX.arff
 mv $FRPREFIX.$GRAPH.testing.arff $FRPREFIX.testing.arff
 
-## do the work
-echo "################## DS ####################################"
 ./run-wekads $FRPREFIX $6
-echo "################## DS AdaBoost ###########################"
-./run-wekads $FRPREFIX --boostoption=Ada $6
-echo "################## DS LogitBoost #########################"
-./run-wekads $FRPREFIX --boostoption=Logit $6

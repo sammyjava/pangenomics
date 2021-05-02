@@ -1,0 +1,12 @@
+#!/bin/sh
+# usage: NodeSet
+#  -n,--nodeset <arg>         NodeSet in [34,37,38,42] notation (required)
+#  -nodes,--nodesfile <arg>   read graph nodes from the given nodes.txt file
+#                             (required)
+#  -p,--print                 print out the Nodes in the given NodeSet
+
+NODESFILE=$1
+NODESET=$2
+
+## priorityoption doesn't matter, we're just looking at an FR with alpha, kappa
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.NodeSet --print --nodesfile $NODESFILE --nodeset $NODESET

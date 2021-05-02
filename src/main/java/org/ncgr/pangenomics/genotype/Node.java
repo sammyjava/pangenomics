@@ -9,7 +9,7 @@ import java.text.DecimalFormat;
  * An int id is used for simplicity and the calling code is expected to enforce uniqueness.
  */
 public class Node implements Comparable, Serializable {
-    static DecimalFormat df = new DecimalFormat("0.00");
+    static DecimalFormat dec = new DecimalFormat("0.00");
 
     public long id;
     public String contig;
@@ -122,7 +122,7 @@ public class Node implements Comparable, Serializable {
         if (end>0) location += "-"+end;
         String identifier = "";
         if (rs!=null) identifier = rs;
-	return "["+id+"] "+location+" "+identifier+" "+genotype+" "+df.format(gf);
+	return "["+id+"] "+location+" "+identifier+" "+genotype+" "+dec.format(gf);
     }
 
     /**

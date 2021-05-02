@@ -3,23 +3,25 @@
 #  -arff,--printarfffile             print out an ARFF file of path node
 #                                    participation
 #  -g,--graph <arg>                  name of graph
-#  -list,--listfile <arg>            load sample(s) from a PLINK list file
-#  -maxmaf,--maxmaf <arg>            maximum MAF of loci to be included from
-#                                    LIST or VCF file [1.0]
-#  -mgf,--mgf <arg>                  minimum MGF for inclusion
-#  -minmaf,--minmaf <arg>            minimum MAF of loci to be included from
-#                                    LIST or VCF file [0.0]
-#  -nodepaths,--printnodepathsfile   print out node paths file [false]
+#  -maxmgf,--maxmgf <arg>            maximum MGF of loci to be included from
+#                                    a VCF/List file [1.0]
+#  -minmgf,--minmgf <arg>            minimum MGF of loci to be included from
+#                                    a VCF/List file [0.01]
+#  -nodepaths,--printnodepathsfile   print out node paths file
+#  -nodes,--nodesfile <arg>          load graph nodes from this nodes.txt
+#                                    file
+#  -paths,--pathsfile <arg>          load graph paths from this paths.txt
+#                                    file
 #  -pca,--printpcafile               print out path pca file
-#  -prs,--prs                        compute polygenic risk scores
-#  -samplefile <arg>                 file containing samples+labels to
-#                                    determine paths through the given graph
-#                                    (-g) from a VCF (-vcf) or LIST (-list)
+#  -prs,--computeprs                 compute polygenic risk scores
 #  -svm,--printsvmfile               print out a LIBSVM-compatible file of
 #                                    path node participation
-#  -vcf,--vcffile <arg>              load sample(s) from a VCF file
 
 GRAPH=$1
+PATHSFILE=$2
 
-echo "Building ARFF file from $GRAPH"
-java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.GraphUtils -arff -g $GRAPH 
+NODESFILE=$GRAPH.nodes.txt
+
+echo "Building ARFF file from $NODESFILE and $PATHSFILE"
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.GraphUtils -arff --graph=$GRAPH --nodesfile=$NODESFILE --pathsfile=$PATHSFILE
+

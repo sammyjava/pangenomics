@@ -1,0 +1,30 @@
+#!/bin/sh
+
+GRAPH=$1
+FRPREFIX=$2
+
+MINSUPPORT=$3
+MAXP=$4
+MINPRI=$5
+
+## make the filtered SVM files
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -svm -g $GRAPH -p $GRAPH         -f $FRPREFIX \
+	--minsupport $MINSUPPORT --maxpvalue $MAXP --minpriority $MINPRI
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -svm -g $GRAPH -p $GRAPH.testing -f $FRPREFIX \
+	--minsupport $MINSUPPORT --maxpvalue $MAXP --minpriority $MINPRI
+
+## remove the extra chunk from the file names
+mv $FRPREFIX.$GRAPH.svm.txt $FRPREFIX.svm.txt
+mv $FRPREFIX.$GRAPH.testing.svm.txt $FRPREFIX.testing.svm.txt
+
+## fix the LIBSVM format
+cut -f1 --complement $FRPREFIX.svm.txt > temp0.train
+cut -f1 --complement $FRPREFIX.testing.svm.txt > temp0.test
+sed s/ctrl/0/ temp0.train > temp1.train.svm
+sed s/ctrl/0/ temp0.test  > temp1.test.svm
+sed s/case/1/ temp1.train > pathfrs.train.svm
+sed s/case/1/ temp1.test  > pathfrs.test.svm
+
+## run XGBoost
+echo "XGBoost training/testing on pathfrs.train.svm/pathfrs.test.svm"
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.xgboost.TesterTrainer 

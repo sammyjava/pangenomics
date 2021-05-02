@@ -1,16 +1,28 @@
 package org.ncgr.pangenomics.genotype;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+
+import java.text.DecimalFormat;
+
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.StringJoiner;
 import java.util.List;
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.TreeSet;
 import java.util.Map;
-import java.util.HashMap;
+
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 
 /**
  * Encapsulates a set of nodes in a Graph. NodeSets are comparable based on their content.
@@ -18,6 +30,7 @@ import java.util.HashMap;
  * @author Sam Hokin
  */
 public class NodeSet extends TreeSet<Node> implements Comparable {
+    static DecimalFormat dec = new DecimalFormat("0.00");
 
     /**
      * Empty constructor.
@@ -129,8 +142,8 @@ public class NodeSet extends TreeSet<Node> implements Comparable {
      */
     public int distanceFrom(NodeSet that) {
         // copy the NodeSets into lists for indexed access
-        List<Node> left = new ArrayList<>(this);
-        List<Node> right = new ArrayList<>(that);
+        List<Node> left = new LinkedList<>(this);
+        List<Node> right = new LinkedList<>(that);
         int n = left.size();
         int m = right.size();
         // trivial distance
@@ -190,5 +203,64 @@ public class NodeSet extends TreeSet<Node> implements Comparable {
 	    }
 	}
 	return sameStart;
+    }
+
+    /**
+     * Some handy static methods.
+     */
+    public static void main(String[] args) throws IOException, FileNotFoundException {
+	Options options = new Options();
+        CommandLineParser parser = new DefaultParser();
+        HelpFormatter formatter = new HelpFormatter();
+        CommandLine cmd;
+
+	// INPUT: NodeSet in bracket notation
+	Option nodeSetOption = new Option("n", "nodeset", true, "NodeSet in [34,37,38,42] notation (required)");
+	nodeSetOption.setRequired(true);
+	options.addOption(nodeSetOption);
+	// INPUT: nodes.txt
+	Option nodesFileOption = new Option("nodes", "nodesfile", true, "read graph nodes from the given nodes.txt file (required)");
+	nodesFileOption.setRequired(true);
+	options.addOption(nodesFileOption);
+	// ACTION: spit out nodes in NodeSet
+	Option printOption = new Option("p", "print", false, "print out the Nodes in the given NodeSet");
+	printOption.setRequired(false);
+	options.addOption(printOption);
+	
+        try {
+            cmd = parser.parse(options, args);
+        } catch (ParseException e) {
+            System.err.println(e.getMessage());
+            formatter.printHelp("NodeSet", options);
+            System.exit(1);
+            return;
+        }
+
+        // spit out help and exit if nothing supplied
+        if (cmd.getOptions().length==0) {
+            formatter.printHelp("NodeSet", options);
+            System.exit(1);
+            return;
+        }
+
+	// load the Nodes
+	File nodesFile = new File(cmd.getOptionValue("nodesfile"));
+	TXTImporter importer = new TXTImporter(nodesFile);
+        importer.readNodes();
+
+	// read the NodeSet
+	NodeSet nodeSet = new NodeSet(importer.nodeIdMap, cmd.getOptionValue("nodeset"));
+
+	// print out the NodeSet's nodes, but using tabs as separators
+	if (cmd.hasOption("print")) {
+	    for (Node n : nodeSet) {
+		String location = n.contig;
+		if (n.start>0) location += ":"+n.start;
+		if (n.end>0) location += "-"+n.end;
+		String identifier = "";
+		if (n.rs!=null) identifier = n.rs;
+		System.out.println("["+n.id+"]\t"+location+"\t"+identifier+"\t"+n.genotype+"\t"+dec.format(n.gf));
+	    }
+	}
     }
 }

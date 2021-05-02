@@ -13,11 +13,11 @@ PREFIX=$1
 TRAINFILE=$PREFIX.arff
 TESTFILE=$PREFIX.testing.arff
 
-KFOLD=10
+echo "# WekaDecisionStump training/testing on $TRAINFILE and $TESTFILE"
 
-#echo "WekaDecisionStump $KFOLD-fold cross-validation on $TRAINFILE"
-#java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaDecisionStump --crossvalidate --arfffile=$TRAINFILE --kfold=$KFOLD $2
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaDecisionStump --test --arfffile=$TRAINFILE --testfile=$TESTFILE
 
-echo "WekaDecisionStump training/testing on $TRAINFILE and $TESTFILE"
-java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaDecisionStump --test --arfffile=$TRAINFILE --testfile=$TESTFILE $2
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaDecisionStump --test --arfffile=$TRAINFILE --testfile=$TESTFILE --boostoption=Ada
+
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaDecisionStump --test --arfffile=$TRAINFILE --testfile=$TESTFILE --boostoption=Logit
 

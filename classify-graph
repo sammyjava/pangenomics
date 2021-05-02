@@ -1,0 +1,12 @@
+#!/bin/sh
+
+GRAPH=$1
+
+./run-graphutils-arff $1 $1.testing.paths.txt
+mv $GRAPH.arff $GRAPH.testing.arff
+
+./run-graphutils-arff $1 $1.paths.txt
+
+./run-wekads $GRAPH
+
+./run-wekarf $GRAPH 100 0

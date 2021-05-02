@@ -1,0 +1,15 @@
+#!/bin/sh
+
+FRPREFIX=$1
+
+## fix the LIBSVM format
+cut -f1 --complement $FRPREFIX.svm.txt > temp0.train
+cut -f1 --complement $FRPREFIX.testing.svm.txt > temp0.test
+sed s/ctrl/0/ temp0.train > temp1.train.svm
+sed s/ctrl/0/ temp0.test  > temp1.test.svm
+sed s/case/1/ temp1.train > pathfrs.train.svm
+sed s/case/1/ temp1.test  > pathfrs.test.svm
+
+## run XGBoost
+echo "XGBoost training/testing on pathfrs.train.svm/pathfrs.test.svm"
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.xgboost.TesterTrainer 

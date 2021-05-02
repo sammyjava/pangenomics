@@ -1,0 +1,17 @@
+#!/bin/sh
+
+FRPREFIX=$1
+
+## fix the LIBSVM format
+cut -f1 --complement $FRPREFIX.svm.txt > temp0.train
+cut -f1 --complement $FRPREFIX.testing.svm.txt > temp0.test
+sed s/ctrl/0/ temp0.train > temp1.train
+sed s/ctrl/0/ temp0.test  > temp1.test
+sed s/case/1/ temp1.train > pathfrs.train.svm
+sed s/case/1/ temp1.test  > pathfrs.test.svm
+
+## train the classifier
+lightgbm config=train.conf
+
+## run predictions, use stats.R to view the results
+lightgbm config=predict.conf

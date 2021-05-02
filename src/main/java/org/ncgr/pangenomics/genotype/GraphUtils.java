@@ -51,14 +51,14 @@ public class GraphUtils {
 	Option pathsFileOption = new Option("paths", "pathsfile", true, "load graph paths from this paths.txt file");
 	pathsFileOption.setRequired(true);
 	options.addOption(pathsFileOption);
-	// FILTER min MAF
-	Option minMAFOption = new Option("minmaf", "minmaf", true, "minimum MAF/MGF of loci to be included from a VCF/List file [0.0]");
-	minMAFOption.setRequired(false);
-	options.addOption(minMAFOption);
-	// FILTER max MAF
-	Option maxMAFOption = new Option("maxmaf", "maxmaf", true, "maximum MAF/MGF of loci to be included from a VCF/List file [1.0]");
-	maxMAFOption.setRequired(false);
-	options.addOption(maxMAFOption);
+	// FILTER min MGF
+	Option minMGFOption = new Option("minmgf", "minmgf", true, "minimum MGF of loci to be included from a VCF/List file [0.01]");
+	minMGFOption.setRequired(false);
+	options.addOption(minMGFOption);
+	// FILTER max MGF
+	Option maxMGFOption = new Option("maxmgf", "maxmgf", true, "maximum MGF of loci to be included from a VCF/List file [1.0]");
+	maxMGFOption.setRequired(false);
+	options.addOption(maxMGFOption);
         // actions
         Option prsOption = new Option("prs", "computeprs", false, "compute polygenic risk scores");
         prsOption.setRequired(false);
@@ -104,6 +104,12 @@ public class GraphUtils {
 	System.err.println(graph.name+" has "+graph.vertexSet().size()+" nodes and "+graph.paths.size()+" paths: "+
 			   graph.labelCounts.get("case")+"/"+graph.labelCounts.get("ctrl")+" cases/controls");
 
+	// parameters
+	double minMGF = 0.01;
+	if (cmd.hasOption("minmgf")) {
+	    minMGF = Double.parseDouble(cmd.getOptionValue("minmgf"));
+	}
+
         // actions
 	if (cmd.hasOption("printnodepathsfile")) {
 	    String nodePathsFilename = graph.name+".nodepaths.txt";
@@ -126,10 +132,6 @@ public class GraphUtils {
 	    if (graph.verbose) System.err.println("Writing path SVM file "+svmFilename);
 	    printSvmData(graph, new PrintStream(svmFilename));
 	} else if (cmd.hasOption("computeprs")) {
-            double minMGF = 1e-2;
-            if (cmd.hasOption("minmaf")) {
-                minMGF = Double.parseDouble(cmd.getOptionValue("minmaf"));
-            }
             computePRS(graph, minMGF);
 	}
     }
@@ -140,19 +142,19 @@ public class GraphUtils {
     public static void computePRS(PangenomicGraph graph, double minMGF) {
         // calculate map of log odds ratio
         Map<Node,Double> nodeOddsRatios = new HashMap<>();
+	int numTossed = 0;
         for (Node n : graph.getNodes()) {
-            // public long id;
-            // public String contig;
-            // public int start;
-            // public int end;
-            // public String rs;
-            // public String genotype;
-            // public double gf;
-            // public boolean isCalled;
-            if (!(n.gf<minMGF)) {
-                nodeOddsRatios.put(n, Math.log(graph.oddsRatio(n)));
+            if (n.gf<minMGF) {
+		numTossed++;
+	    } else {
+		double OR = graph.oddsRatio(n);
+		if (OR>Double.MIN_VALUE && OR<Double.MAX_VALUE) {
+		    double logOR = Math.log(OR);
+		    nodeOddsRatios.put(n, logOR);
+		}
             }
         }
+	System.err.println("Tossed "+numTossed+" nodes with gf<"+minMGF);
         // sum log odds ratio over each path, storing in a map
         Map<Path,Double> pathPRS = new HashMap<>();
         for (Path p : graph.paths) {
@@ -161,10 +163,12 @@ public class GraphUtils {
             for (Node n : p.getNodes()) {
                 if (nodeOddsRatios.containsKey(n)) {
                     num++;
-                    prs += nodeOddsRatios.get(n);
+		    double logOR = nodeOddsRatios.get(n);
+                    prs += logOR;
                 }
             }
-            pathPRS.put(p, prs/num);
+	    prs = prs/num;
+            pathPRS.put(p, prs);
         }
         // output
         System.out.println("sample\tlabel\tlogPRS");

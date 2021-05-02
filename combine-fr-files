@@ -12,7 +12,7 @@ FRPREFIX=$1
 PARAMNUMBER=$2
 
 ## remove old combined files
-rm $FRPREFIX-combined*
+rm -f $FRPREFIX-combined*
 
 ## combine the numbered runs
 cat $FRPREFIX-*.frs.txt > $FRPREFIX-combined.frs.txt

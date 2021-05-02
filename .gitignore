@@ -25,3 +25,7 @@ scan-*
 .RData
 .Rhistory
 *.model
+*.train
+*.test
+*.list
+*.svm

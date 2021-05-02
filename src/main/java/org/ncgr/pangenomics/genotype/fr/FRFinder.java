@@ -105,6 +105,9 @@ public class FRFinder {
     // starting FRs for each finding run
     Map<String,FrequentedRegion> initialFrequentedRegions = new ConcurrentHashMap<>();
 
+    // allowed starting nodes for the FR finding scan
+    NodeSet allowedStartingNodes = new NodeSet();
+
     /**
      * Construct with a populated Graph and default parameters.
      */
@@ -137,6 +140,7 @@ public class FRFinder {
 			supportRejects.add(node);
 		    } else {
 			initialFrequentedRegions.put(fr.nodes.toString(), fr);
+			allowedStartingNodes.add(node);
 		    }
 		}
 	    });
@@ -198,6 +202,11 @@ public class FRFinder {
 		frequentedRegions.put(includedFR.nodes.toString(), includedFR);
 	    }
 	}
+	// check that required nodes are allowed if a singleton, meaning likely starting node
+	if (requiredNodes.size()==1 && !allowedStartingNodes.contains(requiredNodes.first())) {
+	    System.err.println("X "+requiredNodes.first()+" not in allowedStartingNodes: skipped.");
+	    return;
+	}
         // add the full required nodes FR to allFrequentedRegions, and frequentedRegions if interesting
 	if (requiredNodes.size()>0) {
 	    FrequentedRegion requiredFR = new FrequentedRegion(graph, requiredNodes, alpha, kappa, priorityOptionKey, priorityOptionLabel);
@@ -228,33 +237,29 @@ public class FRFinder {
 	    Set<String> rejectedNodeSets = ConcurrentHashMap.newKeySet();
 	    // requiredNodes and bestFR need to be final for the parallel stream
 	    final NodeSet finalRequiredNodes = requiredNodes;
-	    final FrequentedRegion finalBestFR = bestFR;
+	    final FrequentedRegion finalBestFR = bestFR; // can be null
 	    if (debug) {
 		System.err.println("REQUIRE "+finalRequiredNodes);
 	    }
 	    // NOTE: the fr1 loop need not be parallel since the fr2 loop will consume all the CPUs anyway.
 	    // By running the fr1 loop in series we ensure that the fr2 loop cycles use the same fr1 loop data.
 	    for (FrequentedRegion fr1 : allFrequentedRegions.values()) {
-		if (debug) {
-		    System.err.println("---> "+fr1.toString());
-		}
-		if (finalBestFR==null) {
-		    if (finalRequiredNodes.size()>0) {
-			boolean contains = true;
-			for (Node n : finalRequiredNodes) {
-			    if (!fr1.nodes.contains(n)) {
-				contains = false;
-				break;
-			    }
-			}
-			if (!contains) {
-			    if (debug) {
-				System.err.println("Require"+finalRequiredNodes+" so skipping "+fr1.toString());
-			    }
-			    continue;
+		if (debug) System.err.println("---> "+fr1.toString());
+		if (finalBestFR==null && finalRequiredNodes.size()>0) {
+		    // first round of best-FR scan mode with required nodes
+		    boolean contains = true;
+		    for (Node n : finalRequiredNodes) {
+			if (!fr1.nodes.contains(n)) {
+			    contains = false;
+			    break; // have to break out of node loop before can skip this fr1 loop iteration :)
 			}
 		    }
-		} else if (!fr1.equals(finalBestFR)) {
+		    if (!contains) {
+			if (debug) System.err.println("Require"+finalRequiredNodes+" so skipping "+fr1.toString());
+			continue; // skip this fr1 loop iteration
+		    }
+		} else if (finalBestFR!=null && !fr1.equals(finalBestFR)) {
+		    // this round must use fr1 = previous round best FR
 		    continue;
 		}
 		// abort if max clock time exceeded

@@ -31,9 +31,4 @@ mv $FRPREFIX.$GRAPH.arff $FRPREFIX.arff
 mv $FRPREFIX.$GRAPH.testing.arff $FRPREFIX.testing.arff
 
 ## do the work
-echo "################################# RandomForest #################################"
 ./run-wekarf $FRPREFIX 100 0
-echo "################################# AdaBoosted RandomForest ######################"
-./run-wekarf $FRPREFIX 100 0 --boostoption=Ada
-echo "################################# LogiBoosted RandomForest #####################"
-./run-wekarf $FRPREFIX 100 0 --boostoption=Logit

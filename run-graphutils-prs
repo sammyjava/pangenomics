@@ -19,8 +19,10 @@
 
 GRAPH=$1
 PATHS=$2
+MINMGF=$3
 
 NODESFILE=$GRAPH.nodes.txt
 PATHSFILE=$PATHS.paths.txt
 
-java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.GraphUtils --computeprs --graph=$GRAPH --nodesfile=$NODESFILE --pathsfile=$PATHSFILE > $PATHS.prs.txt
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.GraphUtils --computeprs \
+	--graph=$GRAPH --nodesfile=$NODESFILE --pathsfile=$PATHSFILE --minmgf=$MINMGF > $PATHS.prs.txt
