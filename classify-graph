@@ -7,8 +7,15 @@ mv $GRAPH.arff $GRAPH.testing.arff
 
 ./run-graphutils-arff $1 $1.paths.txt
 
+<<<<<<< HEAD
 echo "########## Weka DecisionStump ##########"
 ./run-wekads $GRAPH
 
 echo "########## Weka RandomForest ##########"
+=======
+echo "########## Weka Decision Stump ##########"
+./run-wekads $GRAPH
+
+echo "########## Weka Random Forest ##########"
+>>>>>>> 43bb72d4a849e6d3147c7f3f13951aa5e606b68a
 ./run-wekarf $GRAPH 100 0
