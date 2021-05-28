@@ -1,32 +1,46 @@
 #!/bin/bash
 # usage: WekaSMO
-#  -a,--arfffile <arg>         input data file in ARFF format (required)
-#  -C,--complexity <arg>       SMO complexity constant C
-#  -cv,--crossvalidate         run cross-validation
-#  -exp,--exponent <arg>       Poly kernel exponent parameter
-#  -g,--gamma <arg>            RBF kernel gamma parameter
-#  -gs,--gridsearch            run a grid search over parameters
-#  -k,--kfold <arg>            cross-validation k-fold (required)
-#  -kernel,--kernel <arg>      kernel function: RBF or Poly (required)
-#  -L,--tolerance <arg>        tolerance parameter [1.0e-3]
-#  -M,--fitcalibrationmodels   fit calibration models to SVM outputs
-#  -N,--normalization <arg>    0=normalize, 1=standardize, 2=neither [0]
-#  -ng,--ngridsearch <arg>     set number of cases+controls (equal) to use
-#                              in grid search [0=all]
-#  -P,--epsilon <arg>          epsilon for round-off error [1.0e-12]
-#  -test,--test                run training/testing on datasets with given
-#                              SMO and kernel parameters
-#  -tf,--testfile <arg>        test data file in ARFF format
+#  -a,--arfffile <arg>           input data file in ARFF format (required)
+#  -cb,--cpowerbegin <arg>       begining 2^n exponent in C scan [5]
+#  -ce,--cpowerend <arg>         ending 2^n exponent in C scan [11]
+#  -cs,--cpowerstep <arg>        step for 2^n exponent in C scan [1]
+#  -gb,--gammapowerbegin <arg>   begining 2^n exponent in RBF gamma scan
+#                                [-30]
+#  -ge,--gammapowerend <arg>     ending 2^n exponent in RBF gamma scan [-10]
+#  -gs,--gammapowerstep <arg>    step for 2^n exponent in RBF gamma scan [1]
+#  -k,--kfold <arg>              cross-validation k-fold (required)
+#  -ng,--ngridsearch <arg>       set number of cases+controls (equal) to use
+#                                in grid search [0=all]
 
-KERNEL=$1
-PREFIX=$2
+PREFIX=$1
 
-ARFFFILE=$PREFIX.arff
+TRAINFILE=$PREFIX.arff
 
-## SMO cross-validation grid search options
 KFOLD=10
 NGRIDSEARCH=0
-    
-## cross-validation grid search
-echo "Running WekaSMO grid search on $ARFFFILE"
-java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --gridsearch --kernel=$KERNEL --arfffile=$ARFFFILE --kfold=$KFOLD --ngridsearch=$NGRIDSEARCH
+CPOWERSTEP=1
+GAMMAPOWERSTEP=1
+GAMMAPOWERBEGIN=-30
+GAMMAPOWEREND=-10
+
+## run grid search in several batches because can't get more than about 10 threads per job
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --gridsearch --arfffile=$TRAINFILE --kfold=$KFOLD --ngridsearch=$NGRIDSEARCH \
+     -cb 5 -ce 5 -cs $CPOWERSTEP -gb $GAMMAPOWERBEGIN -ge $GAMMAPOWEREND -gs $GAMMAPOWERSTEP &
+
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --gridsearch --arfffile=$TRAINFILE --kfold=$KFOLD --ngridsearch=$NGRIDSEARCH \
+     -cb 6 -ce 6 -cs $CPOWERSTEP -gb $GAMMAPOWERBEGIN -ge $GAMMAPOWEREND -gs $GAMMAPOWERSTEP &
+
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --gridsearch --arfffile=$TRAINFILE --kfold=$KFOLD --ngridsearch=$NGRIDSEARCH \
+     -cb 7 -ce 7 -cs $CPOWERSTEP -gb $GAMMAPOWERBEGIN -ge $GAMMAPOWEREND -gs $GAMMAPOWERSTEP &
+
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --gridsearch --arfffile=$TRAINFILE --kfold=$KFOLD --ngridsearch=$NGRIDSEARCH \
+     -cb 8 -ce 8 -cs $CPOWERSTEP -gb $GAMMAPOWERBEGIN -ge $GAMMAPOWEREND -gs $GAMMAPOWERSTEP &
+
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --gridsearch --arfffile=$TRAINFILE --kfold=$KFOLD --ngridsearch=$NGRIDSEARCH \
+     -cb 9 -ce 9 -cs $CPOWERSTEP -gb $GAMMAPOWERBEGIN -ge $GAMMAPOWEREND -gs $GAMMAPOWERSTEP &
+
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --gridsearch --arfffile=$TRAINFILE --kfold=$KFOLD --ngridsearch=$NGRIDSEARCH \
+     -cb 10 -ce 10 -cs $CPOWERSTEP -gb $GAMMAPOWERBEGIN -ge $GAMMAPOWEREND -gs $GAMMAPOWERSTEP &
+
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --gridsearch --arfffile=$TRAINFILE --kfold=$KFOLD --ngridsearch=$NGRIDSEARCH \
+     -cb 11 -ce 11 -cs $CPOWERSTEP -gb $GAMMAPOWERBEGIN -ge $GAMMAPOWEREND -gs $GAMMAPOWERSTEP &

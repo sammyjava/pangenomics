@@ -1,0 +1,13 @@
+#!/bin/sh
+# usage: PangenomicGraph
+#  -c,--cat                       concatenate two graphs (--nodes and
+#                                 --nodes2 requried)
+#  -g,--graph <arg>               name of graph (required)
+#  -nodes,--nodesfile <arg>       read graph nodes from a nodes.txt file
+#  -nodes2,--nodes2file <arg>     read a second graph nodes from a nodes.txt
+
+GRAPH=$1
+NODES1FILE=$2
+NODES2FILE=$3
+
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.PangenomicGraph -v --cat --graph=$GRAPH --nodesfile=$NODES1FILE --nodes2file=$NODES2FILE

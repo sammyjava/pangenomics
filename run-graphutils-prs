@@ -18,11 +18,11 @@
 #                                    path node participation
 
 GRAPH=$1
-PATHS=$2
+PATHSPREFIX=$2
 MINMGF=$3
 
 NODESFILE=$GRAPH.nodes.txt
-PATHSFILE=$PATHS.paths.txt
+PATHSFILE=$PATHSPREFIX.paths.txt
 
 java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.GraphUtils --computeprs \
-	--graph=$GRAPH --nodesfile=$NODESFILE --pathsfile=$PATHSFILE --minmgf=$MINMGF > $PATHS.prs.txt
+	--graph=$GRAPH --nodesfile=$NODESFILE --pathsfile=$PATHSFILE --minmgf=$MINMGF > $PATHSPREFIX.prs.txt

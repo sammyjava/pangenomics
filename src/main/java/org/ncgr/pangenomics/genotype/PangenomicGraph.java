@@ -578,6 +578,27 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
     }
 
     /**
+     * Append nodes from a nodes.txt file to the current graph without filtering.
+     */
+    public void appendNodesFromTXT(File nodesFile) throws IOException {
+	// get last ID of current graph nodes
+	long lastId = nodeIdMap.lastKey();
+	// load the nodes
+        TXTImporter importer = new TXTImporter(nodesFile);
+	importer.setVerbose(verbose);
+        importer.readNodes();
+        // add the nodes as graph vertices, incrementing nodeId each time
+        for (Node n : importer.nodeIdMap.values()) {
+	    lastId++;
+	    n.id = lastId;
+            addVertex(n);
+	    nodeIdMap.put(lastId, n);
+	}
+	// rebuild the node key map
+	buildNodeKeyMap(nodeIdMap);
+    }
+
+    /**
      * Load the graph paths from a paths.txt file without any constraints.
      */
     public void loadPathsFromTXT(File pathsFile) throws IOException {
@@ -679,6 +700,10 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 	Option nodesOption = new Option("n", "buildnodes", false, "build graph nodes (this or --buildpaths required)");
 	nodesOption.setRequired(false);
 	options.addOption(nodesOption);
+	// ACTION: concatenate graphs
+	Option catOption = new Option("c", "cat", false, "concatenate two graphs (--nodes and --nodes2 requried)");
+	catOption.setRequired(false);
+	options.addOption(catOption);
 	// ACTION: build graph paths
 	Option pathsOption = new Option("p", "buildpaths", false, "build graph paths (this or --buildnodes required)");
 	pathsOption.setRequired(false);
@@ -695,6 +720,10 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 	Option nodesFileOption = new Option("nodes", "nodesfile", true, "read graph nodes from a nodes.txt file");
 	nodesFileOption.setRequired(false);
 	options.addOption(nodesFileOption);
+	// INPUT: second nodes.txt
+	Option nodes2FileOption = new Option("nodes2", "nodes2file", true, "read a second graph nodes from a nodes.txt file");
+	nodes2FileOption.setRequired(false);
+	options.addOption(nodes2FileOption);
         // INPUT: paths.txt 
         Option pathsFileOption = new Option("paths", "pathsfile", true, "read graph paths from a paths.txt file");
         pathsFileOption.setRequired(false);
@@ -737,31 +766,37 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
         }
 
 	// check that we have a requested action
-	if (!cmd.hasOption("buildnodes") && !cmd.hasOption("buildpaths")) {
-	    System.err.println("ERROR: you must request building graph nodes (--nodes) or building graph paths (--paths)");
+	if (!cmd.hasOption("buildnodes") && !cmd.hasOption("buildpaths") && !cmd.hasOption("cat")) {
+	    System.err.println("ERROR: you must request building graph nodes (--nodes) or building graph paths (--paths) or concatenating two graphs (--cat)");
 	    System.exit(1);
 	}
 	boolean buildNodes = cmd.hasOption("buildnodes");
 	boolean buildPaths = cmd.hasOption("buildpaths");
+	boolean catGraphs = cmd.hasOption("cat");
 	
         // validation
         boolean haveVCF = cmd.hasOption("vcffile");
 	boolean haveList = cmd.hasOption("listfile");
 	boolean haveNodes = cmd.hasOption("nodesfile");
+	boolean haveNodes2 = cmd.hasOption("nodes2file");
 	boolean havePaths = cmd.hasOption("pathsfile");
 	boolean haveLabels = cmd.hasOption("labelsfile");
 	if (buildNodes && !haveVCF && !haveList && !haveNodes) {
-	    System.err.println("ERROR: to build a graph you must specify an input file with --vcf, --list, or --nodes");
+	    System.err.println("ERROR: to build a graph you must specify an input file with -vcf, -list, or -nodes");
 	    System.exit(1);
 	}
 	if (buildPaths && !haveVCF && !haveList && !haveNodes) {
-	    System.err.println("ERROR: to build graph paths you must specify an input file with --vcf, --list, or --nodes");
+	    System.err.println("ERROR: to build graph paths you must specify an input file with -vcf, -list, or -nodes");
 	    System.exit(1);
 	}
 	if (buildPaths && !haveLabels) {
-	    System.err.println("ERROR: to build graph paths you must specify samples and labels with --labels");
+	    System.err.println("ERROR: to build graph paths you must specify samples and labels with -l");
 	    System.exit(1);
-	}	    
+	}
+	if (catGraphs && (!haveNodes || !haveNodes2)) {
+	    System.err.println("ERROR: to concatenate two graphs you must specify -nodes and -nodes2");
+	    System.exit(1);
+	}
 
         // our PangenomicGraph
         PangenomicGraph graph = new PangenomicGraph(cmd.getOptionValue("graph"));
@@ -814,14 +849,24 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 		// load relevant nodes from a plink -list file
 		graph.loadNodesFromList(new File(cmd.getOptionValue("listfile")), minMAF, maxMAF);
 	    }
+	} else if (catGraphs) {
+	    // load the first graph's nodes
+	    graph.loadNodesFromTXT(new File(cmd.getOptionValue("nodesfile")));
+	    // append the second graph's nodes
+	    graph.appendNodesFromTXT(new File(cmd.getOptionValue("nodes2file")));
 	}
 
 	// output
 	if (!cmd.hasOption("nodesfile") && graph.getNodes().size()>0) {
-	    // to graph.nodes.txt, graph.paths.txt
+	    // to graph.nodes.txt
 	    if (graph.verbose) System.err.println("Writing "+graph.getNodesFilename());
 	    graph.printNodes(new PrintStream(graph.getNodesFilename()));
 	}
+	if (catGraphs) {
+	    // to graph.nodes.txt
+	    if (graph.verbose) System.err.println("Writing "+graph.getNodesFilename());
+	    graph.printNodes(new PrintStream(graph.getNodesFilename()));
+	}	    
 	if (!cmd.hasOption("pathsfile") && graph.paths.size()>0) {
 	    // to conglomerate paths filename
 	    String pathsFilename = graph.getPathsFilename()+"."+cmd.getOptionValue("labelsfile");
