@@ -170,11 +170,42 @@ public class GraphUtils {
 	    prs = prs/num;
             pathPRS.put(p, prs);
         }
-        // output
+        // per-subject PRS output
         System.out.println("sample\tlabel\tlogPRS");
         for (Path p : pathPRS.keySet()) {
             System.out.println(p.getName()+"\t"+p.getLabel()+"\t"+pathPRS.get(p));
         }
+	// summary stats
+	int cases = 0;
+	int controls = 0;
+	int TP = 0;
+	int TN = 0;
+	int FP = 0;
+	int FN = 0;
+	for (Path p : pathPRS.keySet()) {
+	    double prs = pathPRS.get(p);
+	    if (p.getLabel().equals("case")) {
+		cases++;
+		if (prs>0.0) {
+		    TP++;
+		} else {
+		    FN++;
+		}
+	    } else {
+		controls++;
+		if (prs<0.) {
+		    TN++;
+		} else {
+		    FP++;
+		}
+	    }
+	}
+	int correct = TP + TN;
+	double accuracy = (double)correct / (double)(cases+controls);
+	double TPR = (double)TP / (double)cases;
+	double FPR = (double)FP / (double)controls;
+	double MCC = getMCC(TP, TN, FP, FN);
+	System.err.println(correct+"\t"+accuracy+"\t"+TPR+"\t"+FPR+"\t"+MCC);
     }
 
     /**
@@ -318,5 +349,21 @@ public class GraphUtils {
 		out.println(builder.toString());
 	    }
         }
+    }
+
+    /**
+     * Return the MCC from a given set of int counts
+     */
+    public static double getMCC(int TP, int TN, int FP, int FN) {
+	return (double)(TP*TN-FP*FN) / Math.sqrt((double)(TP+FP)*(double)(TP+FN)*(double)(TN+FP)*(double)(TN+FN));
+    }
+
+    /**
+     * Return the MCC from a given set of rates, assuming equal cases and controls
+     */
+    public static double getMCC(double TPR, double FPR) {
+	double TNR = 1.0 - FPR;
+	double FNR = 1.0 - TPR;
+	return (TPR*TNR-FPR*FNR) / Math.sqrt((TPR+FPR)*(TPR+FNR)*(TNR+FPR)*(TNR+FNR));
     }
 }

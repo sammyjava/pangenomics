@@ -1,0 +1,46 @@
+#!/bin/sh
+
+DISEASE=sitosterolemia
+VCFFILE=eMERGE_EMRPhenome/CHR2.recode.vcf.gz
+
+SUFFIX=$1
+MAF=$2
+
+GRAPH=eMERGE_${DISEASE}_CHR2_${SUFFIX}
+
+TRAININGFILE=eMERGE_${DISEASE}.labels.txt
+TESTINGFILE=eMERGE_${DISEASE}.testing.labels.txt
+
+TRAININGPATHS=eMERGE_${DISEASE}_CHR2_${SUFFIX}.paths.txt
+TESTINGPATHS=eMERGE_${DISEASE}_CHR2_${SUFFIX}.testing.paths.txt
+BOTHPATHSPREFIX=eMERGE_${DISEASE}_CHR2_${SUFFIX}.both
+BOTHPATHS=${BOTHPATHSPREFIX}.paths.txt
+
+## build the graph and training paths
+echo "#######################################################"
+echo "########## BUILDING GRAPH AND TRAINING PATHS ##########"
+echo "#######################################################"
+./run-graph-vcf $GRAPH $TRAININGFILE $VCFFILE $MAF
+mv eMERGE_${DISEASE}_CHR2_${SUFFIX}.paths.txt.eMERGE_${DISEASE}.labels.txt $TRAININGPATHS
+
+## build the testing paths
+echo "############################################"
+echo "########## BUILDING TESTING PATHS ##########"
+echo "############################################"
+./run-graph-vcf-paths $GRAPH $TESTINGFILE $VCFFILE
+mv eMERGE_${DISEASE}_CHR2_${SUFFIX}.paths.txt.eMERGE_${DISEASE}.testing.labels.txt $TESTINGPATHS
+
+## classify the graph using training and testing
+echo "#################################################"
+echo "########## CLASSIFYING GRAPH WITH WEKA ##########"
+echo "#################################################"
+./classify-graph $GRAPH
+
+## build the combined paths for PRS
+cat $TRAININGPATHS $TESTINGPATHS > $BOTHPATHS
+
+## compute PRS on combined paths
+echo "#####################################################"
+echo "########## COMPUTING PRS ON COMBINED PATHS ##########"
+echo "#####################################################"
+./run-graphutils-prs $GRAPH $BOTHPATHSPREFIX 0

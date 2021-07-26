@@ -1,0 +1,34 @@
+#!/bin/sh
+
+DISEASE=$1
+SUFFIX=$2
+MAF=$3
+
+## build the graph and training paths
+echo "#######################################################"
+echo "########## BUILDING GRAPH AND TRAINING PATHS ##########"
+echo "#######################################################"
+./run-graph-list ${DISEASE} $SUFFIX $MAF
+mv HLA_PHEWAS_${DISEASE}_${SUFFIX}.paths.txt.HLA_PHEWAS_${DISEASE}.labels.txt HLA_PHEWAS_${DISEASE}_${SUFFIX}.paths.txt
+
+## build the testing paths
+echo "############################################"
+echo "########## BUILDING TESTING PATHS ##########"
+echo "############################################"
+./run-graph-list-paths HLA_PHEWAS_${DISEASE}_${SUFFIX} HLA_PHEWAS_${DISEASE}.testing.labels.txt
+mv HLA_PHEWAS_${DISEASE}_${SUFFIX}.paths.txt.HLA_PHEWAS_${DISEASE}.testing.labels.txt HLA_PHEWAS_${DISEASE}_${SUFFIX}.testing.paths.txt
+
+## classify the graph using training and testing
+echo "#################################################"
+echo "########## CLASSIFYING GRAPH WITH WEKA ##########"
+echo "#################################################"
+./classify-graph HLA_PHEWAS_${DISEASE}_${SUFFIX}
+
+## build the combined paths for PRS
+cat HLA_PHEWAS_${DISEASE}_${SUFFIX}.paths.txt HLA_PHEWAS_${DISEASE}_${SUFFIX}.testing.paths.txt > HLA_PHEWAS_${DISEASE}_${SUFFIX}.both.paths.txt
+
+## compute PRS on combined paths
+echo "#####################################################"
+echo "########## COMPUTING PRS ON COMBINED PATHS ##########"
+echo "#####################################################"
+./run-graphutils-prs HLA_PHEWAS_${DISEASE}_${SUFFIX} HLA_PHEWAS_${DISEASE}_${SUFFIX}.both 0

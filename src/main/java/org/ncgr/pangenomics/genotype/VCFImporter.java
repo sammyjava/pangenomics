@@ -201,7 +201,8 @@ public class VCFImporter extends Importer {
 		minorityCount += vc.getCalledChrCount(a);
 	    }
 	}
-	return (double)minorityCount / (double)vc.getCalledChrCount();
+	double maf = (double)minorityCount / (double)vc.getCalledChrCount();
+	return maf;
     }
 
     /**
