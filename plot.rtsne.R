@@ -1,24 +1,12 @@
 ## plot the results of an Rtsne run
-plot.rtsne = function(rtsne) {
-    casecol = rgb(1,0,0, maxColorValue=1, alpha = 0.15, names = "red")
-    ctrlcol = rgb(0,0,1, maxColorValue=1, alpha = 0.15, names = "blue")
+## provide a DF with the colors per path
+plot.rtsne = function(rtsne, paths) {
+    plot(rtsne$Y, col=paths$color, pch=19, xlab="tSNE dimension 1", ylab="tSNE dimension 2")
     
-    colors = array(dim=(caseNum+ctrlNum))
-    colors[cases] = casecol
-    colors[ctrls] = ctrlcol
-    
-    if ((caseNum+ctrlNum)<1000) {
-        cex = 2.0
-    } else {
-        cex = 1.0
-    }
-    
-    plot(rtsne$Y, col=colors, pch=19, cex=cex, main=prefix, xlab="tSNE dimension 1", ylab="tSNE dimension 2")
-    
-    legend(x="topright", bty="n", pch=19, cex=cex,
-           col=c(casecol,ctrlcol),
-           c(paste(caseNum,"cases"), paste(ctrlNum,"controls"))
-           )
+    ## legend(x="topright", bty="n", pch=19, cex=cex,
+    ##        col=c(casecol,ctrlcol),
+    ##        c(paste(caseNum,"cases"), paste(ctrlNum,"controls"))
+    ##        )
     
     legend(x="topleft", bty="n", cex=0.8, 
            c("Rtsne parameters",

@@ -26,11 +26,10 @@ require(Rtsne)
 ##         num_threads: integer; Number of threads to use using OpenMP, default 1. 0 corresponds to using all available cores
 ##               index: integer matrix; Each row contains the identity of the nearest neighbors for each observation
 ##            distance: numeric matrix; Each row contains the distance to the nearest neighbors in ‘index’ for each observation
-calc.rtsne = function(paths, prevResult=NULL) {
-    X = as.matrix(unique(paths))
+calc.rtsne = function(uniquepathmatrix, prevResult=NULL) {
     ## initial values
     Y_init = NULL
-    pca = TRUE
+    pca = FALSE
     partial_pca = TRUE
     theta = 0.5
     if (!is.null(prevResult)) {
@@ -41,7 +40,7 @@ calc.rtsne = function(paths, prevResult=NULL) {
         theta = prevResult$theta/2
     }
     ## run it
-    return(Rtsne(X, Y_init=Y_init,
+    return(Rtsne(uniquepathmatrix, Y_init=Y_init,
                  num_threads=0,
                  verbose=TRUE,
                  partial_pca=partial_pca,
