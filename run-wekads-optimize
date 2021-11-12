@@ -3,20 +3,20 @@
 #  -a,--arfffile <arg>       ARFF input file (required)
 #  -bo,--boostoption <arg>   boost method: Ada or Logit (none)
 #   -D,--debug               toggle on debug mode [false]
-#  -no,--numoptimize <arg>   the number of training/testing runs to optimize
+#  -no,--numoptimize <arg>   the number of train/test runs to optimize
 #                            the model [10]
 #  -op,--optimize            optimize model by running noptimize
-#                            training/testing runs and choosing best
+#                            train/test runs and choosing best
 #  -tf,--testfile <arg>      test data file in ARFF format
 
 PREFIX=$1
 
-TRAINFILE=$PREFIX.arff
-TESTFILE=$PREFIX.testing.arff
+TRAINFILE=$PREFIX.train.arff
+TESTFILE=$PREFIX.test.arff
 
 ## parameters
 NUMOPTIMIZE=25
 
-echo "WekaDecisionStump testing/training optimization on $TRAINFILE and $TESTFILE"
+echo "WekaDecisionStump test/train optimization on $TRAINFILE and $TESTFILE"
 java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaDecisionStump --optimize --arfffile=$TRAINFILE --testfile=$TESTFILE \
      --numoptimize=$NUMOPTIMIZE $2

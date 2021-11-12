@@ -23,16 +23,16 @@ MINPRI=$5
 ## make the filtered SVM files
 java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff -g $GRAPH -p $GRAPH         -f $FRPREFIX \
 	--minsupport $MINSUPPORT --maxpvalue $MAXP --minpriority $MINPRI
-java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff -g $GRAPH -p $GRAPH.testing -f $FRPREFIX \
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff -g $GRAPH -p $GRAPH.test -f $FRPREFIX \
 	--minsupport $MINSUPPORT --maxpvalue $MAXP --minpriority $MINPRI
 
 ## remove the extra chunk from the file names
 mv $FRPREFIX.$GRAPH.arff $FRPREFIX.arff
-mv $FRPREFIX.$GRAPH.testing.arff $FRPREFIX.testing.arff
+mv $FRPREFIX.$GRAPH.test.arff $FRPREFIX.test.arff
 
 ## SMO cross-validation grid search options
-TRAINFILE=$FRPREFIX.arff
-TESTFILE=$FRPREFIX.testing.arff
+TRAINFILE=$FRPREFIX.train.arff
+TESTFILE=$FRPREFIX.test.arff
 
 KFOLD=10
 NGRIDSEARCH=0

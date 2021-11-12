@@ -1,0 +1,17 @@
+#!/bin/sh
+
+PREFIX=$1
+VCF=$2
+MINMAF=$3
+
+VCFDIR=SCZ
+GRAPH=${PREFIX}_${VCF}_${MINMAF}
+
+## build the graph and train/test/both paths
+./build-graph $PREFIX $VCFDIR $VCF $MINMAF
+
+## classify the graph using train and test
+./classify-graph $GRAPH
+
+## compute PRS on combined paths
+./run-graphutils-prs $GRAPH $GRAPH.both 0

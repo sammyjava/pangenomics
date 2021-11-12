@@ -59,16 +59,20 @@
 
 ## required parameters
 graph=$1
-alpha=$2
-kappa=$3
-priorityoption=$4
+pathsfile=$2
+alpha=$3
+kappa=$4
+priorityoption=$5
 
-## use $5-$15 for extra parameters
+## assume nodes file is [graph].nodes.txt
+nodesfile=$graph.nodes.txt
 
-echo "# $graph alpha=$alpha kappa=$kappa priorityOption=$priorityoption $5 $6 $7 $8 $9 ${10} ${11} ${12} ${13} ${14} ${15}"
+## use $6-$15 for extra parameters
+
+echo "# $graph|$pathsfile alpha=$alpha kappa=$kappa priorityOption=$priorityoption $6 $7 $8 $9 ${10} ${11} ${12} ${13} ${14} ${15}"
 
 ## TXT input
 ## DO NOT USE -XX:+UseG1GC!!! Causes hang at certain RAM limit.
 java -server -Xms10g -Xmx500g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRFinder \
-	--verbose --graph=$graph --nodes=$graph.nodes.txt --paths=$graph.paths.txt --alpha=$alpha --kappa=$kappa --priorityoption=$priorityoption \
+	--verbose --graph=$graph --nodes=$nodesfile --paths=$pathsfile --alpha=$alpha --kappa=$kappa --priorityoption=$priorityoption \
 	$5 $6 $7 $8 $9 ${10} ${11} ${12} ${13} ${14} ${15}

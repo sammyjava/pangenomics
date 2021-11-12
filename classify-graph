@@ -2,10 +2,15 @@
 
 GRAPH=$1
 
-./run-graphutils-arff $1 $1.testing.paths.txt
-mv $GRAPH.arff $GRAPH.testing.arff
+echo "##########"
+echo "########## CLASSIFYING $GRAPH WITH WEKA"
+echo "##########"
 
-./run-graphutils-arff $1 $1.paths.txt
+./run-graphutils-arff $1 $1.test.paths.txt
+mv $GRAPH.arff $GRAPH.test.arff
+
+./run-graphutils-arff $1 $1.train.paths.txt
+mv $GRAPH.arff $GRAPH.train.arff
 
 ./run-wekads $GRAPH
 

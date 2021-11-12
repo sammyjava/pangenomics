@@ -21,14 +21,14 @@ MAXP=$4
 MINPRI=$5
 
 ## make the filtered SVM files
-java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff -g $GRAPH -p $GRAPH         -f $FRPREFIX \
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff -g $GRAPH -p $GRAPH.train -f $FRPREFIX \
 	--minsupport $MINSUPPORT --maxpvalue $MAXP --minpriority $MINPRI
-java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff -g $GRAPH -p $GRAPH.testing -f $FRPREFIX \
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff -g $GRAPH -p $GRAPH.test  -f $FRPREFIX \
 	--minsupport $MINSUPPORT --maxpvalue $MAXP --minpriority $MINPRI
 
 ## remove the extra chunk from the file names
-mv $FRPREFIX.$GRAPH.arff $FRPREFIX.arff
-mv $FRPREFIX.$GRAPH.testing.arff $FRPREFIX.testing.arff
+mv $FRPREFIX.$GRAPH.train.arff $FRPREFIX.train.arff
+mv $FRPREFIX.$GRAPH.test.arff $FRPREFIX.test.arff
 
 ## do the work
 ./run-wekarf $FRPREFIX 100 0

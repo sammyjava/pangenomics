@@ -1,0 +1,39 @@
+#!/bin/sh
+
+VCFDIR=SCZ
+
+PREFIX=$1
+VCF1=$2
+VCF2=$3
+MINMAF=$4
+
+GRAPH1="${PREFIX}_${VCF1}_${MINMAF}"
+GRAPH2="${PREFIX}_${VCF2}_${MINMAF}"
+
+TRAINLABELS=$PREFIX.train.labels.txt
+TESTLABELS=$PREFIX.test.labels.txt
+
+GRAPH="${PREFIX}_${VCF1}+${VCF2}_${MINMAF}"
+VCFFILE="$VCFDIR/${VCF1}+${VCF2}.vcf.gz"
+
+## concatenate the two graphs
+echo "##########"
+echo "########## concatenating $GRAPH1 + $GRAPH2"
+echo "##########"
+./run-graph-cat $GRAPH $GRAPH1.nodes.txt $GRAPH2.nodes.txt
+
+## build the graph paths
+echo "##########"
+echo "########## BUILDING $GRAPH TRAIN, TEST, AND COMBINED PATHS"
+echo "##########"
+./run-graph-vcf-paths $GRAPH $TRAINLABELS $VCFFILE
+mv $GRAPH.paths.txt.$TRAINLABELS $GRAPH.train.paths.txt
+./run-graph-vcf-paths $GRAPH $TESTLABELS $VCFFILE
+mv $GRAPH.paths.txt.$TESTLABELS $GRAPH.test.paths.txt
+cat $GRAPH.train.paths.txt $GRAPH.test.paths.txt > $GRAPH.both.paths.txt
+
+## classify the graph using train and test
+./classify-graph $GRAPH
+
+## compute PRS on combined paths
+./run-graphutils-prs $GRAPH $GRAPH.both 0

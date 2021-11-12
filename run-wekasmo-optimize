@@ -14,12 +14,12 @@
 #  -N,--normalization <arg>    0=normalize, 1=standardize, 2=neither [0]
 #  -ng,--ngridsearch <arg>     set number of cases+controls (equal) to use
 #                              in grid search [0=all]
-#  -no,--numoptimize <arg>     the number of training/testing runs to
+#  -no,--numoptimize <arg>     the number of train/test runs to
 #                              optimize the model [10]
 #  -op,--optimize              optimize model by running noptimize
-#                              training/testing runs and choosing best
+#                              train/test runs and choosing best
 #  -P,--epsilon <arg>          epsilon for round-off error [1.0e-12]
-#  -test,--test                run training/testing on datasets with given
+#  -test,--test                run train/test on datasets with given
 #                              SMO and kernel parameters
 #  -tf,--testfile <arg>        test data file in ARFF format
 
@@ -27,12 +27,12 @@ PREFIX=$1
 C=$2
 gamma=$3
 
-TRAINFILE=$PREFIX.arff
-TESTFILE=$PREFIX.testing.arff
+TRAINFILE=$PREFIX.train.arff
+TESTFILE=$PREFIX.test.arff
 
 KERNEL=RBF
 NUMOPTIMIZE=25
 
-echo "WekaSMO testing/training optimization on $TRAINFILE and $TESTFILE"
+echo "WekaSMO test/train optimization on $TRAINFILE and $TESTFILE"
 java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --optimize --arfffile=$TRAINFILE --testfile=$TESTFILE \
      --kernel=$KERNEL --complexity=$C --kernelparam=$gamma --numoptimize=$NUMOPTIMIZE $4

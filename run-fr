@@ -12,8 +12,7 @@
 #                                  equal kappaend)
 #  -n,--nodes <arg>                set of nodes to calculate FR e.g.
 #                                  [1,2,3,4,5]
-#  -p,--pathlabels <arg>           tab-delimited file with
-#                                  pathname<tab>label
+#  -p,--pathsfile <arg>            paths.txt file
 #  -pri,--priorityoption <arg>     option for priority weighting of FRs:
 #                                  0:label=total support or label support
 #                                  [null,case,ctrl], 1:label=(label
@@ -26,11 +25,12 @@
 #                                  [graph].paths.txt
 
 graph=$1
-alpha=$2
-kappa=$3
-priorityoption=$4
-nodes=$5
+pathsfile=$2
+alpha=$3
+kappa=$4
+priorityoption=$5
+nodes=$6
 
 ## priorityoption doesn't matter, we're just looking at an FR with alpha, kappa
 java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FrequentedRegion \
-     --txt --graph=$graph --alpha=$alpha --kappa=$kappa --priorityoption=$priorityoption --nodes=$nodes $6 $7 $8 $9
+     --txt --graph=$graph --pathsfile=$pathsfile --alpha=$alpha --kappa=$kappa --priorityoption=$priorityoption --nodes=$nodes $7 $8 $9

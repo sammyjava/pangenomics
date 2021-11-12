@@ -635,13 +635,13 @@ class FrequentedRegion implements Comparable {
         txtOption.setRequired(false);
         options.addOption(txtOption);
         //
-        Option labelsOption = new Option("p", "pathlabels", true, "tab-delimited file with pathname<tab>label");
-        labelsOption.setRequired(false);
-        options.addOption(labelsOption);
-        //
         Option nodesOption = new Option("n", "nodes", true, "set of nodes to calculate FR e.g. [1,2,3,4,5]");
         nodesOption.setRequired(true);
         options.addOption(nodesOption);
+	//
+	Option pathsOption = new Option("p", "pathsfile", true, "paths.txt file");
+	pathsOption.setRequired(true);
+	options.addOption(pathsOption);
         //
         Option excludedPathNodesOption = new Option("ep", "excludedpathnodes", true, "exclude paths that include any of the given nodes []");
         excludedPathNodesOption.setRequired(false);
@@ -669,10 +669,6 @@ class FrequentedRegion implements Comparable {
             return;
         }
         
-        // path labels file
-        File labelsFile = null;
-        if (cmd.hasOption("pathlabels")) labelsFile = new File(cmd.getOptionValue("pathlabels"));
-
         // alpha, kappa
         double alpha = Double.parseDouble(cmd.getOptionValue("alpha"));
         int kappa = Integer.parseInt(cmd.getOptionValue("kappa"));
@@ -694,7 +690,7 @@ class FrequentedRegion implements Comparable {
         // import the PangenomicGraph from a pair of TXT files
         PangenomicGraph pg = new PangenomicGraph(cmd.getOptionValue("graph"));
 	pg.loadNodesFromTXT(pg.getNodesFile());
-	pg.loadPathsFromTXT(pg.getPathsFile());
+	pg.loadPathsFromTXT(new File(cmd.getOptionValue("pathsfile")));
 	// remove paths that contain an excluded node, if given
 	String excludedPathNodeString = "[]";
 	if (cmd.hasOption("excludedpathnodes")) {

@@ -1,69 +1,48 @@
 ##
-## return a data frame containing the case/control stats per node with optional HET and HOM delineation
-## paths:
-##                N1 N2 N3 N4 N5 N6 N7 N8 N9 N10 N11 N12 N13 N14 N15 N16 N17 N18 Label
-## X339636.1.case  1  0  1  1  0  1  1  0  1   1   0   1   1   0   1   1   1   0 case
-## X508072.1.ctrl  1  0  1  1  0  1  1  0  1   1   0   1   1   0   1   1   1   0 ctrl
-
-source("pathName.R")
-source("pathLabel.R")
-source("pathGenotype.R")
-
-getNodeStats = function(doHetHom=FALSE) {
-    nodeStats = data.frame()
-    
-    ## casePaths, ctrlPaths, caseRef, caseHet, caseHom, ctrlRef, ctrlHet, ctrlHom
-    nCasePaths = nrow(paths[paths$Label=="case",])
-    nCtrlPaths = nrow(paths[paths$Label=="ctrl",])
-    for (n in 1:length(colnames(paths))) {
-        if (colnames(paths)[n]!="Label") {
-            casePaths = sum(paths[paths$Label=="case",n])
-            ctrlPaths = sum(paths[paths$Label=="ctrl",n])
-            nodeStats[n,"casePaths"] = casePaths
-            nodeStats[n,"ctrlPaths"] = ctrlPaths
-            if (nCasePaths>0 && nCtrlPaths>0 && ctrlPaths>0) {
-                pathOR = (casePaths/nCasePaths) / (ctrlPaths/nCtrlPaths)
-                nodeStats[n,"pathOR"] = pathOR
-                nodeStats[n, "log10PathOR"] = log10(pathOR)
-            }
-            nodeStats[n, "pathP"] = as.numeric(fisher.test(matrix(c(casePaths,nCasePaths,ctrlPaths,nCtrlPaths), nrow=2))["p.value"])
-            if (doHetHom) {
-                ## accumulate stats per sample; takes some time!
-                ## TODO: SPEED THIS UP!
-                caseHet = 0
-                ctrlHet = 0
-                caseHom = 0
-                ctrlHom = 0
-                ## coalesce the paths into sample names
-                sampleNames = unique(pathName(rownames(paths)))
-                for (s in 1:length(sampleNames)) {
-                    sampleName = sampleNames[s]
-                    case = is.na(paths[paste(sampleName,".0.ctrl",sep=""),1])
-                    if (case) {
-                        path.0 = paste(sampleName,".0.case",sep="")
-                        path.1 = paste(sampleName,".1.case",sep="")
-                        if ((paths[path.0,n]+paths[path.1,n])==2) {
-                            caseHom = caseHom + 1
-                        } else if ((paths[path.0,n]+paths[path.1,n])==1) {
-                            caseHet = caseHet + 1
-                        }
-                    } else {
-                        path.0 = paste(sampleName,".0.ctrl",sep="")
-                        path.1 = paste(sampleName,".1.ctrl",sep="")
-                        if ((paths[path.0,n]+paths[path.1,n])==2) {
-                            ctrlHom = ctrlHom + 1
-                        } else if ((paths[path.0,n]+paths[path.1,n])==1) {
-                            ctrlHet = ctrlHet + 1
-                        }
-                    }
-                }
-                nodeStats[n,"caseHet"] = caseHet
-                nodeStats[n,"caseHom"] = caseHom
-                nodeStats[n,"ctrlHet"] = ctrlHet
-                nodeStats[n,"ctrlHom"] = ctrlHom
-                nodeStats[n, "sampleP"] = as.numeric(fisher.test(matrix(c(caseHet,caseHom,ctrlHet,ctrlHom), nrow=2))["p.value"])
-            }
+## Return a data frame containing the case/control stats per node.
+## nodes are in a dataframe:  id rs contig start end genotype gf
+## paths are in a dataframe:  id label path color
+## paths$path is a string of the form: "[3,8,9,12,15,19,22,25,26,29,34,35,51,58,...]"
+##
+getNodeStats = function(nodes, paths) {
+    ## cases, ctrls, caseRef, caseHet, caseHom, ctrlRef, ctrlHet, ctrlHom
+    stats = data.frame(row.names=nodes$id)
+    stats$cases = 0
+    stats$ctrls = 0
+    casenum = nrow(paths[paths$label=="case",])
+    ctrlnum = nrow(paths[paths$label=="ctrl",])
+    for (i in 1:nrow(paths)) {
+        ## extract the path vector from the string representation
+        id = paths$id[i]
+        label = paths$label[i]
+        pathstring = paths$path[i]
+        pathstring = substr(pathstring, 2, nchar(pathstring))
+        pathstring = substr(pathstring, 1, nchar(pathstring)-1)
+        nodesvector = scan(text=pathstring, sep=",", quiet=TRUE)
+        ## increment the node case/ctrl counts
+        if (label=="case") {
+            stats$cases[nodesvector] = stats$cases[nodesvector] + 1
+        } else if (label=="ctrl") {
+            stats$ctrls[nodesvector] = stats$ctrls[nodesvector] + 1
         }
     }
-    return(nodeStats)
+    ## prune nodes with no participation
+    stats = stats[!is.null(stats$cases),]
+    stats = stats[(stats$cases+stats$ctrls)>0,]
+    ## spin through the nodes and compute stats
+    pos = stats$cases>0 & stats$ctrls>0
+    stats$OR[pos] = stats$cases[pos]/casenum / (stats$ctrls[pos]/ctrlnum)
+    stats$logOR[pos] = log10(stats$OR[pos])
+    ## more pruning
+    stats = stats[!is.na(stats$OR),]
+    ## Fisher
+    for (i in 1:nrow(stats)) {
+        casespos = stats$cases[i]
+        ctrlspos = stats$ctrls[i]
+        casesneg = casenum - casespos
+        ctrlsneg = ctrlnum - ctrlspos
+        stats$p[i] = fisher.test(matrix(c(casespos, casesneg, ctrlspos, ctrlsneg), nrow=2))$p.value
+    }
+    ## return
+    return(stats)
 }

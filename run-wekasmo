@@ -14,7 +14,7 @@
 #  -ng,--ngridsearch <arg>     set number of cases+controls (equal) to use
 #                              in grid search [0=all]
 #  -P,--epsilon <arg>          epsilon for round-off error [1.0e-12]
-#  -test,--test                run training/testing on datasets with given
+#  -test,--test                run train/test on datasets with given
 #                              SMO and kernel parameters
 #  -tf,--testfile <arg>        test data file in ARFF format
 
@@ -22,8 +22,8 @@ PREFIX=$1
 C=$2
 gamma=$3
 
-TRAINFILE=$PREFIX.arff
-TESTFILE=$PREFIX.testing.arff
+TRAINFILE=$PREFIX.train.arff
+TESTFILE=$PREFIX.test.arff
 
-echo "WekaSMO training/testing on $TRAINFILE/$TESTFILE with C=$C and gamma=$gamma"
+echo "WekaSMO train/test on $TRAINFILE/$TESTFILE with C=$C and gamma=$gamma"
 java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --test --arfffile=$TRAINFILE --testfile=$TESTFILE --complexity=$C --gamma=$gamma

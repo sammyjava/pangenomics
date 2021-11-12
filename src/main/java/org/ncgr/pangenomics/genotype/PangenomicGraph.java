@@ -741,11 +741,11 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 	maxCasesOption.setRequired(false);
 	options.addOption(maxCasesOption);
 	// FILTER: minMAF
-	Option minMAFOption = new Option("minmaf", "minmaf", true, "minimum MAF/MGF of loci to be included on graph [0.01]");
+	Option minMAFOption = new Option("minmaf", "minmaf", true, "minimum MAF/MGF of loci to be included on graph in percent [0]");
 	minMAFOption.setRequired(false);
 	options.addOption(minMAFOption);
 	// FILTER: maxMAF
-	Option maxMAFOption = new Option("maxmaf", "maxmaf", true, "maximum MAF/MGF of loci to be included on graph [1.00]");
+	Option maxMAFOption = new Option("maxmaf", "maxmaf", true, "maximum MAF/MGF of loci to be included on graph in percent [100.00]");
 	maxMAFOption.setRequired(false);
 	options.addOption(maxMAFOption);
 	
@@ -807,8 +807,8 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
 	double minMAF = 0.0;
 	double maxMAF = 1.0;
 	if (cmd.hasOption("maxcases")) maxCases = Integer.parseInt(cmd.getOptionValue("maxcases"));
-	if (cmd.hasOption("minmaf")) minMAF = Double.parseDouble(cmd.getOptionValue("minmaf"));
-	if (cmd.hasOption("maxmaf")) maxMAF = Double.parseDouble(cmd.getOptionValue("maxmaf"));
+	if (cmd.hasOption("minmaf")) minMAF = Double.parseDouble(cmd.getOptionValue("minmaf")) / 100.0;
+	if (cmd.hasOption("maxmaf")) maxMAF = Double.parseDouble(cmd.getOptionValue("maxmaf")) / 100.0;
 	boolean equalizeCasesControls = cmd.hasOption("equalizecasescontrols");
 
 	if (buildPaths) {
