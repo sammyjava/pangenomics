@@ -543,12 +543,19 @@ public class PangenomicGraph extends DirectedAcyclicGraph<Node,Edge> {
     public void printNodes(PrintStream out) {
         if (out==System.out) printHeading("NODES");
         for (Node n : getNodes()) {
-            out.println(n.id+"\t"+n.rs+"\t"+n.contig+"\t"+n.start+"\t"+n.end+"\t"+n.genotype+"\t"+n.gf);
-        }
+            out.println(toString(n));
+	}
     }
 
     /**
-     * Print the paths, labeled by path.getName().
+     * Output string for a single node. This differs a bit from Node.toString().
+     */
+    public static String toString(Node n) {
+	return n.id+"\t"+n.rs+"\t"+n.contig+"\t"+n.start+"\t"+n.end+"\t"+n.genotype+"\t"+n.gf;
+    }
+
+    /**
+     * Print the paths using path.toString().
      */
     public void printPaths(PrintStream out) {
         if (out==System.out) printHeading("PATHS");

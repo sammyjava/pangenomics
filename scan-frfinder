@@ -1,0 +1,29 @@
+#!/bin/bash
+
+#GRAPH=SCZ2000_CHR17_15
+#REQUIREDNODEEND=11351
+
+#GRAPH=SCZ4000_PRRC2A-HSPA1L_15
+#REQUIREDNODEEND=178
+
+GRAPH=SCZ4000_HLA_15
+REQUIREDNODEEND=5372
+
+####################
+PRIORITYOPTION=0
+MINPRIORITY=400
+MAXSIZE=0
+MINSUPPORT=0.01
+
+ALPHA=0.6
+KAPPA=5
+####################
+
+REQUIREDNODESTART=1
+
+java -server -cp "build/install/pangenomics/lib/*" -Xms10g -Xmx600g -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 org.ncgr.pangenomics.genotype.fr.FRFinder \
+        --requirebestnodeset --keep=subset \
+        --graph=$GRAPH --nodesfile=$GRAPH.nodes.txt --pathsfile=$GRAPH.train.paths.txt \
+        --alpha=$ALPHA --kappa=$KAPPA --priorityoption=$PRIORITYOPTION \
+        --minsupport=$MINSUPPORT --minpriority=$MINPRIORITY --maxsize=$MAXSIZE \
+        --requirednodescan="${REQUIREDNODESTART}-${REQUIREDNODEEND}"

@@ -21,7 +21,6 @@ buildOutputCleanup
 *.txt.gz
 *.fasta
 *.arff
-scan-*
 .RData
 .Rhistory
 *.model

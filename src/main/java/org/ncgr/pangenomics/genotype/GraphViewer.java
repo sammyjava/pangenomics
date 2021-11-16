@@ -97,15 +97,20 @@ public class GraphViewer {
 
     /**
      * Do the GUI work.
-     * @param graphName the name of the graph, from which the nodes and paths files will be formed
+     * @param graphName the file containing the graph nodes is graphName.nodes.txt
+     * @param pathsName the file containing the paths is pathsName.paths.txt
      * @param decorateEdges decorate edges to indicate the number of paths that traverse them
+     * @param minorNodeFrac fraction of paths defining minor (uninteresting) nodes
      */
     private static void createAndShowGUI(String graphName, String pathsName, boolean decorateEdges, double minorNodeFrac) throws IOException {
+	// form files
+	File graphFile = new File(graphName+".nodes.txt");
+	File pathsFile = new File(pathsName+".paths.txt");
         // get the graph
         PangenomicGraph graph = new PangenomicGraph(graphName);
         graph.verbose = true;
-	graph.loadNodesFromTXT(graph.getNodesFile());
-	graph.loadPathsFromTXT(graph.getPathsFile());
+	graph.loadNodesFromTXT(graphFile);
+	graph.loadPathsFromTXT(pathsFile);
         graph.tallyLabelCounts();
         graph.buildNodePaths();
 

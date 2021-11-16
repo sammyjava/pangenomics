@@ -89,6 +89,8 @@ class PGraphXAdapter extends JGraphXAdapter<Node,Edge> {
             mxCell c = (mxCell) o;
             if (c.isVertex()) {
                 Node n = (Node) c.getValue();
+		// change label to just Node id, rather than long Node.toString()
+		cellLabelChanged(c, new Long(n.id), true);
                 int pathCount = graph.getPathCount(n);
                 // remove orphaned nodes
                 if (pathCount==0) {
@@ -195,7 +197,9 @@ class PGraphXAdapter extends JGraphXAdapter<Node,Edge> {
     public String getToolTipForCell(Object o) {
         mxCell c = (mxCell) o;
         if (c.isVertex()) {
-            Node n = (Node) c.getValue();
+	    Long nid = (Long) c.getValue();
+	    Node n = graph.getNode(nid);
+            // Node n = (Node) c.getValue();
             int graphPathCount = graph.getPathCount();
             int nodePathCount = graph.getPathCount(n);
             double nodeFrac = (double)nodePathCount/(double)graphPathCount; // MAF

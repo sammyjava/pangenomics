@@ -10,4 +10,4 @@
 GRAPH=$1
 PATHS=$2
 
-java -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.GraphViewer -m 0.01 -g $GRAPH -p $PATHS $2 $3
+java -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.GraphViewer -m 0.01 -g $GRAPH -p $PATHS $3 $4

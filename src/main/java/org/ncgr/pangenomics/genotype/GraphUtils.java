@@ -25,6 +25,9 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
+import org.jgrapht.graph.AbstractGraph;
+import org.jgrapht.graph.AsSubgraph;
+
 /**
  * A collection of static methods to do utility stuff on a graph.
  */
@@ -79,6 +82,18 @@ public class GraphUtils {
 	Option printNodePathsFileOption = new Option("nodepaths", "printnodepathsfile", false, "print out node paths file");
 	printNodePathsFileOption.setRequired(false);
 	options.addOption(printNodePathsFileOption);
+	//
+	Option printSubgraphOption = new Option("sg", "subgraph", false, "print out a subgraph; requires startnode and endnode");
+	printSubgraphOption.setRequired(false);
+	options.addOption(printSubgraphOption);
+	//
+	Option startNodeOption = new Option("sn", "startnode", true, "starting node for subgraph");
+	startNodeOption.setRequired(false);
+	options.addOption(startNodeOption);
+	//
+	Option endNodeOption = new Option("en", "endnode", true, "ending node for subgraph");
+	endNodeOption.setRequired(false);
+	options.addOption(endNodeOption);
 
         try {
             cmd = parser.parse(options, args);
@@ -95,7 +110,28 @@ public class GraphUtils {
             return;
         }
 
-        // our PangenomicGraph
+	// parameters
+	double minMGF = 0.01;
+	if (cmd.hasOption("minmgf")) {
+	    minMGF = Double.parseDouble(cmd.getOptionValue("minmgf"));
+	}
+	long startNodeId = 0;
+	long endNodeId = 0;
+	if (cmd.hasOption("subgraph")) {
+	    if (!cmd.hasOption("startnode") || !cmd.hasOption("endnode")) {
+		System.err.println("ERROR: startnode and endnode are required by subgraph option.");
+		System.exit(1);
+	    }
+	    try {
+		startNodeId = Long.parseLong(cmd.getOptionValue("startnode"));
+		endNodeId = Long.parseLong(cmd.getOptionValue("endnode"));
+	    } catch (NumberFormatException ex) {
+		System.err.println("ERROR: startnode and/or endnode are not integers.");
+		System.exit(1);
+	    }
+	}
+	
+        // build our PangenomicGraph
         PangenomicGraph graph = new PangenomicGraph(cmd.getOptionValue("graph"));
 	graph.verbose = true;
 	graph.loadNodesFromTXT(new File(cmd.getOptionValue("nodesfile")));
@@ -103,12 +139,6 @@ public class GraphUtils {
 	graph.tallyLabelCounts();
 	System.err.println(graph.name+" has "+graph.vertexSet().size()+" nodes and "+graph.paths.size()+" paths: "+
 			   graph.labelCounts.get("case")+"/"+graph.labelCounts.get("ctrl")+" cases/controls");
-
-	// parameters
-	double minMGF = 0.01;
-	if (cmd.hasOption("minmgf")) {
-	    minMGF = Double.parseDouble(cmd.getOptionValue("minmgf"));
-	}
 
         // actions
 	if (cmd.hasOption("printnodepathsfile")) {
@@ -133,6 +163,30 @@ public class GraphUtils {
 	    printSvmData(graph, new PrintStream(svmFilename));
 	} else if (cmd.hasOption("computeprs")) {
             computePRS(graph, minMGF);
+	} else if (cmd.hasOption("subgraph")) {
+	    System.out.println("Computing subgraph over node range "+startNodeId+"-"+endNodeId+".");
+	    // form Set of included nodes
+	    Set<Node> includedNodes = new TreeSet<>();
+	    for (long id : graph.nodeIdMap.keySet()) {
+		if (id>=startNodeId && id<=endNodeId) {
+		    includedNodes.add(graph.nodeIdMap.get(id));
+		}
+	    }
+	    // create the subgraph
+	    AbstractGraph<Node,Edge> subgraph = new AsSubgraph<Node,Edge>(graph, includedNodes);
+	    // output the subgraph nodes file
+	    PrintStream nodeStream = new PrintStream(graph.name+".subgraph.nodes.txt");
+	    for (Node n : subgraph.vertexSet()) {
+		nodeStream.println(PangenomicGraph.toString(n));
+	    }
+	    System.out.println("Printed subgraph nodes to "+graph.name+".subgraph.nodes.txt");
+	    // output the subgraph paths file
+	    PrintStream pathStream = new PrintStream(graph.name+".subgraph.paths.txt");
+	    for (Path p : graph.paths) {
+		Path subpath = getSubpath(graph, p, startNodeId, endNodeId);
+		pathStream.println(subpath.toString());
+	    }
+	    System.out.println("Printed subgraph paths to "+graph.name+".subgraph.paths.txt");
 	}
     }
 
@@ -352,18 +406,34 @@ public class GraphUtils {
     }
 
     /**
-     * Return the MCC from a given set of int counts
+     * Return the MCC from a given set of int counts.
      */
     public static double getMCC(int TP, int TN, int FP, int FN) {
 	return (double)(TP*TN-FP*FN) / Math.sqrt((double)(TP+FP)*(double)(TP+FN)*(double)(TN+FP)*(double)(TN+FN));
     }
 
     /**
-     * Return the MCC from a given set of rates, assuming equal cases and controls
+     * Return the MCC from a given set of rates, assuming equal cases and controls.
      */
     public static double getMCC(double TPR, double FPR) {
 	double TNR = 1.0 - FPR;
 	double FNR = 1.0 - TPR;
 	return (TPR*TNR-FPR*FNR) / Math.sqrt((TPR+FPR)*(TPR+FNR)*(TNR+FPR)*(TNR+FNR));
+    }
+
+    /**
+     * Return the subpath inclusively between the two node IDs, even if the path doesn't contain one and/or the other node.
+     * @param start the starting Node id
+     * @param finish the ending Node id
+     * @return the subpath inclusively between start and finish
+     */
+    public static Path getSubpath(PangenomicGraph g, Path p, long start, long finish) {
+        List<Node> subnodes = new LinkedList<>();
+	for (Node node : p.getNodes()) {
+	    if (node.id>=start && node.id<=finish) {
+		subnodes.add(node);
+	    }
+        }
+        return new Path(g, subnodes, p.getSample());
     }
 }

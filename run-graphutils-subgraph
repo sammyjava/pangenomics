@@ -1,0 +1,27 @@
+#!/bin/sh
+# usage: GraphUtils
+#  -g,--graph <arg>                  name of graph
+#  -nodes,--nodesfile <arg>          load graph nodes from this nodes.txt
+#                                    file
+#  -paths,--pathsfile <arg>          load graph paths from this paths.txt
+#                                    file
+#  -sg,--subgraph                    print out a subgraph; requires
+#                                    startnode and endnode
+#  -sn,--startnode <arg>             starting node for subgraph
+#  -en,--endnode <arg>               ending node for subgraph
+
+
+GRAPH=$1
+PATHSPREFIX=$2
+STARTNODE=$3
+ENDNODE=$4
+
+NODESFILE=$GRAPH.nodes.txt
+PATHSFILE=$PATHSPREFIX.paths.txt
+
+echo "##########"
+echo "########## COMPUTING SUBGRAPH ON $PATHSFILE FROM $STARTNODE TO $ENDNODE"
+echo "##########"
+
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.GraphUtils --subgraph \
+	--graph=$GRAPH --nodesfile=$NODESFILE --pathsfile=$PATHSFILE --startnode=$STARTNODE --endnode=$ENDNODE
