@@ -76,7 +76,7 @@ public class FRUtils {
 	System.err.println("Loaded "+frequentedRegions.size()+" FRs from "+frsPrefix);
 	/////////////////////////////////////////////////////////////////////////////////
 	// build the subpaths for each FR
-	System.err.println("Updating FR support and priorities...");
+	System.err.println("Updating FR subpaths, support, and priority...");
 	Set<FrequentedRegion> updatedFRs = frequentedRegions.parallelStream().map(fr -> {
 		fr.update();
 		return fr;
@@ -576,37 +576,46 @@ public class FRUtils {
     }
 
     /**
-     * Print out the best (last per run) FRs from a combined run file. Uses a LinkedHashSet to make sure they're unique with input iteration order.
+     * Print out the "best" FRs from a combined run file. Uses a LinkedHashSet to make sure they're unique with input iteration order.
+     * The "best" FR per section is the one with the highest priority.
      *
      * 0        1       2       3       4       5       6       7
      * nodes	size	support	case	ctrl	OR	p	pri
      * [891]	1	4712	2549	2163	1.178	1.01E-14	71
-     * [786,891]	2	113	10	103	0.097	8.54E-21	1012
      * [711,786,891]	3	104	2	102	0.020	3.25E-28	1707 <== print this one
+     * [786,891]	2	113	10	103	0.097	8.54E-21	1012
      * nodes	size	support	case	ctrl	OR	p	pri
      * [892]	1	5149	2377	2772	0.858	2.50E-15	66
+     * [259,411,873,892]	4	100	23	77	0.299	4.76E-8	524 <== print this one
      * [259,892]	2	204	66	138	0.478	3.92E-7	320
      * [259,411,892]	3	101	24	77	0.312	1.02E-7	506
-     * [259,411,873,892]	4	100	23	77	0.299	4.76E-8	524 <== print this one
      */
     public static void printBestFRs(String frFilename) throws IOException {
 	Set<String> bestLines = new LinkedHashSet<>();
         BufferedReader reader = new BufferedReader(new FileReader(frFilename));
 	String header = null;
-	String lastLine = null;
+	String bestLine = null;
         String thisLine = null;
+	int bestPriority = 0;
         while ((thisLine=reader.readLine())!=null) {
-	    if (lastLine==null) {
+	    if (thisLine.startsWith("nodes")) {
 		// header
 		header = thisLine;
-	    } else if (thisLine.startsWith("nodes") && lastLine!=null) {
-		// best FR from this round
-		bestLines.add(lastLine);
+		if (bestLine!=null) {
+		    // add best FR from previous round
+		    bestLines.add(bestLine);
+		}
+		bestPriority = 0; // reset
+	    } else {
+		// new FR
+		FrequentedRegion fr = new FrequentedRegion(thisLine);
+		if (fr.priority>bestPriority) {
+		    bestLine = thisLine;
+		}
 	    }
-	    lastLine = thisLine;
 	}
 	// last best FR
-	bestLines.add(lastLine);
+	bestLines.add(bestLine);
 	// spit 'em out
 	System.out.println(header);
 	for (String line : bestLines) {

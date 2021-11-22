@@ -32,11 +32,11 @@ import org.apache.commons.cli.ParseException;
 class FrequentedRegion implements Comparable {
 
     static String PRIORITY_OPTIONS =
-        "0:label=total support or label support [null,case,ctrl], " +
-        "1:label=(label support-other support) [case,ctrl,alt], " +
-        "2=|case support-control support|, " +
-        "3:label=O.R. in label's favor [null,case,ctrl], " +
-        "4=Fisher's exact test two-tailed p value";
+	"0:label = total support or label support [null,case,ctrl]," +
+	"1:label = (label support-other support) [case,ctrl,alt]," +
+	"2 = |case support-control support|, " +
+	"3:label = odds ratio in label's favor [null,case,ctrl], " +
+	"4 = Fisher's exact test two-tailed p value";
 
     // static utility stuff
     static DecimalFormat df = new DecimalFormat("0.00");

@@ -16,23 +16,22 @@
 GRAPH=$1
 FRPREFIX=$2
 
-MINSUPPORT=$3
-MAXP=$4
-MINPRI=$5
+MINSUPPORT=0
+MAXP=1
+MINPRI=0
 
-## make the filtered SVM files
-java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff -g $GRAPH -p $GRAPH         -f $FRPREFIX \
+TRAINFILE=$FRPREFIX.train.arff
+TESTFILE=$FRPREFIX.test.arff
+
+## make the filtered ARFF files
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff -g $GRAPH -p $GRAPH.train -f $FRPREFIX \
 	--minsupport $MINSUPPORT --maxpvalue $MAXP --minpriority $MINPRI
-java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff -g $GRAPH -p $GRAPH.test -f $FRPREFIX \
+java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff -g $GRAPH -p $GRAPH.test  -f $FRPREFIX \
 	--minsupport $MINSUPPORT --maxpvalue $MAXP --minpriority $MINPRI
 
 ## remove the extra chunk from the file names
-mv $FRPREFIX.$GRAPH.arff $FRPREFIX.arff
-mv $FRPREFIX.$GRAPH.test.arff $FRPREFIX.test.arff
-
-## SMO cross-validation grid search options
-TRAINFILE=$FRPREFIX.train.arff
-TESTFILE=$FRPREFIX.test.arff
+mv $FRPREFIX.$GRAPH.train.arff $TRAINFILE
+mv $FRPREFIX.$GRAPH.test.arff  $TESTFILE
 
 KFOLD=10
 NGRIDSEARCH=0
@@ -40,7 +39,6 @@ CPOWERSTEP=1
 GAMMAPOWERSTEP=1
 GAMMAPOWERBEGIN=-30
 GAMMAPOWEREND=-10
-
 
 ## run grid search in several batches because can't get more than about 10 threads per job
 java -server -cp "build/install/pangenomics/lib/*" org.ncgr.weka.WekaSMO --gridsearch --arfffile=$TRAINFILE --kfold=$KFOLD --ngridsearch=$NGRIDSEARCH \

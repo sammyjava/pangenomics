@@ -16,11 +16,11 @@
 GRAPH=$1
 FRPREFIX=$2
 
-MINSUPPORT=$3
-MAXP=$4
-MINPRI=$5
+MINSUPPORT=0
+MAXP=1
+MINPRI=0
 
-## make the filtered SVM files
+## make the filtered ARFF files
 java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff -g $GRAPH -p $GRAPH.train -f $FRPREFIX \
 	--minsupport $MINSUPPORT --maxpvalue $MAXP --minpriority $MINPRI
 java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.fr.FRUtils -arff -g $GRAPH -p $GRAPH.test  -f $FRPREFIX \

@@ -30,4 +30,8 @@ java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype
 mv $FRPREFIX.$GRAPH.train.arff $FRPREFIX.train.arff
 mv $FRPREFIX.$GRAPH.test.arff $FRPREFIX.test.arff
 
-./run-wekads $FRPREFIX $6
+## run Weka DecisionStump
+./run-wekads $FRPREFIX
+
+## run Weka RandomForest
+./run-wekarf $FRPREFIX 100 0
