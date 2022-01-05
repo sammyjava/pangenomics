@@ -1,17 +1,29 @@
 #!/bin/sh
 
-PREFIX=$1
-VCF=$2
-MINMAF=$3
+VCF=$1
+MINMAF=$2
 
-VCFDIR=SCZ
-GRAPH=${PREFIX}_${VCF}_${MINMAF}
+GRAPHLABELSPREFIX=SCZ8000
+TESTLABELSPREFIX=SCZ1938
+
+GRAPH=${GRAPHLABELSPREFIX}_${VCF}_${MINMAF}
+GRAPHLABELSFILE=$GRAPHLABELSPREFIX.labels.txt
+TESTLABELSFILE=$TESTLABELSPREFIX.labels.txt
+
+TRAINPATHFILE=$GRAPH.paths.txt
+TESTPATHFILE=$GRAPH.$TESTLABELSPREFIX.paths.txt
+
+VCFFILE=SCZ/$VCF.vcf.gz
 
 ## build the graph and train/test/both paths
-./build-graph $PREFIX $VCFDIR $VCF $MINMAF
+./build-graph $GRAPH $VCFFILE $GRAPHLABELSPREFIX $TESTLABELSPREFIX $MINMAF
 
-## classify the graph using train and test
-./classify-graph $GRAPH
+## classify the graph using training and testing paths
+./classify-graph $GRAPH $TRAINPATHFILE $TESTPATHFILE
 
 ## compute PRS on combined paths
-./run-graphutils-prs $GRAPH $GRAPH.both 0
+## NEEDS TO BE UPDATED TO COMPUTE O.R. FROM TRAIN PATHS AND PRS ON TEST PATHS
+# GRAPH=$1
+# PATHSPREFIX=$2
+# MINMGF=$3
+#./run-graphutils-prs $GRAPH $GRAPH 0

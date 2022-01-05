@@ -1,16 +1,18 @@
 #!/bin/sh
 
 GRAPH=$1
+TRAINPATHFILE=$2
+TESTPATHFILE=$3
 
 echo "##########"
 echo "########## CLASSIFYING $GRAPH WITH WEKA"
 echo "##########"
 
-./run-graphutils-arff $1 $1.test.paths.txt
-mv $GRAPH.arff $GRAPH.test.arff
-
-./run-graphutils-arff $1 $1.train.paths.txt
+./run-graphutils-arff $GRAPH $TRAINPATHFILE
 mv $GRAPH.arff $GRAPH.train.arff
+
+./run-graphutils-arff $GRAPH $TESTPATHFILE
+mv $GRAPH.arff $GRAPH.test.arff
 
 ./run-wekads $GRAPH
 

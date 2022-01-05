@@ -297,10 +297,8 @@ public class GraphUtils {
         // data
         out.println("@DATA");
 	///////////////////////////////////////////////////////////////////////////////////////
-	Set<Path> concurrentPaths = ConcurrentHashMap.newKeySet();
-	concurrentPaths.addAll(graph.paths);
 	Set<String> arffData = ConcurrentHashMap.newKeySet();
-	concurrentPaths.parallelStream().forEach(path -> {
+	graph.paths.parallelStream().forEach(path -> {
 		String arff = path.getName();
 		for (Node node : graph.getNodes()) {
 		    if (path.traverses(node)) {
@@ -329,10 +327,8 @@ public class GraphUtils {
      */
     public static void printSvmData(PangenomicGraph graph, PrintStream out) {
 	///////////////////////////////////////////////////////////////////////////////////////
-	Set<Path> concurrentPaths = ConcurrentHashMap.newKeySet();
-	concurrentPaths.addAll(graph.paths);
 	Set<String> svmData = ConcurrentHashMap.newKeySet();
-	concurrentPaths.parallelStream().forEach(path -> {
+	graph.paths.parallelStream().forEach(path -> {
 		String svm = path.getName()+"\t"+path.getLabel();
 		int n = 0;
 		for (Node node : graph.getNodes()) {
@@ -366,10 +362,8 @@ public class GraphUtils {
         out.println(headerBuilder.toString());
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// rows are nodes and counts of path support of each node
-	Set<Node> concurrentNodes = ConcurrentHashMap.newKeySet();
-	concurrentNodes.addAll(graph.getNodes());
 	Map<Node,String> pcaData = new ConcurrentHashMap<>();
-	concurrentNodes.parallelStream().forEach(node -> {
+	graph.getNodes().parallelStream().forEach(node -> {
 		StringBuilder lineBuilder = new StringBuilder();
 		lineBuilder.append("N"+node.id);
 		// spin through every path, printing 0/1 if path doesn't/does traverse this node

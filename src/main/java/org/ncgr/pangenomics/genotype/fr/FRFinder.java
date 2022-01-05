@@ -125,13 +125,10 @@ public class FRFinder {
 	// load the single-node FRs into initialFrequentedRegions
 	// - keep those not in excludedNodes
 	// - exclude those with insufficient support if alpha=1.0
-	
-	Set<Node> nodes = ConcurrentHashMap.newKeySet();
-	nodes.addAll(graph.getNodes());
 	Set<Node> excRejects = ConcurrentHashMap.newKeySet();
 	Set<Node> supportRejects = ConcurrentHashMap.newKeySet();
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	nodes.parallelStream().forEach(node -> {
+	graph.getNodes().parallelStream().forEach(node -> {
 		if (excludedNodes.contains(node)) {
 		    excRejects.add(node);
 		} else {

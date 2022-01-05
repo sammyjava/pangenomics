@@ -1,14 +1,4 @@
 *~
-## dbGaP data
-CIDR_HD_Modifiers
-NeuropsychiatricNeurodevelopmental_Disorders
-eMERGE_EMRPhenome
-SCZ
-AREDS
-GenomicPsychiatryCohort
-HLA_PHEWAS
-## general
-runs
 .gradle
 build
 buildOutputCleanup

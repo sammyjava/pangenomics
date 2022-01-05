@@ -29,5 +29,7 @@ GRAPH=$1
 LABELSFILE=$2
 VCFFILE=$3
 
+NODESFILE=$GRAPH.nodes.txt
+
 java -server -cp "build/install/pangenomics/lib/*" org.ncgr.pangenomics.genotype.PangenomicGraph -v --buildpaths --graph=$GRAPH \
-     --nodesfile=$GRAPH.nodes.txt --labelsfile $LABELSFILE --vcffile=$VCFFILE
+     --nodesfile=$NODESFILE --labelsfile $LABELSFILE --vcffile=$VCFFILE

@@ -1,33 +1,41 @@
 #!/bin/sh
 
-PREFIX=$1
-VCFDIR=$2
-VCF=$3
-MINMAF=$4
+GRAPH=$1
+VCFFILE=$2
+GRAPHLABELSPREFIX=$3
+TESTLABELSPREFIX=$4
+MINMAF=$5
+
+GRAPHLABELSFILE=$GRAPHLABELSPREFIX.labels.txt
+TESTLABELSFILE=$TESTLABELSPREFIX.labels.txt
 
 ## example:
-## PREFIX=SCZ4000
-## VCFDIR=SCZ
-## VCF=CHR6
+## GRAPH=SCZ8000_CHR1_15
+## VCFFILE=SCZ/CHR1.vcf.gz
+## GRAPHLABELSFILE=SCZ8000.labels.txt
+## TESTLABELSFILE=SCZ1938.labels.txt
 ## MINMAF=15
 
-GRAPH=${PREFIX}_${VCF}_${MINMAF}
-VCFFILE=$VCFDIR/$VCF.vcf.gz
-TRAINLABELS=$PREFIX.train.labels.txt
-TESTLABELS=$PREFIX.test.labels.txt
-
 ## build the graph and train paths
+# GRAPH=$1
+# LABELSFILE=$2
+# VCFFILE=$3
+# MINMAF=$4
 echo "##########"
 echo "########## BUILDING $GRAPH"
 echo "##########"
-./run-graph-vcf $GRAPH $TRAINLABELS $VCFFILE $MINMAF
-mv $GRAPH.paths.txt.$TRAINLABELS $GRAPH.train.paths.txt
+./run-graph-vcf $GRAPH $GRAPHLABELSFILE $VCFFILE $MINMAF
+
+mv $GRAPH.paths.txt.$GRAPHLABELSFILE $GRAPH.paths.txt
 
 ## build the test paths on the same graph
+# GRAPH=$1
+# LABELSFILE=$2
+# VCFFILE=$3
 echo "##########"
-echo "########## BUILDING $GRAPH TEST AND COMBINED PATHS"
+echo "########## BUILDING $GRAPH TEST PATHS"
 echo "##########"
-./run-graph-vcf-paths $GRAPH $TESTLABELS $VCFFILE
-mv $GRAPH.paths.txt.$TESTLABELS $GRAPH.test.paths.txt
-cat $GRAPH.train.paths.txt $GRAPH.test.paths.txt > $GRAPH.both.paths.txt
+./run-graph-vcf-paths $GRAPH $TESTLABELSFILE $VCFFILE
+
+mv $GRAPH.paths.txt.$TESTLABELSFILE $GRAPH.$TESTLABELSPREFIX.paths.txt
 

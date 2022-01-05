@@ -17,6 +17,8 @@
 #  -svm,--printsvmfile               print out a LIBSVM-compatible file of
 #                                    path node participation
 
+## NEEDS TO BE UPDATED TO COMPUTE O.R. FROM TRAIN PATHS AND PRS ON TEST PATHS
+
 GRAPH=$1
 PATHSPREFIX=$2
 MINMGF=$3
